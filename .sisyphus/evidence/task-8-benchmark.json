@@ -1,0 +1,9 @@
+{
+	"screenshot_p50_ms": null,
+	"screenshot_p95_ms": null,
+	"axtree_p50_ms": 74,
+	"axtree_p95_ms": 151,
+	"getappstate_p50_ms": null,
+	"getappstate_p95_ms": null,
+	"permission_granted": false
+}
