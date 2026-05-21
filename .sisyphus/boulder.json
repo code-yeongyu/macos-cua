@@ -3,7 +3,35 @@
 	"started_at": "2026-05-14T09:07:06.805Z",
 	"closed_at": "2026-05-21T15:02:00.000Z",
 	"plan_name": "codex-parity-refactor",
-	"status": "awaiting_user_acceptance",
+	"status": "perf_pass_complete_sck_shipped",
+	"perf_pass": {
+		"trigger": "User: 'codex cua 마냥 빠르고깔끔하게 도는거맞아?' + 'codex way letsgo' + '별도 프로세스로라도 가능하면 그렇게라도 하게해저쉠'",
+		"phase_2_commits": [
+			"faf36a9 perf(core): replace shell-out screenshot with CGDisplayCreateImage + CGDisplayBounds FFI",
+			"ecf7b51 perf(core): scale PNG via ImageIO kCGImageDestinationImageMaxPixelSize",
+			"c551c12 feat(core): wire ScreenCaptureKit path via libsckit.dylib for Codex-style capture"
+		],
+		"final_shipped_perf": {
+			"path": "ScreenCaptureKit (SCScreenshotManager) via libsckit.dylib",
+			"production_p50_ms": 82,
+			"production_p95_ms": 105,
+			"production_min_ms": 60,
+			"first_call_cold_start_ms": 714,
+			"baseline_cli_p50_ms": 608,
+			"speedup_factor": 7.4,
+			"codex_architectural_parity": true
+		},
+		"alternative_path_kept_as_fallback": {
+			"path": "CGDisplayCreateImage + ImageIO maxPixelSize",
+			"production_p50_ms": 61,
+			"production_p95_ms": 82,
+			"production_min_ms": 48,
+			"speedup_factor": 10.0,
+			"used_when": "libsckit.dylib unavailable or SCK capture fails"
+		},
+		"librarian_research": "bg_da87538b — confirmed SCK requires .dylib shim (Node koffi cannot construct ObjC blocks), CGWindowListCreateImage broken on macOS 26+",
+		"empirical_finding": "On macOS 26.3 arm64, SCK is ~15ms slower per call than CGDisplayCreateImage for one-shot PNG screenshots. The 16-33ms Codex parity number was unreachable via either path on this platform; SCK chosen for architectural parity, not peak latency."
+	},
 	"task_status": {
 		"completed": 23,
 		"cancelled": 2,

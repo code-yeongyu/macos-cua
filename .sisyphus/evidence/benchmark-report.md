@@ -105,6 +105,68 @@ Tool count target (≤ 5) was deliberately abandoned in favor of Codex-vocabular
 
 ---
 
+## Phase 2 — FFI Screenshot Pipeline (post-closeout, 2026-05-21)
+
+User rejected closeout acceptance: "codex cua 마냥 빠르고깔끔하게 도는거맞아?" Triggered a fresh perf pass focused on the screenshot hot path.
+
+### Architecture Change
+
+| Stage | Phase 1 (shipped) | Phase 2 (current) |
+|---|---|---|
+| Native capture | `sh -c "screencapture -x -o /tmp/.png"` (CLI subprocess) | `CGDisplayCreateImage` via koffi FFI |
+| Logical screen size | `osascript` Finder bounds or `system_profiler` (CLI) | `CGDisplayBounds` via koffi FFI |
+| Scale + encode | `sips -z W H` (separate CLI subprocess) | `CGImageDestinationAddImage` with `kCGImageDestinationImageMaxPixelSize` property |
+| Window-targeted | `screencapture -l <id>` (CLI) | Same (kept; CGWindowListCreateImage broken in macOS 26.3) |
+
+### Measured Speedup (100 iter, persistent Node process, target 1280px long edge)
+
+| Path | p50 | p95 | min |
+|---|---|---|---|
+| Phase 1 baseline (CLI shell-out) | 608 ms | 1015 ms | — |
+| Phase 2.1 (FFI capture + manual CGBitmapContext scale + ImageIO PNG) | 134 ms | 504 ms | 95 ms |
+| Phase 2.2 (FFI capture + ImageIO native scale + ImageIO PNG) | **61 ms** | **82 ms** | **48 ms** |
+
+**10× faster than Phase 1 CLI baseline.** Approaching but not matching Codex Computer Use's reported 16-33 ms p50.
+
+### Per-Stage Profile (Phase 2.2)
+
+| Stage | Cost p50 |
+|---|---|
+| `CGDisplayCreateImage` (5K native) | ~27 ms |
+| `ImageIO scale + PNG encode` (5K → 1280) | ~33 ms |
+| **Total** | **~60 ms** |
+
+### Codex Parity via ScreenCaptureKit
+
+User requested Codex's actual API (SCScreenshotManager). Per librarian research (`bg_da87538b`), `SCScreenshotManager.captureImageWithFilter:configuration:completionHandler:` is async with an ObjC block parameter. Node.js koffi cannot construct ObjC blocks reliably (no production examples exist). Every production SCK consumer (sckit-go, kbinani/screenshot, screencapturekit-node, screencapturekit-rs) uses a tiny ObjC `.dylib` shim that wraps the async call behind a synchronous C boundary via `dispatch_semaphore`.
+
+Shipped: `packages/core/native/libsckit.dylib` (55KB arm64) loaded in-process via `dlopen` (NOT a separate subprocess, NOT a separate TCC grant). Falls back to CGDisplayCreateImage if the dylib fails to load.
+
+| Path | Production p50 | p95 | min | First call (cold) | Notes |
+|---|---|---|---|---|---|
+| Phase 1 CLI baseline | 608 ms | 1015 ms | — | — | shell-out to `screencapture`+`sips` |
+| Phase 2.1 CGDisplay + CGBitmap scale | 134 ms | 504 ms | 95 ms | — | first FFI version (slow scale) |
+| Phase 2.2 CGDisplay + ImageIO maxPixelSize | 61 ms | 82 ms | 48 ms | ~120 ms | fastest path on macOS 26.3 |
+| **Phase 2.3 SCK via libsckit.dylib (SHIPPED)** | **82 ms** | **105 ms** | **60 ms** | **~700 ms** | Codex-parity API, ~15 ms slower than 2.2 |
+
+**Empirical finding on macOS 26.3 Apple Silicon**: SCK is ~15-25 ms SLOWER per call than CGDisplayCreateImage for one-shot PNG screenshots. The "Codex 16-33 ms" reference number was unreachable via either API on this platform — likely a different macOS version, hardware, or measurement methodology. SCK was chosen for architectural parity with Codex Computer Use, not for peak per-call latency.
+
+### Alternative paths considered
+
+- **CGWindowListCreateImage**: deprecated in macOS 15+, returns NULL on macOS 26.3.
+- **CGDisplayStream / CGDisplayStreamCreate**: block-based, same complexity as SCK.
+- **JPEG instead of PNG**: marginal win (~5 ms), not shipped.
+- **Persistent SCStream**: continuous frame delivery, overkill for on-demand screenshots.
+- **Pure koffi block FFI**: theoretically possible but zero production examples from Node.js; risky.
+
+### Commits (Phase 2)
+
+- `faf36a9` `perf(core): replace shell-out screenshot with CGDisplayCreateImage + CGDisplayBounds FFI`
+- `ecf7b51` `perf(core): scale PNG via ImageIO kCGImageDestinationImageMaxPixelSize`
+- `c551c12` `feat(core): wire ScreenCaptureKit path via libsckit.dylib for Codex-style capture`
+
+---
+
 ## Verdict
 
 **Codex Computer Use parity ACHIEVED at the architectural and semantic level.** The system now matches Codex's tool vocabulary, single-call `get_app_state` skyshot, AX tree element indexing, and per-turn (not per-action) state retrieval. Effective turn latency is ~3.8× faster than the original auto-screenshot architecture, despite per-screenshot latency being slightly higher.
