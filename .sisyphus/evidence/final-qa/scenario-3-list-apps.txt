@@ -1,0 +1,48 @@
+=== Scenario 3: List Apps ===
+
+--- Command: node -e 'import("@macos-cua/core")... listApps()' (cwd=packages/cli) ---
+total apps: 41
+first 5:
+[
+  {
+    "bundleId": "com.1password.1password",
+    "name": "1Password",
+    "pid": 736,
+    "isRunning": true
+  },
+  {
+    "bundleId": "com.apple.ActivityMonitor",
+    "name": "Activity Monitor",
+    "pid": 21321,
+    "isRunning": true
+  },
+  {
+    "bundleId": "com.akiflow.akiflow",
+    "name": "Akiflow",
+    "pid": 95191,
+    "isRunning": true
+  },
+  {
+    "bundleId": "com.apple.AppStore",
+    "name": "App Store",
+    "pid": 12444,
+    "isRunning": true
+  },
+  {
+    "bundleId": "com.apple.audio.AudioMIDISetup",
+    "name": "Audio MIDI Setup",
+    "pid": 750,
+    "isRunning": true
+  }
+]
+---
+Finder present? YES
+Finder entry: {"bundleId":"com.apple.finder","name":"Finder","pid":799,"isRunning":true}
+---
+shape check on first app:
+  name (string): true
+  bundleId (string|null): true
+  pid (number): true
+  isRunning (boolean): true
+Exit code: 0
+Time: 3702ms

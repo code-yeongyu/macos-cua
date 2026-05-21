@@ -1,0 +1,55 @@
+=== Scenario 7: pi-extension shape ===
+
+--- Dist tree ---
+anthropic-computer-use.d.ts
+anthropic-computer-use.d.ts.map
+anthropic-computer-use.js
+anthropic-computer-use.js.map
+computer-use
+index.d.ts
+index.d.ts.map
+index.js
+index.js.map
+openai-computer-use.d.ts
+openai-computer-use.d.ts.map
+openai-computer-use.js
+openai-computer-use.js.map
+pi
+tools
+
+--- file packages/pi-extension/dist/index.js ---
+packages/pi-extension/dist/index.js: Java source, ASCII text
+
+--- Smoke import (default export shape) ---
+module keys: [ 'default' ]
+default export type: function
+default export name: macosCuaExtension
+default export length (arg count): 1
+default export source (first 400 chars):
+function macosCuaExtension(pi) {
+    pi.on("resources_discover", async () => {
+        return { skillPaths: [skillPath] };
+    });
+    pi.on("session_start", async (_event, ctx) => {
+        const computer = new MacOSHostComputer();
+        const display = resolveDisplayConfig(await computer.getScreenSize());
+        const enabled = !isOptedOut(process.env[DISABLE_COMPUTER_USE_BETA_ENV]);
+        
+---
+named exports inspection:
+Exit code: 0
+Time: 742ms
+
+--- pi-extension package.json (bin/main/exports) ---
+{
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "type": "module",
+  "name": "@macos-cua/pi-extension",
+  "version": "0.1.0"
+}

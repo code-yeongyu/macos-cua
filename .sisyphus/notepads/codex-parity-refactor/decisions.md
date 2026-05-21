@@ -46,3 +46,16 @@ Fingerprint fields for `UISettleDetector.waitForSettle`:
 Why these: they are top-level window attributes that mutate on any meaningful UI activity (window moves, resizes, or content loads/unloads), yet they are cheap to sample via `AXUIElementCopyAttributeValue` without descending the full accessibility tree. A focused-window-only sample avoids the heavy traversal that T6's full tree extraction performs. The fingerprint is a plain `Equatable` struct (`WindowFingerprint`) rather than a hash — struct equality is fast and collision-free.
 
 Defaults: `timeoutMs=2000`, `settleMs=300`, `pollMs=50`. The timeout bounds total wait; settleMs bounds consecutive stability. Invalid PID returns `true` immediately so the caller proceeds and surfaces the PID error at the actual capture step.
+
+## T9 Decision: MacOSCuaHelper response narrowing strategy
+
+Restored `packages/core/src/platform/macos-helper.ts` (deleted in 4420b5f) and added five new methods (`screenshot`, `getAppState`, `listApps`, `setValue`, `performAction`) that wrap the T8 Swift helper commands via the existing persistent JSON-stdio subprocess.
+
+Response narrowing approach:
+- `HelperSuccessResponse` was widened to include all possible success fields as optional (`data`, `width`, `height`, `elements`, `axAvailable`, `app`, `bundleId`, `pid`, `frontmost`, `apps`, `settled`), with `exactOptionalPropertyTypes` compatibility by typing each as `T | undefined`.
+- `parseResponse` preserves every field from the raw JSON after validating `id` and `ok` — no `as` casts, no `any`.
+- Per-command field validation happens inside each new method using inline `typeof` / `Array.isArray` checks. For example, `screenshot` asserts `data` is `string` and `width`/`height` are `number`; `getAppState` validates all nine required fields before constructing the `AppState` object.
+- `elements` (the `unknown[]` from the helper) is validated with a dedicated `isAXTreeElement` type guard that checks every field of the `AXTreeElement` shape, including the nested `frame` object. This avoids any `as AXTreeElement[]` cast entirely.
+- `apps` (the `unknown[]` from `listApps`) is validated with `isAppInfoJSON`, then mapped to `AppInfo[]` with `isRunning: true` (all listed apps are running).
+- Error handling: each method wraps the existing `request()` call in a `try/catch` and re-throws with a descriptive prefix (`cua-helper <command> failed: <message>`), converting `MacOSCuaHelperError` into plain `Error` for uniform consumer experience.
+- `getAppState` omits `pid` from the JSON request when `undefined`, letting the helper fall back to the frontmost app — matching the Swift `appStatePID()` behavior.

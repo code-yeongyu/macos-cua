@@ -1,49 +1,29 @@
-## Screen Recording TCC permission required for new SCK-using helper binary
+## [RESOLVED] Screen Recording TCC permission for new SCK-using helper binary
+T8 added `CGRequestScreenCaptureAccess()` at helper startup which triggered the
+system permission dialog. Once granted, SCK works. Verified: screenshot + getAppState
+return valid base64 PNG with axAvailable:true.
 
-After Wave 2, the rebuilt cua-helper binary uses ScreenCaptureKit, which is
-**TCC-gated per-binary**. The OLD binary (using `screencapture` CLI fallback) inherited
-permission from the terminal. The NEW binary needs its own permission grant:
-- `CGPreflightScreenCaptureAccess()` returns `true` for our helper (Terminal has permission)
-- But `SCShareableContent.current.displays` returns `[]` — SCK uses its own TCC entry that's
-  empty for the new binary.
+## [OPEN] Screenshot perf does NOT meet 40ms p50 BENCHMARK GATE
 
-Symptoms:
-- `screencapture` CLI works fine (T1 baseline succeeded)
-- T6 `getAXTree` works (uses Accessibility, separate permission, already granted)
-- T7 `waitForSettle` works (uses Accessibility)
-- T5 `screenshot` returns `{"ok":false,"error":"no displays available for screenshot"}`
+T8 steady-state benchmark (persistent subprocess, 100 iterations, 1280x800):
+- screenshot p50 = 240ms (target < 40ms) — 6x over
+- screenshot p95 = 574ms
+- axtree p50 = 74ms (target < 100ms) ✅
+- axtree p95 = 151ms
 
-Action required BEFORE T8 benchmark gate / T10 integration:
-1. User opens **System Settings → Privacy & Security → Screen Recording**
-2. Click `+`, navigate to `packages/cua-helper/.build/arm64-apple-macosx/release/cua-helper`
-3. Toggle ON
-4. (Or simpler) Once T8 wires into pi-extension, the model's first `get_app_state` call
-   triggers a system prompt for the user to grant permission.
+Vs T1 baseline (screencapture + sips): p50 ~155ms. New SCK pipeline is ~55% slower.
 
-The code path is CORRECT — T5's implementation matches the spec. The blocker is
-operational/TCC, not code logic.
+Hypothesized causes:
+1. SCK captures at native Retina pixels, then resize via CoreImage = heavy.
+2. CoreImage lanczos transform is high-quality but slow.
+3. PNG encoding lossless = 30-50ms per image.
+4. Possibly fresh CIContext per call.
 
-## Cold stdio round-trip latency observation
+Mitigations (defer to a perf pass between T20 and T21):
+- Configure SCStreamConfiguration.width/height to target output size (GPU-side downscale).
+- Switch from PNG to JPEG encoding.
+- Use CIContext.render(_:toBitmap:...) direct to malloc buffer.
 
-T5 measured ~378ms for a cold-start screenshot (process spawn + SCK init + capture +
-encode + base64 + JSON round-trip). Steady-state latency (persistent subprocess) should
-be much lower. T8's BENCHMARK GATE measures steady-state via the helper's persistent
-subprocess pattern, so 378ms cold-start is expected and NOT a failure mode.
-
-## T8 screenshot/getAppState benchmark blocked on Screen Recording permission
-
-T8 now calls `CGRequestScreenCaptureAccess()` at helper startup, but the local run still returned
-`{"ok":false,"error":"no displays available for screenshot"}` for:
-
-```bash
-echo '{"id":"s","cmd":"screenshot","width":1280,"height":800}' \
-  | packages/cua-helper/.build/arm64-apple-macosx/release/cua-helper
-```
-
-This means the benchmark gate for `screenshot` and `getAppState` is blocked on the user granting
-Screen Recording permission to the release helper binary. Grant:
-
-`packages/cua-helper/.build/arm64-apple-macosx/release/cua-helper`
-
-in System Settings → Privacy & Security → Screen Recording, then rerun T10/T21 benchmark gates.
-AX tree benchmarking is not blocked by this permission and passed its p50 gate.
+Architecture is CORRECT and matches Codex CU. Perf optimization deferred. The
+functional gate passes; the latency gate fails and needs a focused perf pass
+before T21 declares VICTORY.

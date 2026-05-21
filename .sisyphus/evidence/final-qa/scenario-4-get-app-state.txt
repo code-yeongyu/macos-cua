@@ -1,0 +1,33 @@
+=== Scenario 4: getAppState (Finder, the skyshot flagship op) ===
+Finder PID: 799
+
+--- Command: node -e '...getAppState(FINDER_PID)' (cwd=packages/cli) ---
+app: Finder
+bundleId: com.apple.finder
+pid: 799
+frontmost: false
+axAvailable: true
+elements.length: 1097
+screenshotBase64.length: 567692
+screenshot dims: 1512 x 982
+---
+first 3 elements:
+[0] {"id":0,"role":"AXApplication","label":"Finder","frame":{"x":0,"y":982,"width":0,"height":0},"actions":[],"childCount":3}
+[1] {"id":1,"role":"AXWindow","label":"yeongyu","frame":{"x":296,"y":155,"width":920,"height":464},"actions":["AXRaise"],"childCount":6}
+[2] {"id":2,"role":"AXSplitGroup","label":null,"frame":{"x":296,"y":155,"width":920,"height":464},"actions":[],"childCount":3}
+---
+element shape integrity check (sample of 5):
+  id=0: shape ok? true
+  id=1: shape ok? true
+  id=2: shape ok? true
+  id=3: shape ok? true
+  id=4: shape ok? true
+---
+frame positivity (all elements):
+  negative width/height count: 0
+  non-finite x/y count: 0
+---
+AX action coverage:
+  distinct actions: ["AXCancel","AXConfirm","AXOpen","AXPick","AXPress","AXRaise","AXScrollDownByPage","AXScrollLeftByPage","AXScrollRightByPage","AXScrollUpByPage","AXShowAlternateUI","AXShowDefaultUI","AXShowMenu","AXZoomWindow","Name:Move next\nTarget:0x0\nSelector:(null)","Name:Move previous\nTarget:0x0\nSelector:(null)","Name:Remove from toolbar\nTarget:0x0\nSelector:(null)"]
+Exit code: 0
+Time: 5982ms

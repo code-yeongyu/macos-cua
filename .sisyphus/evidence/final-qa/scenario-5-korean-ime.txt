@@ -1,0 +1,18 @@
+=== Scenario 5: Type Korean (IME regression) ===
+
+Note: Per task spec, we do NOT focus TextEdit (unsafe assumption).
+We invoke c.type() with Korean — success criterion is 'no crash/timeout'.
+Korean glyphs travel through CGEvent UCS-2 keystrokes (Unicode payload).
+
+--- Currently focused app (for context) ---
+ghostty
+
+--- Command: c.type("안녕하세요") ---
+typed without error in 53 ms
+Exit code: 0 (timeout would exit 124)
+Time: 239ms (timeout threshold: 10000ms)
+
+--- Also test single-char latin (regression baseline) ---
+latin typed in 60 ms
+Exit code: 0
+Time: 208ms

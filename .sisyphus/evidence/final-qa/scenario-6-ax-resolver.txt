@@ -1,0 +1,20 @@
+=== Scenario 6: AX coordinate resolver (click target resolution) ===
+Finder PID: 799
+
+Note: `@macos-cua/core` only exports `.`; deep subpath blocked by Node ESM.
+Reaching the function via absolute file:// URL into packages/core/dist/.
+
+--- Pipeline: getAppState -> find AXPress element -> resolveElementCoordinate -> verify ---
+state1.elements.length: 1098
+picked element: {"id":51,"role":"AXButton","label":"Eject","frame":{"x":479,"y":557,"width":14.5,"height":11},"actions":["AXPress"]}
+resolved coords: {"x":486,"y":563}
+expected (center): 486 563
+match? true
+invalid-idx threw: Element index 999999 not found in AX tree
+invalid index throws? true
+zero-frame threw: Element 0 has zero-size frame
+zero-frame element id: 0 role: AXApplication
+zero-frame throws? true
+resolvePointForElement (public API) returned: {"x":486,"y":563}
+Exit code: 0
+Time: 14042ms

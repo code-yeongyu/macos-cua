@@ -1,0 +1,47 @@
+=== Edge Cases ===
+Finder PID: 799
+WindowServer PID: 411
+launchd PID: 1
+
+--- Edge 1: getAppState on non-existent PID (999999) ---
+rejected (expected) with: No running app matched pid 999999
+Exit code: 0
+Time: 4068ms
+
+--- Edge 2: getAppState on PID 1 (launchd, daemon — no AX UI) ---
+rejected with: No running app matched pid 1
+Exit code: 0
+Time: 4047ms
+
+--- Edge 3: getAppState on WindowServer (window-system process) ---
+rejected with: No running app matched pid 411
+Exit code: 0
+Time: 4056ms
+
+--- Edge 4: CLI --target-pid with invalid PID (input routing failure mode) ---
+targeted keyboard input requires get_app_state, a visible target window, or a prior pointer action
+Exit code: 1
+Time: 153ms
+=== Edge Cases (continued) ===
+AudioMIDISetup PID: 750
+1Password PID: 736
+
+--- Edge 5: getAppState on a backgrounded GUI app (1Password) ---
+app: 1Password
+bundleId: com.1password.1password
+axAvailable: true
+elements.length: 239
+frontmost: false
+screenshotBase64 len: 671576
+Exit code: 0
+Time: 6269ms
+
+--- Edge 6: getAppState on Audio MIDI Setup (likely sparse AX) ---
+app: Audio MIDI Setup
+bundleId: com.apple.audio.AudioMIDISetup
+axAvailable: true
+elements.length: 117
+frontmost: false
+top roles: [["AXMenuItem",98],["AXMenu",11],["AXMenuBarItem",5],["AXApplication",1],["AXMenuBar",1]]
+Exit code: 0
+Time: 10785ms

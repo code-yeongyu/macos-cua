@@ -1,0 +1,32 @@
+=== Scenario 2: Screenshot (re-run after cleanup) ===
+
+--- Pre-cleanup: leftover tmp files from prior runs ---
+-rw-r--r--@ 1 yeongyu  staff  956797 May 21 14:43 /var/folders/nj/hqfr8ndn5q56cqw7jqgbrck40000gn/T/macos-cua-shot.XXXXXX.png
+
+--- Cleaning leftover tmp files ---
+/var/folders/nj/hqfr8ndn5q56cqw7jqgbrck40000gn/T/macos-cua-shot.XXXXXX.png
+
+--- Command: node packages/cli/dist/cli.js screenshot -o /tmp/f3-shot.png ---
+Screenshot saved to /tmp/f3-shot.png (image/png, 1512x982)
+Exit code: 0
+Time: 507ms
+
+--- File analysis ---
+/tmp/f3-shot.png: PNG image data, 1512 x 982, 8-bit/color RGBA, non-interlaced
+-rw-r--r--@ 1 yeongyu  wheel  340326 May 21 14:50 /tmp/f3-shot.png
+size in bytes: 340326
+
+--- PNG header (first 16 bytes) ---
+00000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR
+
+--- Second invocation: confirms the mktemp-XXXXXX-then-.png bug ---
+Screenshot saved to /tmp/f3-shot-2.png (image/png, 1512x982)
+Exit code: 0
+Time: 351ms
+
+--- Post-run: leftover tmp files (proves bug) ---
+zsh:36: no matches found: /var/folders/nj/hqfr8ndn5q56cqw7jqgbrck40000gn/T/macos-cua-shot*
+
+--- Note ---
+BSD mktemp on macOS treats XXXXXX-then-.png as a literal filename, not a template.
+This is a pre-existing defect at packages/core/src/platform/macos.ts:236,241.

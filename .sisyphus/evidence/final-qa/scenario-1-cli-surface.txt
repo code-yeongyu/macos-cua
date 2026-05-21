@@ -1,0 +1,39 @@
+=== Scenario 1: CLI Surface ===
+
+--- Command: node packages/cli/dist/cli.js --help ---
+Usage: macos-cua [options] [command]
+
+Native macOS computer-use control with Codex-style app-targeted tools.
+
+Options:
+  -V, --version                               output the version number
+  --json                                      print machine-readable JSON output
+  --target-pid <pid>                          deliver input to a target process id using the cached app window session from get_app_state
+  --target-bundle-id <id>                     deliver input to the running app with this bundle identifier
+  -h, --help                                  display help for command
+
+Commands:
+  screenshot [options]                        Take a screenshot
+  click [options] [x] [y]                     Click. With --target-pid, routes through the cached app window session.
+  right-click [options] [x] [y]               Right-click. With --target-pid, routes through the cached app window session.
+  middle-click [options] [x] [y]              Middle-click. With --target-pid, routes through the cached app window session.
+  double-click [options] [x] [y]              Double-click. With --target-pid, routes through the cached app window session.
+  move [options] [x] [y]                      Move cursor globally, or send mouseMoved to --target-pid without moving the real cursor.
+  drag [options] [fromX] [fromY] [toX] [toY]  Drag. With --target-pid, routes through the cached app window session.
+  scroll [options]                            Scroll globally with a wheel event, or scroll --target-pid through the cached app window session.
+  type <text...>                              Type text
+  key [options] <key>                         Press key with optional modifiers
+  keypress <keys...>                          Press a key chord
+  wait <ms>                                   Sleep for N milliseconds
+  cursor                                      Get cursor position
+  screen                                      Get screen size
+  permissions                                 Manage macOS permissions
+  windows                                     Inspect macOS windows
+  help [command]                              display help for command
+Exit code: 0
+Time: 142ms
+
+--- Command: node packages/cli/dist/cli.js --version ---
+0.1.0
+Exit code: 0
+Time: 137ms

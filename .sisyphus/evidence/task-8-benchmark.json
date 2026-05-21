@@ -1,9 +1,17 @@
 {
-	"screenshot_p50_ms": null,
-	"screenshot_p95_ms": null,
+	"screenshot_p50_ms": 240,
+	"screenshot_p95_ms": 574,
+	"screenshot_p99_ms": 666,
+	"screenshot_min_ms": 122,
+	"screenshot_max_ms": 666,
+	"screenshot_avg_ms": 282,
 	"axtree_p50_ms": 74,
 	"axtree_p95_ms": 151,
-	"getappstate_p50_ms": null,
-	"getappstate_p95_ms": null,
-	"permission_granted": false
+	"permission_granted": true,
+	"steady_state_persistent_subprocess": true,
+	"iterations": 100,
+	"target_screenshot_p50_ms": 40,
+	"meets_screenshot_gate": false,
+	"meets_axtree_gate": true,
+	"note": "Screenshot perf does NOT meet 40ms p50 gate. SCK + CoreImage resize at Retina sources adds overhead. Architecture matches Codex CU. Perf optimization to follow."
 }
