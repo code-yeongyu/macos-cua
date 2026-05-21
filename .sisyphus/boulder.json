@@ -1,93 +1,83 @@
 {
-  "active_plan": "/Users/yeongyu/local-workspaces/macos-cua/.sisyphus/plans/codex-parity-refactor.md",
-  "started_at": "2026-05-14T09:07:06.805Z",
-  "session_ids": [
-    "ses_1ddf4f485ffeQa0ZyhzbGcgSNI",
-    "ses_1da2ff5aeffeBf80oQXJPObPET",
-    "ses_1da2fa7b4ffewky7rFnOt9EL1J",
-    "ses_1da2f3e62ffeSUptmtRfclO2aj",
-    "ses_1da2ee2efffegExhgKo6xWikub"
-  ],
-  "plan_name": "codex-parity-refactor",
-  "task_sessions": {
-    "T1": "ses_1da2ff5aeffeBf80oQXJPObPET",
-    "T2": "ses_1da2fa7b4ffewky7rFnOt9EL1J",
-    "T3": "ses_1da2f3e62ffeSUptmtRfclO2aj",
-    "T4": "ses_1da2ee2efffegExhgKo6xWikub",
-    "todo:5": {
-      "task_key": "todo:5",
-      "task_label": "5",
-      "task_title": "screenshot.swift — ScreenCaptureKit Capture + CoreImage Resize",
-      "session_id": "ses_1da212fe4ffeQF5eg9sjhSKuzw",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-14T10:03:44.208Z",
-      "started_at": "2026-05-14T10:00:52.558Z",
-      "status": "completed",
-      "ended_at": "2026-05-14T10:03:44.208Z",
-      "elapsed_ms": 171650
-    },
-    "todo:8": {
-      "task_key": "todo:8",
-      "task_label": "8",
-      "task_title": "Skyshot Command Integration — main.swift Routing",
-      "session_id": "ses_1da0d9b34ffe4YI0nfBPDM912U",
-      "agent": "Sisyphus-Junior",
-      "category": "deep",
-      "updated_at": "2026-05-15T00:21:41.742Z",
-      "started_at": "2026-05-15T00:21:41.742Z",
-      "status": "running"
-    }
-  },
-  "session_origins": {},
-  "active_work_id": "codex-parity-refactor-legacy",
-  "updated_at": "2026-05-15T00:21:41.741Z",
-  "schema_version": 2,
-  "works": {
-    "codex-parity-refactor-legacy": {
-      "work_id": "codex-parity-refactor-legacy",
-      "active_plan": "/Users/yeongyu/local-workspaces/macos-cua/.sisyphus/plans/codex-parity-refactor.md",
-      "plan_name": "codex-parity-refactor",
-      "started_at": "2026-05-14T09:07:06.805Z",
-      "updated_at": "2026-05-15T00:21:41.741Z",
-      "session_ids": [
-        "ses_1ddf4f485ffeQa0ZyhzbGcgSNI",
-        "ses_1da2ff5aeffeBf80oQXJPObPET",
-        "ses_1da2fa7b4ffewky7rFnOt9EL1J",
-        "ses_1da2f3e62ffeSUptmtRfclO2aj",
-        "ses_1da2ee2efffegExhgKo6xWikub"
-      ],
-      "session_origins": {},
-      "task_sessions": {
-        "T1": "ses_1da2ff5aeffeBf80oQXJPObPET",
-        "T2": "ses_1da2fa7b4ffewky7rFnOt9EL1J",
-        "T3": "ses_1da2f3e62ffeSUptmtRfclO2aj",
-        "T4": "ses_1da2ee2efffegExhgKo6xWikub",
-        "todo:5": {
-          "task_key": "todo:5",
-          "task_label": "5",
-          "task_title": "screenshot.swift — ScreenCaptureKit Capture + CoreImage Resize",
-          "session_id": "ses_1da212fe4ffeQF5eg9sjhSKuzw",
-          "agent": "Sisyphus-Junior",
-          "category": "deep",
-          "updated_at": "2026-05-14T10:03:44.208Z",
-          "started_at": "2026-05-14T10:00:52.558Z",
-          "status": "completed",
-          "ended_at": "2026-05-14T10:03:44.208Z",
-          "elapsed_ms": 171650
-        },
-        "todo:8": {
-          "task_key": "todo:8",
-          "task_label": "8",
-          "task_title": "Skyshot Command Integration — main.swift Routing",
-          "session_id": "ses_1da0d9b34ffe4YI0nfBPDM912U",
-          "agent": "Sisyphus-Junior",
-          "category": "deep",
-          "updated_at": "2026-05-15T00:21:41.742Z",
-          "started_at": "2026-05-15T00:21:41.742Z",
-          "status": "running"
-        }
-      }
-    }
-  }
+	"active_plan": "/Users/yeongyu/local-workspaces/macos-cua/.sisyphus/plans/codex-parity-refactor.md",
+	"started_at": "2026-05-14T09:07:06.805Z",
+	"closed_at": "2026-05-21T15:02:00.000Z",
+	"plan_name": "codex-parity-refactor",
+	"status": "awaiting_user_acceptance",
+	"task_status": {
+		"completed": 23,
+		"cancelled": 2,
+		"pending": 0
+	},
+	"final_review": {
+		"f1_plan_compliance": "APPROVE",
+		"f2_code_quality": "APPROVE",
+		"f3_manual_qa": "APPROVE",
+		"f4_scope_fidelity": "APPROVE"
+	},
+	"session_ids": [
+		"ses_1ddf4f485ffeQa0ZyhzbGcgSNI"
+	],
+	"task_sessions": {
+		"T1": "ses_1da2ff5aeffeBf80oQXJPObPET",
+		"T2": "ses_1da2fa7b4ffewky7rFnOt9EL1J",
+		"T3": "ses_1da2f3e62ffeSUptmtRfclO2aj",
+		"T4": "ses_1da2ee2efffegExhgKo6xWikub",
+		"T5": "ses_1da212fe4ffeQF5eg9sjhSKuzw",
+		"T6": "ses_1da209011ffeFtG4UnBeqh0cFc",
+		"T7": "ses_1da202545ffe8KbA3nad1F30Ht",
+		"T8": "ses_1da0d9b34ffe4YI0nfBPDM912U",
+		"T9_REVERTED": "ses_1b6fbf988ffesHCdjtTtEttIJK",
+		"F1": "ses_1b6ee7e64ffe4CkjjRvdUbzddP",
+		"F2": "ses_1b6ee24e9ffeNZ4ISW0bHciQQZ",
+		"F3": "ses_1b6eda96bffeGJ71CxMvY2quSK",
+		"F4": "ses_1b6ed4d22ffevB1Lc9RwykMcoX"
+	},
+	"deliverables_landed": [
+		"e84df77 fix(core): mktemp template must end in XXXXXX on BSD/macOS (F3 finding)",
+		"7c90cca docs(perf): add benchmark comparison report",
+		"920d6f7 Revert MacOSCuaHelper wrappers (architectural mismatch fix)",
+		"85d8c71 feat(cua-helper): integrate skyshot command routing (orphaned by user pivot)",
+		"f07e0ea feat(cua-helper): add UI settle debounce (orphaned)",
+		"5e9a569 feat(cua-helper): add AX tree extraction via AXUIElement (orphaned)",
+		"815c378 feat(cua-helper): add ScreenCaptureKit capture + CoreImage resize (orphaned)",
+		"2f3ad3d refactor(cua-helper): split main.swift into modules (orphaned)",
+		"a056869 feat(core): add getAppState and listApps to ComputerInterface",
+		"9169cdb feat(core): add AX tree and app state TypeScript types",
+		"6c10534 test(perf): add latency baseline benchmarks and regression tests"
+	],
+	"user_parallel_work_landed": [
+		"4420b5f feat(core): port Codex-style app sessions (helper-free FFI pivot)",
+		"4dc5fd5 feat(pi-extension): expose Codex app tools",
+		"3b6a7a9 feat(mcp): expose Codex app tools",
+		"5562185 feat(cli): align targeted app input",
+		"2ab5d66 test(core): lock AX-only set_value against synthetic keyboard fallback",
+		"830abc1 fix(tools): use AX press and AX scroll-by-page for indexed actions",
+		"3172e97 docs(skill): note AX-first input semantics",
+		"f4f8835 feat(core,tools): hit-test raw click via AX before synthetic mouse",
+		"1493235 feat(core,tools): write text into focused AX element before synthetic typing",
+		"0636a06 docs: document helper-free computer use",
+		"a892542 fix(core): capture target Safari window via screencapture -l",
+		"c0d2098 fix(pi-extension): guard computer tool activation"
+	],
+	"codex_parity_achievement": {
+		"tool_vocabulary": "9 Codex-style tools (list_apps, get_app_state, click, perform_secondary_action, set_value, drag, scroll, type_text, press_key) + 1 native computer",
+		"ax_tree_state": true,
+		"single_call_skyshot": true,
+		"auto_screenshot_removed": true,
+		"helper_free_ffi": true,
+		"effective_turn_speedup": "~3.8x for 10-action turn (1755ms -> 410ms)"
+	},
+	"intentional_waivers": {
+		"sck_screenshot_replacement": "SKIPPED — user kept screencapture+sips for TCC compatibility",
+		"5_tool_cap": "SUPERSEDED — Codex 9-tool vocabulary parity prioritized",
+		"40ms_screenshot_p50": "NOT MET — ~360ms actual, acceptable because auto-screenshot is removed",
+		"swift_cua_helper": "OBSOLETE — user adopted direct koffi FFI in commit 4420b5f"
+	},
+	"next_actions_awaiting_user": [
+		"Accept work as DONE (delete boulder.json + close plan)",
+		"OR request perf pass on screenshot p50",
+		"OR request F2 architectural cleanup (accessibility.ts split, 250 LOC ceiling)",
+		"OR something else"
+	]
 }
