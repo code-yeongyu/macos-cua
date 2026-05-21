@@ -1,0 +1,93 @@
+{
+  "active_plan": "/Users/yeongyu/local-workspaces/macos-cua/.sisyphus/plans/codex-parity-refactor.md",
+  "started_at": "2026-05-14T09:07:06.805Z",
+  "session_ids": [
+    "ses_1ddf4f485ffeQa0ZyhzbGcgSNI",
+    "ses_1da2ff5aeffeBf80oQXJPObPET",
+    "ses_1da2fa7b4ffewky7rFnOt9EL1J",
+    "ses_1da2f3e62ffeSUptmtRfclO2aj",
+    "ses_1da2ee2efffegExhgKo6xWikub"
+  ],
+  "plan_name": "codex-parity-refactor",
+  "task_sessions": {
+    "T1": "ses_1da2ff5aeffeBf80oQXJPObPET",
+    "T2": "ses_1da2fa7b4ffewky7rFnOt9EL1J",
+    "T3": "ses_1da2f3e62ffeSUptmtRfclO2aj",
+    "T4": "ses_1da2ee2efffegExhgKo6xWikub",
+    "todo:5": {
+      "task_key": "todo:5",
+      "task_label": "5",
+      "task_title": "screenshot.swift — ScreenCaptureKit Capture + CoreImage Resize",
+      "session_id": "ses_1da212fe4ffeQF5eg9sjhSKuzw",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-14T10:03:44.208Z",
+      "started_at": "2026-05-14T10:00:52.558Z",
+      "status": "completed",
+      "ended_at": "2026-05-14T10:03:44.208Z",
+      "elapsed_ms": 171650
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "Skyshot Command Integration — main.swift Routing",
+      "session_id": "ses_1da0d9b34ffe4YI0nfBPDM912U",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-15T00:21:41.742Z",
+      "started_at": "2026-05-15T00:21:41.742Z",
+      "status": "running"
+    }
+  },
+  "session_origins": {},
+  "active_work_id": "codex-parity-refactor-legacy",
+  "updated_at": "2026-05-15T00:21:41.741Z",
+  "schema_version": 2,
+  "works": {
+    "codex-parity-refactor-legacy": {
+      "work_id": "codex-parity-refactor-legacy",
+      "active_plan": "/Users/yeongyu/local-workspaces/macos-cua/.sisyphus/plans/codex-parity-refactor.md",
+      "plan_name": "codex-parity-refactor",
+      "started_at": "2026-05-14T09:07:06.805Z",
+      "updated_at": "2026-05-15T00:21:41.741Z",
+      "session_ids": [
+        "ses_1ddf4f485ffeQa0ZyhzbGcgSNI",
+        "ses_1da2ff5aeffeBf80oQXJPObPET",
+        "ses_1da2fa7b4ffewky7rFnOt9EL1J",
+        "ses_1da2f3e62ffeSUptmtRfclO2aj",
+        "ses_1da2ee2efffegExhgKo6xWikub"
+      ],
+      "session_origins": {},
+      "task_sessions": {
+        "T1": "ses_1da2ff5aeffeBf80oQXJPObPET",
+        "T2": "ses_1da2fa7b4ffewky7rFnOt9EL1J",
+        "T3": "ses_1da2f3e62ffeSUptmtRfclO2aj",
+        "T4": "ses_1da2ee2efffegExhgKo6xWikub",
+        "todo:5": {
+          "task_key": "todo:5",
+          "task_label": "5",
+          "task_title": "screenshot.swift — ScreenCaptureKit Capture + CoreImage Resize",
+          "session_id": "ses_1da212fe4ffeQF5eg9sjhSKuzw",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-05-14T10:03:44.208Z",
+          "started_at": "2026-05-14T10:00:52.558Z",
+          "status": "completed",
+          "ended_at": "2026-05-14T10:03:44.208Z",
+          "elapsed_ms": 171650
+        },
+        "todo:8": {
+          "task_key": "todo:8",
+          "task_label": "8",
+          "task_title": "Skyshot Command Integration — main.swift Routing",
+          "session_id": "ses_1da0d9b34ffe4YI0nfBPDM912U",
+          "agent": "Sisyphus-Junior",
+          "category": "deep",
+          "updated_at": "2026-05-15T00:21:41.742Z",
+          "started_at": "2026-05-15T00:21:41.742Z",
+          "status": "running"
+        }
+      }
+    }
+  }
+}
