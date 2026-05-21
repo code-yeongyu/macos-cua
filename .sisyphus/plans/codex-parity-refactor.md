@@ -638,7 +638,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(cua-helper): add UI settle debounce`
   - Pre-commit: `cd packages/cua-helper && swift build -c release`
 
-- [ ] 8. Skyshot Command Integration — main.swift Routing
+- [x] 8. Skyshot Command Integration — main.swift Routing
 
   **What to do**:
   - Update `packages/cua-helper/Sources/CuaHelper/main.swift` command router to handle new commands:
@@ -717,7 +717,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(cua-helper): integrate skyshot command routing`
   - Pre-commit: `cd packages/cua-helper && swift build -c release`
 
-- [ ] 9. MacOSCuaHelper New Command Wrappers
+- [~] 9. MacOSCuaHelper New Command Wrappers *(OBSOLETE — user adopted helper-free FFI architecture in commit `4420b5f`, deleting `macos-helper.ts` entirely. T9 was implemented (commit `2543af4`) and reverted (commit `920d6f7`) once the architectural mismatch was detected. The helper subprocess pattern is no longer the chosen transport.)*
 
   **What to do**:
   - Add methods to `packages/core/src/platform/macos-helper.ts` (`MacOSCuaHelper` class):
@@ -769,7 +769,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(core): add MacOSCuaHelper wrappers for new commands`
   - Pre-commit: `pnpm -F @macos-cua/core typecheck`
 
-- [ ] 10. MacOSHostComputer screenshot + getAppState via SCK Helper
+- [x] 10. MacOSHostComputer screenshot + getAppState via SCK Helper *(SUPERSEDED — user shipped helper-free FFI implementation in commit `4420b5f`; same surface, different transport)*
 
   **What to do**:
   - Replace `MacOSHostComputer.screenshot()` in `packages/core/src/platform/macos.ts`:
@@ -836,7 +836,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(core): MacOSHostComputer screenshot + getAppState via SCK helper`
   - Pre-commit: `pnpm -F @macos-cua/core typecheck`
 
-- [ ] 11. AX Element Index → Coordinate Resolver
+- [x] 11. AX Element Index → Coordinate Resolver *(shipped at `packages/core/src/platform/macos-accessibility.ts` — exact spec match)*
 
   **What to do**:
   - Create `packages/core/src/platform/macos-accessibility.ts`
@@ -896,7 +896,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(core): AX element index to coordinate resolver`
   - Pre-commit: `pnpm -F @macos-cua/core typecheck`
 
-- [ ] 12. get_app_state + list_apps Tool Implementations
+- [x] 12. get_app_state + list_apps Tool Implementations *(shipped at `packages/pi-extension/src/tools/get-app-state.ts` + `list-apps.ts`)*
 
   **What to do**:
   - Create `packages/pi-extension/src/tools/get-app-state.ts`:
@@ -963,7 +963,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(pi-extension): add get_app_state and list_apps tools`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 13. Pi-Extension index.ts Rewrite — New Tool Registration
+- [x] 13. Pi-Extension index.ts Rewrite — New Tool Registration *(shipped: 9 Codex-style tools + native `computer` = 10; `registerAllTools` repurposed; native tool kept)*
 
   **What to do**:
   - Rewrite `packages/pi-extension/src/index.ts` `session_start` hook:
@@ -1034,7 +1034,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `refactor(pi-extension): rewrite tool registration for Codex parity`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 14. Anthropic Computer-Use: Remove Auto-Screenshot
+- [x] 14. Anthropic Computer-Use: Remove Auto-Screenshot *(shipped — `screenshotResult` only called for `screenshot` action, all other actions return `okResult`)*
 
   **What to do**:
   - Modify `packages/pi-extension/src/anthropic-computer-use.ts`:
@@ -1098,7 +1098,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `refactor(pi-extension): remove Anthropic auto-screenshot`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 15. OpenAI Computer-Use: Remove Auto-Screenshot
+- [x] 15. OpenAI Computer-Use: Remove Auto-Screenshot *(shipped — same pattern as T14)*
 
   **What to do**:
   - Modify `packages/pi-extension/src/openai-computer-use.ts`:
@@ -1148,7 +1148,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `refactor(pi-extension): remove OpenAI auto-screenshot`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 16. set_value + perform_secondary_action Tool Implementations
+- [x] 16. set_value + perform_secondary_action Tool Implementations *(shipped at `packages/pi-extension/src/tools/set-value.ts` + `perform-secondary-action.ts`)*
 
   **What to do**:
   - Create `packages/pi-extension/src/tools/set-value.ts`:
@@ -1207,7 +1207,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(pi-extension): add set_value and perform_secondary_action tools`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 17. System Prompt Update — Per-Turn get_app_state Guidance
+- [x] 17. System Prompt Update — Per-Turn get_app_state Guidance *(shipped — concise Anthropic system prompt: "Call get_app_state each turn. Use computer for mouse/keyboard...")*
 
   **What to do**:
   - Update `buildComputerUseSection()` in `packages/pi-extension/src/anthropic-computer-use.ts`:
@@ -1262,7 +1262,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `feat(pi-extension): update system prompt for per-turn get_app_state`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 18. Remove 9 Legacy macos_cua_* Tool Files
+- [x] 18. Remove 9 Legacy macos_cua_* Tool Files *(shipped — old `macos_cua_*` prefix removed; replaced with Codex-style names: click, drag, scroll, type_text, press_key, get_app_state, list_apps, set_value, perform_secondary_action)*
 
   **What to do**:
   - Delete these files:
@@ -1323,7 +1323,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `refactor(pi-extension): remove 9 legacy macos_cua_* tool files`
   - Pre-commit: `pnpm -F @macos-cua/pi-extension typecheck`
 
-- [ ] 19. Remove screencapture + sips CLI Fallback Paths
+- [~] 19. Remove screencapture + sips CLI Fallback Paths *(SKIPPED — user intentionally kept `screencapture` + `sips` in `macos.ts:233,242`. Rationale: per-binary TCC permission overhead for SCK is worse than CLI tools that inherit terminal's grant. SCK helper binary built in T5-T8 remains available but unused. Documented in `.sisyphus/notepads/codex-parity-refactor/problems.md`.)*
 
   **What to do**:
   - In `packages/core/src/platform/macos.ts`:
@@ -1381,7 +1381,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `refactor(core): remove screencapture + sips CLI fallback paths`
   - Pre-commit: `pnpm -r typecheck`
 
-- [ ] 20. Update Vitest Tests for New Architecture
+- [x] 20. Update Vitest Tests for New Architecture *(shipped — 116 tests passing across 27 files; new tool tests added, AX path tests added, regression tests for Korean IME preserved)*
 
   **What to do**:
   - Update/rewrite existing vitest tests to match new architecture:
@@ -1448,7 +1448,7 @@ Wave FINAL (4 parallel reviews, then user okay):
   - Message: `test(pi-extension): update vitest tests for new architecture`
   - Pre-commit: `pnpm test`
 
-- [ ] 21. Performance Benchmark Report (Before vs After)
+- [x] 21. Performance Benchmark Report (Before vs After) *(report at `.sisyphus/evidence/benchmark-report.md` — Codex parity achieved; per-screenshot 360ms vs original 40ms target, but ~3.8× speedup on 10-action turn from auto-screenshot removal)*
 
   **What to do**:
   - Run the same benchmarks from T1 on the NEW architecture:
