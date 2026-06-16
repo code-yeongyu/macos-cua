@@ -48,11 +48,11 @@ export class ComputerUseError extends Error {
 }
 
 export function buildCodexComputerUseSection(): string {
-	return "## Computer Use\nCall `get_app_state` each turn. Use Codex tools (`click`, `set_value`, `perform_secondary_action`, `scroll`, `type_text`, `press_keys`) for macOS control. Actions return {ok:true}.\n";
+	return "## Computer Use\nCall `get_app_state` each turn. Its screenshot numbered boxes are element_index labels; prefer `click element_index=<number>` when possible. Use Codex tools (`click`, `set_value`, `perform_secondary_action`, `scroll`, `type_text`, `press_keys`) for macOS control. Actions return {ok:true}.\n";
 }
 
 export function buildComputerUseSection(width: number, height: number): string {
-	return `## Computer Use\nCall \`get_app_state\` each turn. Use \`computer\` for mouse/keyboard (${width}x${height}); AX: \`set_value\`, \`perform_secondary_action\`. Actions return {ok:true}.\n`;
+	return `## Computer Use\nCall \`get_app_state\` each turn. Its screenshot numbered boxes are element_index labels; prefer \`click element_index=<number>\` when possible. Use \`computer\` for mouse/keyboard (${width}x${height}); AX: \`set_value\`, \`perform_secondary_action\`. Actions return {ok:true}.\n`;
 }
 
 export async function executeNativeComputerAction(
