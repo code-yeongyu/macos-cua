@@ -5,6 +5,7 @@ import { withTimeout } from "./sandbox-errors.js";
 import { SandboxRpcHost } from "./sandbox-rpc.js";
 import type { IsolateLike, IsolatedVmModule, SandboxOptions, SandboxRunResult } from "./sandbox-types.js";
 import type { ScreenshotStore } from "./screenshot-store.js";
+import { transpileModelCode } from "./transpile.js";
 
 const DEFAULT_MEMORY_MB = 128;
 const DEFAULT_TIMEOUT_MS = 120_000;
@@ -18,25 +19,31 @@ export class CodeModeSandbox {
 		private readonly opts: SandboxOptions = {},
 	) {}
 
-	async run(jsCode: string): Promise<SandboxRunResult> {
+	async run(tsCode: string): Promise<SandboxRunResult> {
 		if (this.running) {
 			throw new CodeModeError("COMPUTER_BUSY", "Code mode sandbox is already running");
 		}
 		this.running = true;
-		const ivm = await loadIsolatedVm();
-		const isolate = new ivm.Isolate({ memoryLimit: this.opts.memoryMb ?? DEFAULT_MEMORY_MB });
-		const disposer = new IsolateDisposer(isolate);
-
 		try {
+			const transpiled = await transpileModelCode(tsCode);
+			if ("compileError" in transpiled) {
+				throw new CodeModeError("COMPILE_ERROR", transpiled.compileError);
+			}
+			const ivm = await loadIsolatedVm();
+			const isolate = new ivm.Isolate({ memoryLimit: this.opts.memoryMb ?? DEFAULT_MEMORY_MB });
+			const disposer = new IsolateDisposer(isolate);
 			const logs: string[] = [];
 			const surfaced: string[] = [];
-			const execution = this.execute(ivm, isolate, jsCode, logs, surfaced);
-			const result = await withTimeout(execution, this.opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, () =>
-				disposer.dispose(),
-			);
-			return { logs, result, surfaced };
+			try {
+				const execution = this.execute(ivm, isolate, transpiled.js, logs, surfaced);
+				const result = await withTimeout(execution, this.opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, () =>
+					disposer.dispose(),
+				);
+				return { logs, result, surfaced };
+			} finally {
+				disposer.dispose();
+			}
 		} finally {
-			disposer.dispose();
 			this.running = false;
 		}
 	}
