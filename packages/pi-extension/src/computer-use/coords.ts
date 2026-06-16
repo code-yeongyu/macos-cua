@@ -1,4 +1,11 @@
+import { supportsAnthropicNativeComputerUse } from "../anthropic-payload.js";
+
 const MAX_MODEL_LONG_EDGE = 1280;
+const ANTHROPIC_NATIVE_MAX_LONG_EDGE = 1024;
+
+export type DisplayProfile = {
+	readonly maxLongEdge: number;
+};
 
 export interface DisplayConfig {
 	/** Logical screen width in points (e.g. 2560 on a 16" MBP). */
@@ -11,15 +18,26 @@ export interface DisplayConfig {
 	readonly modelHeight: number;
 }
 
-export function resolveDisplayConfig(screenSize: { readonly width: number; readonly height: number }): DisplayConfig {
+export function displayProfileForModel(api: string | undefined, modelId: string | undefined): DisplayProfile {
+	if (api === "anthropic-messages" && supportsAnthropicNativeComputerUse(modelId)) {
+		return { maxLongEdge: ANTHROPIC_NATIVE_MAX_LONG_EDGE };
+	}
+	return { maxLongEdge: MAX_MODEL_LONG_EDGE };
+}
+
+export function resolveDisplayConfig(
+	screenSize: { readonly width: number; readonly height: number },
+	profile: DisplayProfile = { maxLongEdge: MAX_MODEL_LONG_EDGE },
+): DisplayConfig {
 	const logicalWidth = assertPositiveFiniteDimension(screenSize.width, "width");
 	const logicalHeight = assertPositiveFiniteDimension(screenSize.height, "height");
+	const maxLongEdge = assertPositiveFiniteDimension(profile.maxLongEdge, "maxLongEdge");
 	const logicalLongEdge = Math.max(logicalWidth, logicalHeight);
-	if (logicalLongEdge <= MAX_MODEL_LONG_EDGE) {
+	if (logicalLongEdge <= maxLongEdge) {
 		return { logicalWidth, logicalHeight, modelWidth: logicalWidth, modelHeight: logicalHeight };
 	}
 
-	const scale = MAX_MODEL_LONG_EDGE / logicalLongEdge;
+	const scale = maxLongEdge / logicalLongEdge;
 	return {
 		logicalWidth,
 		logicalHeight,

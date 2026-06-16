@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDisplayConfig, unscaleCoord } from "./coords.js";
+import { displayProfileForModel, resolveDisplayConfig, unscaleCoord } from "./coords.js";
 
 describe("#given a small screen #when resolving display config #then model dimensions pass through", () => {
 	it("keeps logical dimensions unchanged", () => {
@@ -23,6 +23,24 @@ describe("#given a large non-16:9 screen #when resolving display config #then th
 		const display = resolveDisplayConfig({ width: 2560, height: 1600 });
 
 		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1600, modelWidth: 1280, modelHeight: 800 });
+	});
+});
+
+describe("#given a 1024 display profile #when resolving display config #then the long edge follows the profile", () => {
+	it("preserves aspect ratio against the 1024 long edge", () => {
+		const display = resolveDisplayConfig({ width: 2560, height: 1600 }, { maxLongEdge: 1024 });
+
+		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1600, modelWidth: 1024, modelHeight: 640 });
+	});
+});
+
+describe("#given model ids #when resolving display profiles #then Anthropic native uses XGA and OpenAI keeps default", () => {
+	it("distinguishes Anthropic native from other providers", () => {
+		const anthropicProfile = displayProfileForModel("anthropic-messages", "claude-sonnet-4-5");
+		const openaiProfile = displayProfileForModel("openai-responses", "gpt-5.1");
+
+		expect(anthropicProfile).toEqual({ maxLongEdge: 1024 });
+		expect(openaiProfile).toEqual({ maxLongEdge: 1280 });
 	});
 });
 
