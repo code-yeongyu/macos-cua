@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { MacOSHostComputer } from "@macos-cua/core";
 import type { ComputerInterface, KeyOptions, ScreenshotOptions, ScrollOptions } from "@macos-cua/core";
 import { Command } from "commander";
+import { registerRunCodeCommand } from "./run-code-command.js";
 
 type PackageJson = {
 	version: string;
@@ -81,6 +82,8 @@ program
 		parsePositiveInteger,
 	)
 	.option("--target-bundle-id <id>", "deliver input to the running app with this bundle identifier");
+
+registerRunCodeCommand(program);
 
 program
 	.command("screenshot")

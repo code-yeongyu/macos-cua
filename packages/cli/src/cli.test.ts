@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execa } from "execa";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 type PackageJson = {
 	version: string;
@@ -11,15 +11,19 @@ type PackageJson = {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const workspaceRoot = resolve(__dirname, "../../..");
-const cliPath = join(__dirname, "cli.ts");
+const cliPath = join(__dirname, "../dist/cli.js");
 const packageJson: PackageJson = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8")) as PackageJson;
 
 function runCli(args: string[]) {
-	return execa(process.execPath, ["--experimental-strip-types", cliPath, ...args], {
+	return execa(process.execPath, [cliPath, ...args], {
 		cwd: workspaceRoot,
 		env: { ...process.env, FORCE_COLOR: "0" },
 	});
 }
+
+beforeAll(async () => {
+	await execa("pnpm", ["--filter", "@macos-cua/cli", "build"], { cwd: workspaceRoot });
+});
 
 describe("macos-cua CLI", () => {
 	it("#given package metadata #when --version runs #then it prints the package version", async () => {
@@ -48,6 +52,7 @@ describe("macos-cua CLI", () => {
 			"key",
 			"keypress",
 			"wait",
+			"run-code",
 			"cursor",
 			"screen",
 			"permissions",
