@@ -1,4 +1,5 @@
 export type * from "./accessibility/types.js";
+export { splitAppState, type SplitAppStateResult } from "./code-mode/app-state-split.js";
 export {
 	AX_PRESS_ACTION,
 	axScrollActionFor,
