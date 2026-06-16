@@ -7,6 +7,7 @@ import { resolveAppInstructions } from "../app-instructions/index.js";
 import { resolveDisplayMetadata } from "../computer/display-metadata.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
 import { type ScreenshotViewport, resolveWindowScreenshotSize, screenRectToScreenshot } from "../computer/viewport.js";
+import { createDebugLog } from "../log/debug-log.js";
 import type { AppApprovalStore } from "../permission/app-approval.js";
 import { blockedUrl, browserUrlScript, isBrowserBundle } from "../permission/url-blocklist.js";
 import type {
@@ -14,6 +15,7 @@ import type {
 	DragOptions,
 	KeyOptions,
 	Point,
+	Rect,
 	ScreenshotOptions,
 	ScrollOptions,
 	SelectTextOptions,
@@ -32,6 +34,7 @@ import {
 import { type PointerOverlay, createCursorOverlay } from "./macos-ffi/cursor-overlay.js";
 import { createDisplaySleepAssertion } from "./macos-ffi/power.js";
 import {
+	captureDisplayRectPng,
 	captureMainDisplayPng,
 	getMainDisplayLogicalSize,
 	getMainDisplayNativePixelSize,
@@ -46,6 +49,7 @@ const SYSTEM_PROFILER_TIMEOUT_MILLISECONDS = 10_000;
 const SCREENSHOT_TIMEOUT_MILLISECONDS = 10_000;
 const SCREENSHOT_MAX_BUFFER_BYTES = 100 * 1024 * 1024;
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
+const debugCapture = createDebugLog("capture");
 
 export interface MacOSHostComputerOptions extends HostComputerOptions {
 	defaultTargetPid?: number;
@@ -98,11 +102,16 @@ export class MacOSHostComputer extends HostComputer {
 	}
 
 	private async captureScreenshot(options?: ScreenshotOptions, windowId?: number): Promise<ScreenshotResult> {
-		if (options?.region) {
-			throw new Error("Region screenshots are not supported by the macOS screenshot fallback yet");
-		}
-		const size = options?.targetSize ?? (await this.getScreenSize());
-		const data = await captureMacOSScreenshot(size, windowId, options?.format ?? "png", options?.quality ?? 72);
+		const size =
+			options?.targetSize ??
+			(options?.region === undefined ? await this.getScreenSize() : targetSizeFromRegion(options.region));
+		const data = await captureMacOSScreenshot(
+			size,
+			windowId,
+			options?.format ?? "png",
+			options?.quality ?? 72,
+			options?.region,
+		);
 		const dimensions = parseImageDimensions(data);
 		return {
 			data,
@@ -345,6 +354,7 @@ export async function captureMacOSScreenshot(
 	windowId?: number,
 	format: "png" | "jpeg" = "png",
 	quality = 72,
+	region?: Rect,
 ): Promise<Buffer> {
 	if (!Number.isSafeInteger(targetSize.width) || !Number.isSafeInteger(targetSize.height)) {
 		throw new Error("requested screenshot dimensions must be integers");
@@ -356,6 +366,20 @@ export async function captureMacOSScreenshot(
 		throw new Error("windowId must be a positive integer");
 	}
 
+	if (region !== undefined) {
+		const captured = captureDisplayRectPng(region, Math.max(targetSize.width, targetSize.height));
+		const dimensions = parsePngDimensions(captured.data);
+		debugCapture("region_screenshot", {
+			requestedX: region.x,
+			requestedY: region.y,
+			requestedWidth: region.width,
+			requestedHeight: region.height,
+			outputWidth: dimensions.width,
+			outputHeight: dimensions.height,
+		});
+		return captured.data;
+	}
+
 	if (windowId === undefined) {
 		const captured = captureMainDisplayPng(targetSize.width, targetSize.height);
 		parsePngDimensions(captured.data);
@@ -363,6 +387,24 @@ export async function captureMacOSScreenshot(
 	}
 
 	return captureWindowScreenshotViaCli(targetSize, windowId, format, quality);
+}
+
+function targetSizeFromRegion(region: Rect): { width: number; height: number } {
+	if (
+		!Number.isFinite(region.x) ||
+		!Number.isFinite(region.y) ||
+		!Number.isFinite(region.width) ||
+		!Number.isFinite(region.height)
+	) {
+		throw new Error("screenshot region requires finite coordinates and dimensions");
+	}
+	if (region.width <= 0 || region.height <= 0) {
+		throw new Error(`screenshot region requires positive dimensions, got ${region.width}x${region.height}`);
+	}
+	return {
+		width: Math.max(1, Math.ceil(region.width)),
+		height: Math.max(1, Math.ceil(region.height)),
+	};
 }
 
 async function captureWindowScreenshotViaCli(
