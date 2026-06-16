@@ -48,10 +48,10 @@ const CGDisplayPixelsWide = coreGraphics.func("CGDisplayPixelsWide", "size_t", [
 	(displayId: number) => number
 >;
 
-const CGDisplayCreateImageForRect = coreGraphics.func("CGDisplayCreateImageForRect", CG_IMAGE_REF, [
-	"uint32_t",
+const CGImageCreateWithImageInRect = coreGraphics.func("CGImageCreateWithImageInRect", CG_IMAGE_REF, [
+	CG_IMAGE_REF,
 	CG_RECT,
-]) as KoffiFunc<(displayId: number, rect: CGRect) => CGImageRef | null>;
+]) as KoffiFunc<(image: CGImageRef, rect: CGRect) => CGImageRef | null>;
 
 const CGDisplayPixelsHigh = coreGraphics.func("CGDisplayPixelsHigh", "size_t", ["uint32_t"]) as KoffiFunc<
 	(displayId: number) => number
@@ -172,28 +172,37 @@ export function captureDisplayRectPng(rect: Rect, maxPixelSize?: number): Captur
 	const displayId = CGMainDisplayID();
 	const displayBounds = CGDisplayBounds(displayId);
 	assertRectInsideBounds(rect, displayBounds);
-	const cropPixels = computeCropPixels(rect, computeMainDisplayScaleFactor(displayId, displayBounds));
-	const sourceImage = CGDisplayCreateImageForRect(displayId, {
-		origin: { x: cropPixels.x, y: cropPixels.y },
-		size: { width: cropPixels.width, height: cropPixels.height },
-	});
+	const sourceImage = CGDisplayCreateImage(displayId);
 	if (sourceImage === null) {
-		throw new Error(
-			`CGDisplayCreateImageForRect returned null for rect ${formatRect(rect)} (Screen Recording permission may be missing)`,
-		);
+		throw new Error("CGDisplayCreateImage returned null (Screen Recording permission may be missing)");
 	}
 
 	try {
-		const sourceWidth = CGImageGetWidth(sourceImage);
-		const sourceHeight = CGImageGetHeight(sourceImage);
-		const outputMaxPixelSize = maxPixelSize ?? Math.max(sourceWidth, sourceHeight);
-		const pngBytes = encodeImageAsPng(sourceImage, outputMaxPixelSize);
-		const outputDimensions = computeAspectPreservedDimensions(sourceWidth, sourceHeight, outputMaxPixelSize);
-		return {
-			data: pngBytes,
-			width: outputDimensions.width,
-			height: outputDimensions.height,
-		};
+		const cropPixels = computeCropPixels(rect, computeMainDisplayScaleFactor(displayId, displayBounds));
+		const croppedImage = CGImageCreateWithImageInRect(sourceImage, {
+			origin: { x: cropPixels.x, y: cropPixels.y },
+			size: { width: cropPixels.width, height: cropPixels.height },
+		});
+		if (croppedImage === null) {
+			throw new Error(
+				`CGImageCreateWithImageInRect returned null for rect ${formatRect(rect)} (Screen Recording permission may be missing)`,
+			);
+		}
+
+		try {
+			const sourceWidth = CGImageGetWidth(croppedImage);
+			const sourceHeight = CGImageGetHeight(croppedImage);
+			const outputMaxPixelSize = maxPixelSize ?? Math.max(sourceWidth, sourceHeight);
+			const pngBytes = encodeImageAsPng(croppedImage, outputMaxPixelSize);
+			const outputDimensions = computeAspectPreservedDimensions(sourceWidth, sourceHeight, outputMaxPixelSize);
+			return {
+				data: pngBytes,
+				width: outputDimensions.width,
+				height: outputDimensions.height,
+			};
+		} finally {
+			cfRelease(croppedImage);
+		}
 	} finally {
 		cfRelease(sourceImage);
 	}
