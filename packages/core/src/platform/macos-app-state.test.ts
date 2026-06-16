@@ -30,6 +30,7 @@ const accessibilityMock = vi.hoisted(() => ({
 }));
 
 const screenshotMock = vi.hoisted(() => ({
+	captureDisplayRectPng: vi.fn(),
 	captureMainDisplayPng: vi.fn(),
 	getMainDisplayLogicalSize: vi.fn(),
 	getMainDisplayNativePixelSize: vi.fn(),
@@ -55,11 +56,13 @@ beforeEach(() => {
 	childProcessMock.execFile.mockReset();
 	windowMock.openWindows.mockReset();
 	accessibilityMock.extractAccessibilityTree.mockReset();
+	screenshotMock.captureDisplayRectPng.mockReset();
 	screenshotMock.captureMainDisplayPng.mockReset();
 	screenshotMock.getMainDisplayLogicalSize.mockReset();
 	screenshotMock.getMainDisplayNativePixelSize.mockReset();
 	screenshotMock.getMainDisplayLogicalSize.mockReturnValue({ width: 1920, height: 1080 });
 	screenshotMock.getMainDisplayNativePixelSize.mockReturnValue({ width: 3840, height: 2160 });
+	screenshotMock.captureDisplayRectPng.mockReturnValue({ data: fakePng(1280, 800), width: 1280, height: 800 });
 	screenshotMock.captureMainDisplayPng.mockReturnValue({ data: fakePng(1920, 1080), width: 1920, height: 1080 });
 
 	windowMock.openWindows.mockResolvedValue([{ id: 99, owner: { processId: TARGET_PID }, bounds: WINDOW_BOUNDS }]);
@@ -319,6 +322,36 @@ describe("#given no target window #when get_app_state captures the full display 
 		expect(state.elements[0]?.frame).toEqual({ x: 800, y: 550, width: 200, height: 160 });
 		expect(state.screenshotWidth).toBe(1920);
 		expect(await computer.getScreenshotViewport(TARGET_PID)).toBeUndefined();
+	});
+});
+
+describe("#given window enumeration lacks Screen Recording #when System Events can read bounds #then get_app_state stays window scoped", () => {
+	it("captures the target bounds as a region and remaps frames", async () => {
+		windowMock.openWindows.mockRejectedValue(
+			new Error(
+				"get-windows requires the screen recording permission in “System Settings › Privacy & Security › Screen Recording”.",
+			),
+		);
+		childProcessMock.execFile.mockReset();
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
+			callback(
+				null,
+				JSON.stringify([{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true }]),
+				"",
+			);
+		});
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
+			callback(null, "300\t150\t2560\t1600", "");
+		});
+		const computer = new MacOSHostComputer();
+
+		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
+		const viewport = await computer.getScreenshotViewport(TARGET_PID);
+
+		expect(screenshotMock.captureDisplayRectPng).toHaveBeenCalledWith(WINDOW_BOUNDS, 1280);
+		expect(state.windowBounds).toEqual(WINDOW_BOUNDS);
+		expect(state.elements[0]?.frame).toEqual({ x: 250, y: 200, width: 100, height: 80 });
+		expect(viewport).toEqual({ windowBounds: WINDOW_BOUNDS, screenshotWidth: 1280, screenshotHeight: 800 });
 	});
 });
 

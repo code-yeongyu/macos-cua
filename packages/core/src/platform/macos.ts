@@ -41,6 +41,7 @@ import {
 } from "./macos-ffi/screenshot.js";
 import { selectTextByIndex } from "./macos-ffi/select-text.js";
 import { MacOSInputController } from "./macos-input.js";
+import { systemEventsTargetWindowBounds } from "./macos-window-target-fallback.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -50,6 +51,11 @@ const SCREENSHOT_TIMEOUT_MILLISECONDS = 10_000;
 const SCREENSHOT_MAX_BUFFER_BYTES = 100 * 1024 * 1024;
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
 const debugCapture = createDebugLog("capture");
+
+type AppStateTargetWindow = {
+	readonly id?: number;
+	readonly bounds: Rect;
+};
 
 export interface MacOSHostComputerOptions extends HostComputerOptions {
 	defaultTargetPid?: number;
@@ -178,14 +184,17 @@ export class MacOSHostComputer extends HostComputer {
 		const app = resolveTargetApp(apps, targetPid);
 		this.assertAppApproved(app);
 		await this.assertBrowserUrlAllowed(app);
-		const targetWindow = await this.input.rememberTargetWindow(app.pid);
+		const targetWindow = await this.resolveAppStateTargetWindow(app.pid);
 		// Scope the screenshot to the target window at its own aspect ratio (capped),
 		// so the model sees an undistorted window image and coordinates invert cleanly.
 		// Without a target window, fall back to the full display.
 		const size =
 			options?.screenshotSize ??
 			(targetWindow !== undefined ? resolveWindowScreenshotSize(targetWindow.bounds) : await this.getScreenSize());
-		const screenshot = await this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow?.id);
+		const screenshot =
+			targetWindow === undefined || targetWindow.id !== undefined
+				? await this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow?.id)
+				: await this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds });
 		const tree = extractAccessibilityTree(app.pid);
 		const display = resolveDisplayInfo();
 		const appInstructions = resolveAppInstructions(app.name, app.bundleId);
@@ -231,6 +240,18 @@ export class MacOSHostComputer extends HostComputer {
 		};
 	}
 
+	private async resolveAppStateTargetWindow(pid: number): Promise<AppStateTargetWindow | undefined> {
+		try {
+			return await this.input.rememberTargetWindow(pid);
+		} catch (error) {
+			if (!(error instanceof Error)) {
+				throw error;
+			}
+			const bounds = await systemEventsTargetWindowBounds(pid);
+			return bounds === undefined ? undefined : { bounds };
+		}
+	}
+
 	private async assertBrowserUrlAllowed(app: RunningAppInfo): Promise<void> {
 		if (this.urlBlocklist.length === 0 || !isBrowserBundle(app.bundleId)) {
 			return;
@@ -274,7 +295,7 @@ export class MacOSHostComputer extends HostComputer {
 		}
 		// No prior get_app_state this session: derive a viewport from the current
 		// target window so a click still maps onto the right screen region.
-		const targetWindow = await this.input.rememberTargetWindow(targetPid);
+		const targetWindow = await this.resolveAppStateTargetWindow(targetPid);
 		if (targetWindow === undefined) {
 			return undefined;
 		}

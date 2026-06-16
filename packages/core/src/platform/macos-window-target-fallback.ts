@@ -19,11 +19,7 @@ export async function selectSystemEventsTargetWindow(
 	if (windows.length === 0) {
 		return undefined;
 	}
-	const boundsList = await systemEventsWindowBounds(pid);
-	const matchedBounds =
-		position === undefined
-			? boundsList[0]
-			: (boundsList.find((bounds) => containsPoint(bounds, position)) ?? boundsList[0]);
+	const matchedBounds = await systemEventsTargetWindowBounds(pid, position);
 	if (matchedBounds === undefined) {
 		return undefined;
 	}
@@ -32,6 +28,13 @@ export async function selectSystemEventsTargetWindow(
 		return undefined;
 	}
 	return { id: matchedWindow.id, bounds: { ...matchedWindow.bounds } };
+}
+
+export async function systemEventsTargetWindowBounds(pid: number, position?: Point): Promise<WindowBounds | undefined> {
+	const boundsList = await systemEventsWindowBounds(pid);
+	return position === undefined
+		? boundsList[0]
+		: (boundsList.find((bounds) => containsPoint(bounds, position)) ?? boundsList[0]);
 }
 
 async function systemEventsWindowBounds(pid: number): Promise<readonly WindowBounds[]> {
