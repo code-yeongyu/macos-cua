@@ -16,20 +16,18 @@ export interface McpServerOptions {
 	readonly codeMode?: boolean;
 }
 
-export function createMcpServer(
-	computer: ComputerInterface = new MacOSHostComputer(),
-	options: McpServerOptions = {},
-): McpServer {
+export function createMcpServer(computer?: ComputerInterface, options: McpServerOptions = {}): McpServer {
+	const activeComputer = computer ?? createComputer(options.codeMode === true);
 	const server = new McpServer(SERVER_INFO);
-	registerScreenshotTool(server, computer);
+	registerScreenshotTool(server, activeComputer);
 
 	if (options.codeMode === true) {
-		const runner = createCodeModeRunner(computer);
+		const runner = createCodeModeRunner(activeComputer);
 		registerRunTool(server, async () => runner);
 		return server;
 	}
 
-	registerDiscreteTools(server, computer);
+	registerDiscreteTools(server, activeComputer);
 	return server;
 }
 

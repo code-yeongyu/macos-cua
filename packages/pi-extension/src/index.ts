@@ -48,6 +48,12 @@ interface ComputerUseModel {
 
 const DISABLE_COMPUTER_USE_BETA_ENV = "MACOS_CUA_DISABLE_COMPUTER_USE_BETA";
 const CODE_MODE_ENV = "MACOS_CUA_CODE_MODE";
+const NOOP_OVERLAY = {
+	set(): void {},
+	highlight(): void {},
+	hide(): void {},
+	close(): void {},
+};
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(sourceDirectory, "..");
@@ -66,11 +72,11 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		const computer = new MacOSHostComputer();
+		const codeMode = process.env[CODE_MODE_ENV] === "1";
+		const computer = new MacOSHostComputer(codeMode ? { overlay: NOOP_OVERLAY } : {});
 		const screenSize = await computer.getScreenSize();
 		const display = resolveDisplayConfig(screenSize, displayProfileForModel(ctx.model?.api, ctx.model?.id));
 		const enabled = !isOptedOut(process.env[DISABLE_COMPUTER_USE_BETA_ENV]);
-		const codeMode = process.env[CODE_MODE_ENV] === "1";
 		state = { computer, screenSize, display, enabled, codeMode };
 
 		if (codeMode) {

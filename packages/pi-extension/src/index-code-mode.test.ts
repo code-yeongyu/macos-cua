@@ -135,6 +135,14 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 		const payload = { tools: [] };
 
 		expect(pi.registeredTools.map((tool) => tool.name)).toEqual(["run"]);
+		expect(macOSHostComputerMock.constructor).toHaveBeenCalledWith({
+			overlay: {
+				set: expect.any(Function),
+				highlight: expect.any(Function),
+				hide: expect.any(Function),
+				close: expect.any(Function),
+			},
+		});
 		expect(runBeforeProviderRequest(pi, payload)).toBe(payload);
 		expect(await runBeforeAgentStart(pi)).toBeUndefined();
 	});
