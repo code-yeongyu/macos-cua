@@ -1,9 +1,9 @@
 import {
 	type ComputerInterface,
 	type Point,
+	clickElementByIndex,
 	clickPoint,
 	parseElementIndex,
-	pressElement,
 	resolveAppPid,
 	resolveScreenPoint,
 	withTargetedApp,
@@ -57,10 +57,7 @@ async function dispatchClick(
 ): Promise<void> {
 	if (params.element_index !== undefined) {
 		const index = parseElementIndex(params.element_index);
-		for (let pressIndex = 0; pressIndex < pressCount; pressIndex += 1) {
-			await pressElement(computer, targetPid, index);
-		}
-		void params.mouse_button;
+		await clickElementByIndex(computer, targetPid, index, pressCount, params.mouse_button);
 		return;
 	}
 	const point = await resolveScreenPoint(computer, targetPid, parseCoordinate(params.x, params.y));

@@ -2,6 +2,7 @@ export type * from "./accessibility/types.js";
 export {
 	AX_PRESS_ACTION,
 	axScrollActionFor,
+	clickElementByIndex,
 	clickPoint,
 	getAppStateForApp,
 	parseElementIndex,

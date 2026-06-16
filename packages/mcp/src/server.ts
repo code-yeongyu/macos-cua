@@ -4,10 +4,10 @@ import {
 	type ComputerInterface,
 	type DragOptions,
 	MacOSHostComputer,
+	clickElementByIndex,
 	clickPoint,
 	getAppStateForApp,
 	parseElementIndex,
-	pressElement,
 	resolveAppPid,
 	resolveScreenPoint,
 	scrollElement,
@@ -129,10 +129,7 @@ export function createMcpServer(computer: ComputerInterface = new MacOSHostCompu
 			const pressCount = Math.max(1, Math.trunc(click_count ?? 1));
 			if (element_index !== undefined) {
 				const index = parseElementIndex(element_index);
-				for (let pressIndex = 0; pressIndex < pressCount; pressIndex += 1) {
-					await pressElement(computer, targetPid, index);
-				}
-				void mouse_button;
+				await clickElementByIndex(computer, targetPid, index, pressCount, mouse_button);
 				return clickComplete();
 			}
 			const point = await resolveScreenPoint(computer, targetPid, parseCoordinate(x, y));
