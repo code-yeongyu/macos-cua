@@ -11,6 +11,7 @@ import { createScrollTool } from "./scroll.js";
 import { createSelectTextTool } from "./select-text.js";
 import { createSetValueTool } from "./set-value.js";
 import { createTypeTextTool } from "./type-text.js";
+import { createZoomTool } from "./zoom.js";
 
 export interface ToolRegistrationOptions {
 	readonly computer: ComputerInterface;
@@ -27,6 +28,7 @@ export function buildAllTools(options: ToolRegistrationOptions): ReadonlyArray<T
 		createSelectTextTool(computer),
 		createDragTool(computer),
 		createScrollTool(computer),
+		createZoomTool(computer),
 		createTypeTextTool(computer),
 		createPressKeysTool(computer),
 	];

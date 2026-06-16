@@ -1,6 +1,7 @@
 import type { ComputerInterface } from "@macos-cua/core";
 import { describe, expect, it, vi } from "vitest";
 
+import { buildCodexComputerUseSection, buildComputerUseSection } from "../anthropic-computer-use.js";
 import type { ExtensionAPI } from "../pi/index.js";
 import { buildAllTools, registerAllTools } from "./index.js";
 
@@ -93,6 +94,7 @@ describe("#given all tool factories #when built #then every Codex Computer Use t
 			"select_text",
 			"drag",
 			"scroll",
+			"zoom",
 			"type_text",
 			"press_keys",
 		]);
@@ -106,6 +108,16 @@ describe("#given all tools #when registered #then pi.registerTool is called for 
 
 		registerAllTools(pi, { computer: createComputer() });
 
-		expect(registerToolSpy).toHaveBeenCalledTimes(10);
+		expect(registerToolSpy).toHaveBeenCalledTimes(11);
+	});
+});
+
+describe("#given computer-use prompt text #when small targets are present #then zoom is recommended", () => {
+	it("tells models to zoom before clicking small targets", () => {
+		const prompt = `${buildComputerUseSection(1280, 720)}\n${buildCodexComputerUseSection()}`;
+
+		expect(prompt).toContain("zoom");
+		expect(prompt).toContain("small targets");
+		expect(prompt).toContain("click element_index=<number>");
 	});
 });
