@@ -41,6 +41,7 @@ export {
 	PassiveMemorySegmentWriter,
 	fileSegmentSink,
 } from "./passive-memory/segment-writer.js";
+export { createDebugLog, type LogValue } from "./log/debug-log.js";
 export type { PermissionInterface, PermissionKind, PermissionStatus } from "./permission/interface.js";
 export { MacOSPermissions } from "./permission/macos.js";
 export { CloudComputer, type CloudComputerOptions } from "./platform/cloud.js";
