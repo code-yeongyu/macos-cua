@@ -18,9 +18,11 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod/v4";
 import { registerPressKeysTool } from "./press-keys.js";
 import { SERVER_INFO } from "./server-info.js";
+import { TOOL_NAMES as BASE_TOOL_NAMES } from "./tool-names.js";
 import { type ToolContent, type ToolResult, actionComplete, clickComplete, textResult } from "./tool-result.js";
+import { registerZoomTool } from "./zoom.js";
 
-export { TOOL_NAMES } from "./tool-names.js";
+export const TOOL_NAMES = [...BASE_TOOL_NAMES, "zoom"] as const;
 
 const appSchema = z.string().min(1);
 
@@ -246,6 +248,7 @@ export function createMcpServer(computer: ComputerInterface = new MacOSHostCompu
 		},
 	);
 
+	registerZoomTool(server, computer);
 	registerPressKeysTool(server, computer, actionComplete);
 
 	return server;

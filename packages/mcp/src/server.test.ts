@@ -302,4 +302,51 @@ describe("MCP server tools #given #when #then", () => {
 			suffix: " baz",
 		});
 	});
+
+	it("captures a high-resolution zoom crop and returns remapped element marks", async () => {
+		// given
+		mockedComputer.getScreenshotViewport.mockResolvedValue({
+			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
+			screenshotWidth: 500,
+			screenshotHeight: 400,
+		});
+		mockedComputer.screenshot.mockResolvedValue({
+			data: Buffer.from("zoom-png"),
+			mimeType: "image/png",
+			width: 800,
+			height: 400,
+		});
+		const { client, close } = await createHarness();
+		closeHarness = close;
+
+		// when
+		const result = await client.callTool({
+			name: "zoom",
+			arguments: { app: "Finder", region: { x: 50, y: 175, width: 200, height: 100 } },
+		});
+
+		// then
+		expect(mockedComputer.screenshot).toHaveBeenCalledWith({ region: { x: 400, y: 500, width: 400, height: 200 } });
+		if (!Array.isArray(result.content)) {
+			throw new Error("zoom result content must be an array");
+		}
+		expect(result.content[0]).toEqual({
+			type: "image",
+			data: Buffer.from("zoom-png").toString("base64"),
+			mimeType: "image/png",
+		});
+		const text = result.content.find((entry) => entry.type === "text");
+		if (text?.type !== "text") {
+			throw new Error("zoom result must include JSON details text");
+		}
+		expect(JSON.parse(text.text)).toMatchObject({
+			message: expect.stringContaining("click element_index=<number>"),
+			rect: {
+				source: { x: 50, y: 175, width: 200, height: 100 },
+				screen: { x: 400, y: 500, width: 400, height: 200 },
+				crop: { width: 800, height: 400 },
+			},
+			marks: [{ id: 9, frame: { x: 200, y: 100, width: 80, height: 40 } }],
+		});
+	});
 });
