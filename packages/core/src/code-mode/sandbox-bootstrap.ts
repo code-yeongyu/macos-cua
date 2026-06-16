@@ -10,10 +10,11 @@ type ExternalCopyConstructor = new (
 
 export async function loadIsolatedVm(): Promise<IsolatedVmModule> {
 	const loaded = await import("isolated-vm");
-	if (!isIsolatedVmModule(loaded)) {
+	const module = unwrapIsolatedVmModule(loaded);
+	if (module === undefined) {
 		throw new CodeModeError("CODE_MODE_UNAVAILABLE", "isolated-vm did not expose Isolate and Reference");
 	}
-	return loaded;
+	return module;
 }
 
 export async function installSandboxGlobals(
@@ -91,6 +92,17 @@ ${jsCode}
 
 function isIsolatedVmModule(value: unknown): value is IsolatedVmModule {
 	return isRecord(value) && typeof value["Isolate"] === "function" && typeof value["Reference"] === "function";
+}
+
+function unwrapIsolatedVmModule(value: unknown): IsolatedVmModule | undefined {
+	if (isIsolatedVmModule(value)) {
+		return value;
+	}
+	if (!isRecord(value)) {
+		return undefined;
+	}
+	const defaultExport = value["default"];
+	return isIsolatedVmModule(defaultExport) ? defaultExport : undefined;
 }
 
 function copyIntoSandbox(ivm: IsolatedVmModule, value: unknown): unknown {
