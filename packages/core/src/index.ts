@@ -1,5 +1,11 @@
 export type * from "./accessibility/types.js";
 export { splitAppState, type SplitAppStateResult } from "./code-mode/app-state-split.js";
+export { CodeModeSandbox } from "./code-mode/sandbox.js";
+export { ScreenshotStore, type ScreenshotHandle } from "./code-mode/screenshot-store.js";
+export { assembleRunResult, type CodeModeRunResult } from "./code-mode/result.js";
+export { CodeModeError, type CodeModeErrorCode } from "./code-mode/errors.js";
+export { buildCodeModePrompt } from "./code-mode/transpile.js";
+export { ensureNodeSnapshotFlag, isNodeSnapshotFlagPresent } from "./code-mode/reexec.js";
 export {
 	AX_PRESS_ACTION,
 	axScrollActionFor,
