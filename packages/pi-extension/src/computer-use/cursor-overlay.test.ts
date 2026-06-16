@@ -52,6 +52,7 @@ function createComputer(cursor: { readonly x: number; readonly y: number }): Com
 		scroll: vi.fn<ComputerActionDriver["scroll"]>().mockResolvedValue(undefined),
 		drag: vi.fn<ComputerActionDriver["drag"]>().mockResolvedValue(undefined),
 		getCursorPosition: vi.fn<ComputerActionDriver["getCursorPosition"]>().mockResolvedValue(cursor),
+		selectText: vi.fn<ComputerActionDriver["selectText"]>().mockResolvedValue(undefined),
 		getScreenSize: vi.fn<ComputerActionDriver["getScreenSize"]>().mockResolvedValue({
 			width: DISPLAY.logicalWidth,
 			height: DISPLAY.logicalHeight,
@@ -127,5 +128,24 @@ describe("#given malformed screenshot bytes #when screenshot executes #then raw 
 
 		const first = result.content[0];
 		expect(first).toEqual({ type: "image", data: Buffer.from("png").toString("base64"), mimeType: "image/png" });
+	});
+});
+
+describe("#given native screenshot dimensions differ from display #when screenshot executes #then result is resized to model dimensions", () => {
+	it("returns an image matching the selected display dimensions", async () => {
+		const computer = createComputer({ x: 100, y: 50 });
+		vi.mocked(computer.screenshot).mockResolvedValue({
+			data: createPng(80, 40),
+			mimeType: "image/png",
+			width: 80,
+			height: 40,
+		});
+
+		const result = await executeNativeComputerAction({ action: "screenshot" }, computer, DISPLAY);
+		const image = imageDataFrom(result);
+
+		expect(image.width).toBe(DISPLAY.modelWidth);
+		expect(image.height).toBe(DISPLAY.modelHeight);
+		expect(pixelAt(image, 50, 25)).toEqual(CURSOR_RED);
 	});
 });

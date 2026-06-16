@@ -1,4 +1,4 @@
-import type { ComputerInterface, Point, ScreenshotResult } from "@macos-cua/core";
+import { type ComputerInterface, type Point, type ScreenshotResult, createDebugLog } from "@macos-cua/core";
 import { PNG } from "pngjs";
 
 import type { ComputerUseResult } from "../anthropic-computer-use.js";
@@ -8,6 +8,7 @@ const CURSOR_FILL = { red: 255, green: 59, blue: 48, alpha: 255 } as const;
 const CURSOR_RING = { red: 255, green: 255, blue: 255, alpha: 255 } as const;
 const CURSOR_RADIUS_PIXELS = 5;
 const CURSOR_RING_RADIUS_PIXELS = 7;
+const logCoords = createDebugLog("coords");
 
 type CursorScreenshotComputer = Pick<ComputerInterface, "getCursorPosition" | "screenshot">;
 type Rgba = {
@@ -25,7 +26,8 @@ export async function screenshotResultWithCursor(
 		targetSize: { width: display.modelWidth, height: display.modelHeight },
 	});
 	const cursor = await computer.getCursorPosition();
-	return imageResult(drawCursorOnScreenshot(screenshot, cursor, display).toString("base64"));
+	const exactScreenshot = ensureModelDimensions(screenshot, display);
+	return imageResult(drawCursorOnScreenshot(exactScreenshot, cursor, display).toString("base64"));
 }
 
 export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Point, display: DisplayConfig): Buffer {
@@ -70,6 +72,53 @@ function drawDisc(png: PNG, center: Point, radius: number, color: Rgba): void {
 			}
 		}
 	}
+}
+
+function ensureModelDimensions(screenshot: ScreenshotResult, display: DisplayConfig): ScreenshotResult {
+	const png = decodePngOrUndefined(screenshot.data);
+	if (png === undefined) {
+		return screenshot;
+	}
+	logCoords("screenshot-dimensions", {
+		actualWidth: png.width,
+		actualHeight: png.height,
+		expectedWidth: display.modelWidth,
+		expectedHeight: display.modelHeight,
+		exact: png.width === display.modelWidth && png.height === display.modelHeight,
+	});
+	if (png.width === display.modelWidth && png.height === display.modelHeight) {
+		return screenshot;
+	}
+	logCoords("screenshot-dimensions-mismatch", {
+		actualWidth: png.width,
+		actualHeight: png.height,
+		expectedWidth: display.modelWidth,
+		expectedHeight: display.modelHeight,
+	});
+	const resized = resizePng(png, display.modelWidth, display.modelHeight);
+	return {
+		...screenshot,
+		data: PNG.sync.write(resized),
+		width: display.modelWidth,
+		height: display.modelHeight,
+	};
+}
+
+function resizePng(source: PNG, width: number, height: number): PNG {
+	const target = new PNG({ width, height });
+	for (let y = 0; y < height; y += 1) {
+		const sourceY = clamp(Math.floor(y * (source.height / height)), 0, source.height - 1);
+		for (let x = 0; x < width; x += 1) {
+			const sourceX = clamp(Math.floor(x * (source.width / width)), 0, source.width - 1);
+			const sourceOffset = (source.width * sourceY + sourceX) * 4;
+			const targetOffset = (width * y + x) * 4;
+			target.data[targetOffset] = source.data[sourceOffset] ?? 0;
+			target.data[targetOffset + 1] = source.data[sourceOffset + 1] ?? 0;
+			target.data[targetOffset + 2] = source.data[sourceOffset + 2] ?? 0;
+			target.data[targetOffset + 3] = source.data[sourceOffset + 3] ?? 255;
+		}
+	}
+	return target;
 }
 
 function setPixel(png: PNG, x: number, y: number, color: Rgba): void {

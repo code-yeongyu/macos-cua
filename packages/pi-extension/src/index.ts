@@ -14,7 +14,7 @@ import {
 	executeNativeComputerAction,
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-computer-use.js";
-import { type DisplayConfig, resolveDisplayConfig } from "./computer-use/coords.js";
+import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
 import {
 	type OpenAIComputerAction,
 	type OpenAIComputerActionBatch,
@@ -29,7 +29,8 @@ import { registerAllTools } from "./tools/index.js";
 
 interface ExtensionState {
 	readonly computer: MacOSHostComputer;
-	readonly display: DisplayConfig;
+	readonly screenSize: { readonly width: number; readonly height: number };
+	display: DisplayConfig;
 	readonly enabled: boolean;
 }
 
@@ -62,9 +63,10 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 
 	pi.on("session_start", async (_event, ctx) => {
 		const computer = new MacOSHostComputer();
-		const display = resolveDisplayConfig(await computer.getScreenSize());
+		const screenSize = await computer.getScreenSize();
+		const display = resolveDisplayConfig(screenSize, displayProfileForModel(ctx.model?.api, ctx.model?.id));
 		const enabled = !isOptedOut(process.env[DISABLE_COMPUTER_USE_BETA_ENV]);
-		state = { computer, display, enabled };
+		state = { computer, screenSize, display, enabled };
 		registerAllTools(pi, { computer });
 
 		if (!enabled) {
@@ -79,7 +81,11 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 					"Native computer-use actions for Anthropic and OpenAI Responses: screenshots, pointer, keyboard, scroll, drag, type, and wait.",
 				parameters: computerFallbackToolSchema,
 				async execute(_toolCallId, params) {
-					return executeComputerFallback(params, computer, display);
+					const currentState = state;
+					if (currentState === undefined) {
+						throw new Error("Computer use session is not active");
+					}
+					return executeComputerFallback(params, currentState.computer, currentState.display);
 				},
 			}),
 		);
@@ -87,6 +93,7 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("model_select", (event) => {
+		recomputeDisplayForModel(event.model);
 		syncComputerToolActivation(pi, event.model);
 	});
 
@@ -129,6 +136,13 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 		state = undefined;
 		await computer.close();
 	});
+}
+
+function recomputeDisplayForModel(model: ComputerUseModel | undefined): void {
+	if (state === undefined) {
+		return;
+	}
+	state.display = resolveDisplayConfig(state.screenSize, displayProfileForModel(model?.api, model?.id));
 }
 
 function isOptedOut(value: string | undefined): boolean {
