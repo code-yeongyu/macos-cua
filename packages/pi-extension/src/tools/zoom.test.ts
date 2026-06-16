@@ -78,6 +78,55 @@ describe("#given zoom tool with fake computer #when zooming a region #then it ca
 			marks: [{ id: 9, box: { x: 200, y: 100, width: 200, height: 100 } }],
 		});
 	});
+
+	it("skips source AX elements with zero-size frames", async () => {
+		const computer = createComputer();
+		vi.mocked(computer.getAppState).mockResolvedValue({
+			app: "Finder",
+			bundleId: "com.apple.finder",
+			pid: 1234,
+			frontmost: true,
+			axAvailable: true,
+			elements: [
+				{
+					id: 7,
+					role: "AXButton",
+					label: "Hidden",
+					value: null,
+					frame: { x: 0, y: 0, width: 0, height: 0 },
+					actions: ["AXPress"],
+					children: [],
+				},
+				{
+					id: 9,
+					role: "AXButton",
+					label: "Open",
+					value: null,
+					frame: { x: 100, y: 50, width: 50, height: 25 },
+					actions: ["AXPress"],
+					children: [],
+				},
+			],
+			screenshotBase64: "",
+			screenshotWidth: 500,
+			screenshotHeight: 400,
+			display: { width: 1000, height: 800, scaleFactor: 2 },
+			windowBounds: SOURCE_VIEWPORT.windowBounds,
+		});
+		const tool = createZoomTool(computer);
+
+		const result = await tool.execute(
+			"call",
+			{ app: "Finder", element_index: "9" },
+			undefined,
+			undefined,
+			TEST_CONTEXT,
+		);
+
+		expect(result.details).toMatchObject({
+			marks: [{ id: 9 }],
+		});
+	});
 });
 
 function createComputer(): ComputerInterface {

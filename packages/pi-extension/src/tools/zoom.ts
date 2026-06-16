@@ -161,6 +161,9 @@ function cropElements(
 ): AXTreeElement[] {
 	const cropped: AXTreeElement[] = [];
 	for (const element of elements) {
+		if (!isPositiveRect(element.frame)) {
+			continue;
+		}
 		if (!rectsIntersect(cropScreenRect(element.frame, sourceViewport), screenRect)) {
 			continue;
 		}
@@ -185,6 +188,17 @@ function clipRect(rect: Rect, bounds: Rect): Rect | undefined {
 
 function rectsIntersect(a: Rect, b: Rect): boolean {
 	return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+function isPositiveRect(rect: Rect): boolean {
+	return (
+		Number.isFinite(rect.x) &&
+		Number.isFinite(rect.y) &&
+		Number.isFinite(rect.width) &&
+		Number.isFinite(rect.height) &&
+		rect.width > 0 &&
+		rect.height > 0
+	);
 }
 
 function positiveRect(rect: Rect, name: string): Rect {
