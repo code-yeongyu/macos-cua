@@ -20,13 +20,15 @@
 	},
 	"files": ["dist", "native/sckit.m", "native/build.sh", "native/libsckit.dylib"],
 	"dependencies": {
+		"esbuild": "^0.25.0",
 		"get-windows": "9.3.0",
+		"isolated-vm": "^6.0.2",
 		"koffi": "2.16.2",
 		"node-mac-permissions": "2.5.0"
 	},
 	"devDependencies": {
 		"typescript": "^5.7.0",
 		"vitest": "^2.1.0",
-		"@types/node": "^20.0.0"
+		"@types/node": "^22.0.0"
 	}
 }
