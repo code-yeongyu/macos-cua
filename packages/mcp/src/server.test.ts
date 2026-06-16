@@ -161,8 +161,8 @@ describe("MCP server tools #given #when #then", () => {
 		const toolNames = result.tools.map((tool) => tool.name).sort();
 
 		// then
-		expect(result.tools).toHaveLength(TOOL_NAMES.length);
-		expect(toolNames).toEqual([...TOOL_NAMES].sort());
+		expect(result.tools).toHaveLength(TOOL_NAMES.length + 1);
+		expect(toolNames).toEqual([...TOOL_NAMES, "screenshot"].sort());
 	});
 
 	it("returns image content and accessibility JSON for get_app_state", async () => {
