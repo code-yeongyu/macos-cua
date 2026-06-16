@@ -1,0 +1,177 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const macOSHostComputerMock = vi.hoisted(() => {
+	const instance = {
+		getScreenSize: vi.fn().mockResolvedValue({ width: 2560, height: 1440 }),
+		close: vi.fn().mockResolvedValue(undefined),
+	};
+	return { constructor: vi.fn(() => instance), instance };
+});
+const snapshotFlagPresentMock = vi.hoisted(() => vi.fn());
+const sandboxRunMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@macos-cua/core", () => ({
+	MacOSHostComputer: macOSHostComputerMock.constructor,
+	createDebugLog: vi.fn(() => vi.fn()),
+	isNodeSnapshotFlagPresent: snapshotFlagPresentMock,
+	ScreenshotStore: vi.fn(),
+	CodeModeSandbox: vi.fn(() => ({ run: sandboxRunMock })),
+	assembleRunResult: (raw: {
+		readonly logs: readonly string[];
+		readonly result: unknown;
+		readonly surfaced: readonly string[];
+	}) => ({
+		images: raw.surfaced.map((id) => ({ data: Buffer.from(`image:${id}`), mimeType: "image/png" as const })),
+		text: [...raw.logs, JSON.stringify(raw.result)].join("\n"),
+	}),
+}));
+
+import macosCuaExtension from "./index.js";
+import type { ExtensionAPI } from "./pi/index.js";
+
+type EventHandler = (...parameters: ReadonlyArray<unknown>) => unknown;
+type RegisteredTool = {
+	readonly name: string;
+	readonly execute: (params: unknown) => Promise<unknown>;
+};
+
+interface MockPi extends ExtensionAPI {
+	readonly handlers: Map<string, EventHandler>;
+	readonly registeredTools: RegisteredTool[];
+}
+
+function createMockPi(): MockPi {
+	const handlers = new Map<string, EventHandler>();
+	const registeredTools: RegisteredTool[] = [];
+	return {
+		handlers,
+		registeredTools,
+		on: ((eventName: string, handler: EventHandler) => handlers.set(eventName, handler)) as ExtensionAPI["on"],
+		registerTool(tool) {
+			registeredTools.push({
+				name: tool.name,
+				execute: async (params: unknown) =>
+					await Reflect.apply(tool.execute, tool, ["tool-call", params, undefined, undefined, {}]),
+			});
+		},
+		registerCommand() {},
+		registerShortcut() {},
+		registerFlag() {},
+		getFlag() {
+			return undefined;
+		},
+		registerMessageRenderer() {},
+		sendMessage() {},
+		sendUserMessage() {},
+		appendEntry() {},
+		setSessionName() {},
+		getSessionName() {
+			return undefined;
+		},
+		setLabel() {},
+		exec: vi.fn<ExtensionAPI["exec"]>(),
+		getActiveTools() {
+			return registeredTools.map((tool) => tool.name);
+		},
+		getAllTools() {
+			return [];
+		},
+		setActiveTools() {},
+		getCommands() {
+			return [];
+		},
+		setModel: vi.fn<ExtensionAPI["setModel"]>().mockResolvedValue(false),
+		getThinkingLevel: vi.fn<ExtensionAPI["getThinkingLevel"]>(),
+		setThinkingLevel() {},
+		registerProvider() {},
+		unregisterProvider() {},
+		events: {} as ExtensionAPI["events"],
+	};
+}
+
+beforeEach(() => {
+	process.env["MACOS_CUA_CODE_MODE"] = "1";
+	vi.clearAllMocks();
+	snapshotFlagPresentMock.mockReturnValue(true);
+	sandboxRunMock.mockResolvedValue({ logs: ["ok"], result: { done: true }, surfaced: ["shot_1"] });
+});
+
+async function runSessionStart(pi: MockPi): Promise<void> {
+	const handler = pi.handlers.get("session_start");
+	if (handler === undefined) {
+		throw new Error("session_start handler missing");
+	}
+	await handler({ reason: "startup" }, { model: undefined });
+}
+
+function runBeforeProviderRequest(pi: MockPi, payload: unknown): unknown {
+	const handler = pi.handlers.get("before_provider_request");
+	if (handler === undefined) {
+		throw new Error("before_provider_request handler missing");
+	}
+	return handler(
+		{ payload },
+		{ model: { api: "openai-responses", provider: "openai", baseUrl: "https://api.openai.com/v1" } },
+	);
+}
+
+async function runBeforeAgentStart(pi: MockPi): Promise<unknown> {
+	const handler = pi.handlers.get("before_agent_start");
+	if (handler === undefined) {
+		throw new Error("before_agent_start handler missing");
+	}
+	return await handler(
+		{ systemPrompt: "base prompt" },
+		{ model: { api: "anthropic-messages", provider: "anthropic" } },
+	);
+}
+
+describe("#given codeMode env var #when session_start runs #then only run is registered", () => {
+	it("skips discrete tools and native payload injection", async () => {
+		const pi = createMockPi();
+		macosCuaExtension(pi);
+
+		await runSessionStart(pi);
+		const payload = { tools: [] };
+
+		expect(pi.registeredTools.map((tool) => tool.name)).toEqual(["run"]);
+		expect(runBeforeProviderRequest(pi, payload)).toBe(payload);
+		expect(await runBeforeAgentStart(pi)).toBeUndefined();
+	});
+
+	it("returns launch instructions when the node snapshot flag is absent", async () => {
+		snapshotFlagPresentMock.mockReturnValue(false);
+		const pi = createMockPi();
+		macosCuaExtension(pi);
+
+		await runSessionStart(pi);
+		const result = await pi.registeredTools[0]?.execute({ code: "return 1" });
+
+		expect(result).toEqual({
+			content: [
+				{
+					type: "text",
+					text: "CODE_MODE_UNAVAILABLE: launch Pi with --no-node-snapshot to use MACOS_CUA_CODE_MODE=1",
+				},
+			],
+			details: undefined,
+		});
+	});
+
+	it("maps run results to ordered images and text", async () => {
+		const pi = createMockPi();
+		macosCuaExtension(pi);
+
+		await runSessionStart(pi);
+		const result = await pi.registeredTools[0]?.execute({ code: "console.log('ok')" });
+
+		expect(sandboxRunMock).toHaveBeenCalledWith("console.log('ok')");
+		expect(result).toEqual({
+			content: [
+				{ type: "image", data: Buffer.from("image:shot_1").toString("base64"), mimeType: "image/png" },
+				{ type: "text", text: 'ok\n{"done":true}' },
+			],
+			details: undefined,
+		});
+	});
+});

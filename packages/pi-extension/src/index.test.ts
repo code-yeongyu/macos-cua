@@ -46,7 +46,6 @@ const macOSHostComputerMock = vi.hoisted(() => {
 		instance,
 	};
 });
-
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
 	createDebugLog: vi.fn(() => vi.fn()),
@@ -130,6 +129,7 @@ function createMockPi(): MockPi {
 
 beforeEach(() => {
 	process.env["MACOS_CUA_DISABLE_COMPUTER_USE_BETA"] = undefined;
+	process.env["MACOS_CUA_CODE_MODE"] = undefined;
 	vi.clearAllMocks();
 	macOSHostComputerMock.instance.getScreenSize.mockResolvedValue({ width: 2560, height: 1440 });
 	macOSHostComputerMock.instance.close.mockResolvedValue(undefined);

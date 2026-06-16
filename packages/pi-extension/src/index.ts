@@ -15,6 +15,7 @@ import {
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-computer-use.js";
 import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
+import { toAgentToolErrorResult, toAgentToolResult } from "./computer-use/run-result.js";
 import {
 	type OpenAIComputerAction,
 	type OpenAIComputerActionBatch,
@@ -27,11 +28,13 @@ import {
 import { type AgentToolResult, type ExtensionAPI, defineTool } from "./pi/index.js";
 import { registerAllTools } from "./tools/index.js";
 
+// Verified Pi ImageContent shape: { type: "image"; data: string; mimeType: string }.
 interface ExtensionState {
 	readonly computer: MacOSHostComputer;
 	readonly screenSize: { readonly width: number; readonly height: number };
 	display: DisplayConfig;
 	readonly enabled: boolean;
+	readonly codeMode: boolean;
 }
 
 type ComputerFallbackInput = ComputerToolInput | OpenAIComputerAction | OpenAIComputerActionBatch;
@@ -44,6 +47,7 @@ interface ComputerUseModel {
 }
 
 const DISABLE_COMPUTER_USE_BETA_ENV = "MACOS_CUA_DISABLE_COMPUTER_USE_BETA";
+const CODE_MODE_ENV = "MACOS_CUA_CODE_MODE";
 
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.resolve(sourceDirectory, "..");
@@ -66,7 +70,14 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 		const screenSize = await computer.getScreenSize();
 		const display = resolveDisplayConfig(screenSize, displayProfileForModel(ctx.model?.api, ctx.model?.id));
 		const enabled = !isOptedOut(process.env[DISABLE_COMPUTER_USE_BETA_ENV]);
-		state = { computer, screenSize, display, enabled };
+		const codeMode = process.env[CODE_MODE_ENV] === "1";
+		state = { computer, screenSize, display, enabled, codeMode };
+
+		if (codeMode) {
+			await registerCodeModeRunTool(pi, computer);
+			return;
+		}
+
 		registerAllTools(pi, { computer });
 
 		if (!enabled) {
@@ -98,7 +109,7 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_provider_request", (event, ctx) => {
-		if (state === undefined || !state.enabled) {
+		if (state === undefined || !state.enabled || state.codeMode) {
 			return event.payload;
 		}
 		const api = ctx.model?.api;
@@ -116,7 +127,7 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
-		if (state === undefined || !state.enabled) {
+		if (state === undefined || !state.enabled || state.codeMode) {
 			return undefined;
 		}
 		if (ctx.model?.api !== "anthropic-messages") {
@@ -154,7 +165,7 @@ function isOptedOut(value: string | undefined): boolean {
 }
 
 function syncComputerToolActivation(pi: ExtensionAPI, model: ComputerUseModel | undefined): void {
-	if (state === undefined || !state.enabled) {
+	if (state === undefined || !state.enabled || state.codeMode) {
 		return;
 	}
 	const activeTools = pi.getActiveTools();
@@ -170,6 +181,56 @@ function syncComputerToolActivation(pi: ExtensionAPI, model: ComputerUseModel | 
 	if (activeTools.includes(ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME)) {
 		pi.setActiveTools(activeTools.filter((toolName) => toolName !== ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME));
 	}
+}
+
+async function registerCodeModeRunTool(pi: ExtensionAPI, computer: MacOSHostComputer): Promise<void> {
+	const { isNodeSnapshotFlagPresent } = await import("@macos-cua/core");
+	if (!isNodeSnapshotFlagPresent()) {
+		process.stderr.write("MACOS_CUA_CODE_MODE requires launching Pi with --no-node-snapshot.\n");
+		registerUnavailableRunTool(pi);
+		return;
+	}
+	const { CodeModeSandbox, ScreenshotStore, assembleRunResult } = await import("@macos-cua/core");
+	const store = new ScreenshotStore();
+	const sandbox = new CodeModeSandbox(computer, store);
+	pi.registerTool(
+		defineTool({
+			name: "run",
+			label: "Code Mode: run",
+			description:
+				"Run TypeScript that drives the desktop via mac.*. Call surface(handle) to show screenshots; return a value or console.log text.",
+			parameters: Type.Object({ code: Type.String() }, { additionalProperties: false }),
+			async execute(_toolCallId, params) {
+				try {
+					return toAgentToolResult(assembleRunResult(await sandbox.run(params.code), store));
+				} catch (error) {
+					return toAgentToolErrorResult(error);
+				}
+			},
+		}),
+	);
+}
+
+function registerUnavailableRunTool(pi: ExtensionAPI): void {
+	pi.registerTool(
+		defineTool({
+			name: "run",
+			label: "Code Mode: run",
+			description: "Reports code-mode launch instructions when Pi was not started with --no-node-snapshot.",
+			parameters: Type.Object({ code: Type.String() }, { additionalProperties: false }),
+			async execute() {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "CODE_MODE_UNAVAILABLE: launch Pi with --no-node-snapshot to use MACOS_CUA_CODE_MODE=1",
+						},
+					],
+					details: undefined,
+				};
+			},
+		}),
+	);
 }
 
 function shouldInjectOpenAINativeComputerUse(model: ComputerUseModel | undefined): boolean {
