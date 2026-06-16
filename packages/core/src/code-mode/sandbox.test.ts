@@ -1,12 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	FakeComputer,
+	FakeIsolate,
 	clearSandboxMocks,
 	fakeIvm,
 	importSandbox,
 	resetSandboxModules,
 } from "./sandbox-test-helpers.js";
+import type { HostFunction } from "./sandbox-types.js";
 import { ScreenshotStore } from "./screenshot-store.js";
 
 beforeEach(() => {
@@ -46,6 +48,23 @@ describe("#given sandboxed code #when it calls host RPC methods #then screenshot
 	});
 });
 
+describe("#given isolated-vm applySyncPromise semantics #when sandbox globals invoke host refs #then unsupported result options are not passed", () => {
+	it("#given a strict Reference fake #when code logs calls mac and surfaces #then calls resolve without result options", async () => {
+		vi.doMock("isolated-vm", () => ({ Isolate: FakeIsolate, Reference: StrictApplySyncPromiseReference }));
+		const { CodeModeSandbox } = await import("./sandbox.js");
+		const sandbox = new CodeModeSandbox(new FakeComputer(), new ScreenshotStore());
+
+		await expect(
+			sandbox.run(`
+				console.log("strict");
+				const shot = await mac.screenshot();
+				surface(shot);
+				return shot.id;
+			`),
+		).resolves.toMatchObject({ logs: ["strict"], result: "shot_1", surfaced: ["shot_1"] });
+	});
+});
+
 describe("#given sandbox options #when memory limit is omitted #then the default isolate limit is used", () => {
 	it("#given default sandbox options #when code runs #then isolated-vm receives 128 MB", async () => {
 		const { CodeModeSandbox } = await importSandbox();
@@ -56,3 +75,14 @@ describe("#given sandbox options #when memory limit is omitted #then the default
 		expect(fakeIvm.memoryLimits).toEqual([128]);
 	});
 });
+
+class StrictApplySyncPromiseReference {
+	constructor(private readonly value: HostFunction) {}
+
+	applySyncPromise(_receiver?: unknown, args: readonly unknown[] = [], options?: unknown): unknown {
+		if (typeof options === "object" && options !== null && "result" in options) {
+			throw new TypeError("`result` options are not available for `applySyncPromise`");
+		}
+		return this.value(...args);
+	}
+}

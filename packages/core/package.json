@@ -16,7 +16,8 @@
 		"build:ts": "tsgo",
 		"build:native": "./native/build.sh",
 		"typecheck": "tsgo --noEmit",
-		"test": "vitest --run --root ../.. $(find ../../packages/core -name '*.test.ts' | sort)"
+		"test": "vitest --run --root ../.. $(find ../../packages/core -name '*.test.ts' | sort)",
+		"test:isolate": "node ./scripts/run-isolate-test.mjs"
 	},
 	"files": ["dist", "native/sckit.m", "native/build.sh", "native/libsckit.dylib"],
 	"dependencies": {

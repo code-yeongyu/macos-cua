@@ -2,6 +2,12 @@ import { CodeModeError } from "./errors.js";
 import { formatLog, isRecord, readHandleId } from "./sandbox-errors.js";
 import type { HostFunction, IsolatedVmModule } from "./sandbox-types.js";
 
+type ExternalCopyConstructor = new (
+	value: unknown,
+) => {
+	copyInto(options: { readonly release: true }): unknown;
+};
+
 export async function loadIsolatedVm(): Promise<IsolatedVmModule> {
 	const loaded = await import("isolated-vm");
 	if (!isIsolatedVmModule(loaded)) {
@@ -18,14 +24,19 @@ export async function installSandboxGlobals(
 	surfaced: string[],
 ): Promise<{ readonly global: { set(name: string, value: unknown): Promise<void> } }> {
 	const context = await isolate.createContext();
-	await context.global.set("__codeModeRpc", new ivm.Reference(rpcHandler));
+	const rpcBridge: HostFunction = async (...args) => copyIntoSandbox(ivm, await rpcHandler(...args));
+	await context.global.set("__codeModeRpc", new ivm.Reference(rpcBridge));
 	await context.global.set(
 		"__codeModeConsole",
-		new ivm.Reference((args: unknown) => logs.push(formatLog(Array.isArray(args) ? args : []))),
+		new ivm.Reference((args: unknown) => {
+			logs.push(formatLog(Array.isArray(args) ? args : []));
+		}),
 	);
 	await context.global.set(
 		"__codeModeSurface",
-		new ivm.Reference((handle: unknown) => surfaced.push(readHandleId(handle))),
+		new ivm.Reference((handle: unknown) => {
+			surfaced.push(readHandleId(handle));
+		}),
 	);
 	return context;
 }
@@ -50,7 +61,7 @@ const __codeModeUnwrap = (envelope) => {
 const __codeModeInvoke = (method, args) => __codeModeUnwrap(globalThis.__codeModeRpc.applySyncPromise(
 	undefined,
 	[method, args],
-	{ arguments: { copy: true }, result: { copy: true } },
+	{ arguments: { copy: true } },
 ));
 globalThis.mac = new Proxy({}, {
 	get(_target, property) {
@@ -64,13 +75,13 @@ globalThis.console = {
 	log: (...args) => globalThis.__codeModeConsole.applySyncPromise(
 		undefined,
 		[args],
-		{ arguments: { copy: true }, result: { copy: true } },
+		{ arguments: { copy: true } },
 	),
 };
 globalThis.surface = (handle) => globalThis.__codeModeSurface.applySyncPromise(
 	undefined,
 	[handle],
-	{ arguments: { copy: true }, result: { copy: true } },
+	{ arguments: { copy: true } },
 );
 (async () => {
 ${jsCode}
@@ -80,4 +91,40 @@ ${jsCode}
 
 function isIsolatedVmModule(value: unknown): value is IsolatedVmModule {
 	return isRecord(value) && typeof value["Isolate"] === "function" && typeof value["Reference"] === "function";
+}
+
+function copyIntoSandbox(ivm: IsolatedVmModule, value: unknown): unknown {
+	const copyable = toSandboxCopyValue(value);
+	const ivmValue: unknown = ivm;
+	if (!isRecord(ivmValue) || !("ExternalCopy" in ivmValue)) {
+		return copyable;
+	}
+	const externalCopy = ivmValue["ExternalCopy"];
+	if (!isExternalCopyConstructor(externalCopy)) {
+		return copyable;
+	}
+	return new externalCopy(copyable).copyInto({ release: true });
+}
+
+function isExternalCopyConstructor(value: unknown): value is ExternalCopyConstructor {
+	return typeof value === "function";
+}
+
+function toSandboxCopyValue(value: unknown): unknown {
+	if (typeof value === "function") {
+		return undefined;
+	}
+	if (Array.isArray(value)) {
+		return value.map(toSandboxCopyValue);
+	}
+	if (!isRecord(value)) {
+		return value;
+	}
+	const copy: Record<string, unknown> = {};
+	for (const [key, item] of Object.entries(value)) {
+		if (typeof item !== "function") {
+			copy[key] = toSandboxCopyValue(item);
+		}
+	}
+	return copy;
 }
