@@ -9,7 +9,7 @@
 	"scripts": {
 		"build": "tsgo",
 		"typecheck": "tsgo --noEmit",
-		"test": "vitest --run"
+		"test": "vitest --run --root ../.. $(find ../../packages/mcp -name '*.test.ts' | sort)"
 	},
 	"dependencies": {
 		"@macos-cua/core": "workspace:*",

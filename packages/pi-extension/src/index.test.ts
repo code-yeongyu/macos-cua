@@ -232,6 +232,7 @@ describe("#given default-on session_start #when invoked #then native computer an
 			"select_text",
 			"drag",
 			"scroll",
+			"zoom",
 			"type_text",
 			"press_keys",
 			"computer",
@@ -256,6 +257,7 @@ describe("#given opt-out env var #when session_start runs #then native computer 
 			"select_text",
 			"drag",
 			"scroll",
+			"zoom",
 			"type_text",
 			"press_keys",
 		]);
@@ -345,6 +347,7 @@ describe("#given enabled session #when model changes from native computer-use to
 			"select_text",
 			"drag",
 			"scroll",
+			"zoom",
 			"type_text",
 			"press_keys",
 		]);

@@ -16,7 +16,7 @@
 		"build:ts": "tsgo",
 		"build:native": "./native/build.sh",
 		"typecheck": "tsgo --noEmit",
-		"test": "vitest --run"
+		"test": "vitest --run --root ../.. $(find ../../packages/core -name '*.test.ts' | sort)"
 	},
 	"files": ["dist", "native/sckit.m", "native/build.sh", "native/libsckit.dylib"],
 	"dependencies": {

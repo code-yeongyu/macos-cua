@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "tsgo",
 		"typecheck": "tsgo --noEmit",
-		"test": "vitest --run"
+		"test": "vitest --run --root ../.. $(find ../../packages/cli -name '*.test.ts' | sort)"
 	},
 	"dependencies": {
 		"@macos-cua/core": "workspace:*",
