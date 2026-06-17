@@ -3,7 +3,7 @@
 Native macOS computer-use control, designed for the OpenAI computer-use action vocabulary. Host-native (CGEvent / ScreenCaptureKit-class) speed, no VM sandbox required.
 
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Node.js >=20](https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg)](package.json)
+[![Node.js 24](https://img.shields.io/badge/node-24-brightgreen.svg)](package.json)
 
 ## Why this exists
 
