@@ -185,39 +185,35 @@ export class MacOSHostComputer extends HostComputer {
 		this.assertAppApproved(app);
 		await this.assertBrowserUrlAllowed(app);
 		const targetWindow = await this.resolveAppStateTargetWindow(app.pid);
+		if (targetWindow === undefined) {
+			this.lastViewportByPid.delete(app.pid);
+			throw new Error(
+				`No visible target window found for '${app.name}'. Bring the app to a visible window and retry.`,
+			);
+		}
 		// Scope the screenshot to the target window at its own aspect ratio (capped),
 		// so the model sees an undistorted window image and coordinates invert cleanly.
-		// Without a target window, fall back to the full display.
-		const size =
-			options?.screenshotSize ??
-			(targetWindow !== undefined ? resolveWindowScreenshotSize(targetWindow.bounds) : await this.getScreenSize());
+		const size = options?.screenshotSize ?? resolveWindowScreenshotSize(targetWindow.bounds);
 		const screenshot =
-			targetWindow === undefined || targetWindow.id !== undefined
-				? await this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow?.id)
-				: await this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds });
+			targetWindow.id === undefined
+				? await this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds })
+				: await this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow.id);
 		const tree = extractAccessibilityTree(app.pid);
 		const display = resolveDisplayInfo();
 		const appInstructions = resolveAppInstructions(app.name, app.bundleId);
 
-		let elements = tree.elements;
-		let windowBounds: ScreenshotViewport["windowBounds"] | undefined;
-		if (targetWindow !== undefined) {
-			const viewport: ScreenshotViewport = {
-				windowBounds: { ...targetWindow.bounds },
-				screenshotWidth: screenshot.width,
-				screenshotHeight: screenshot.height,
-			};
-			this.lastViewportByPid.set(app.pid, viewport);
-			windowBounds = viewport.windowBounds;
-			elements = remapElementFramesToScreenshot(tree.elements, viewport);
-			if (!this.highlightedApps.has(app.pid)) {
-				this.highlightedApps.add(app.pid);
-				this.overlay.highlight(viewport.windowBounds);
-			}
-		} else {
-			this.lastViewportByPid.delete(app.pid);
+		const viewport: ScreenshotViewport = {
+			windowBounds: { ...targetWindow.bounds },
+			screenshotWidth: screenshot.width,
+			screenshotHeight: screenshot.height,
+		};
+		this.lastViewportByPid.set(app.pid, viewport);
+		const windowBounds = viewport.windowBounds;
+		const elements = normalizeAxTree(remapElementFramesToScreenshot(tree.elements, viewport));
+		if (!this.highlightedApps.has(app.pid)) {
+			this.highlightedApps.add(app.pid);
+			this.overlay.highlight(viewport.windowBounds);
 		}
-		elements = normalizeAxTree(elements);
 		const previousTree = this.lastAxTreeByPid.get(app.pid);
 		const axChangeSummary = previousTree === undefined ? undefined : diffAxTreesByKey(previousTree, elements);
 		this.lastAxTreeByPid.set(app.pid, elements);

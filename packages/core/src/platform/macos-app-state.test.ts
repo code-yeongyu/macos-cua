@@ -311,16 +311,15 @@ describe("#given no prior get_app_state #when reading the screenshot viewport #t
 	});
 });
 
-describe("#given no target window #when get_app_state captures the full display #then frames stay in global space", () => {
-	it("leaves accessibility frames unscaled and reports no window bounds", async () => {
+describe("#given no target window #when get_app_state runs #then it refuses to return a misleading full display", () => {
+	it("throws before returning a full-screen screenshot for the target app", async () => {
 		windowMock.openWindows.mockResolvedValue([]);
 		const computer = new MacOSHostComputer();
 
-		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
-
-		expect(state.windowBounds).toBeUndefined();
-		expect(state.elements[0]?.frame).toEqual({ x: 800, y: 550, width: 200, height: 160 });
-		expect(state.screenshotWidth).toBe(1920);
+		await expect(computer.getAppState(TARGET_PID, { settleMs: 0 })).rejects.toThrow(
+			"No visible target window found for 'Finder'",
+		);
+		expect(screenshotMock.captureMainDisplayPng).not.toHaveBeenCalled();
 		expect(await computer.getScreenshotViewport(TARGET_PID)).toBeUndefined();
 	});
 });
