@@ -4,6 +4,7 @@ import { vi } from "vitest";
 
 import type { AppInfo, AppState } from "../accessibility/types.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
+import type { ScreenshotViewport } from "../computer/viewport.js";
 import type {
 	AppStateOptions,
 	ComputerCapabilities,
@@ -125,6 +126,12 @@ export class FakeComputer implements ComputerInterface {
 	readonly screenshotCalls: ScreenshotOptions[] = [];
 	readonly appStateCalls: { readonly targetPid: number | undefined; readonly options: AppStateOptions | undefined }[] =
 		[];
+	readonly clickCalls: Point[] = [];
+	readonly moveCalls: Point[] = [];
+	readonly rightClickCalls: Point[] = [];
+	readonly dragCalls: DragOptions[] = [];
+	screenshotViewport: ScreenshotViewport | undefined;
+	appState: AppState | undefined;
 	failScreenshotWith: Error | undefined;
 
 	async screenshot(options?: ScreenshotOptions): Promise<ScreenshotResult> {
@@ -138,15 +145,23 @@ export class FakeComputer implements ComputerInterface {
 	}
 
 	setTarget(_pid?: number): void {}
-	async move(_position: Point): Promise<void> {}
-	async click(_position: Point): Promise<void> {}
-	async rightClick(_position: Point): Promise<void> {}
+	async move(position: Point): Promise<void> {
+		this.moveCalls.push(position);
+	}
+	async click(position: Point): Promise<void> {
+		this.clickCalls.push(position);
+	}
+	async rightClick(position: Point): Promise<void> {
+		this.rightClickCalls.push(position);
+	}
 	async middleClick(_position: Point): Promise<void> {}
 	async doubleClick(_position: Point): Promise<void> {}
 	async type(_text: string): Promise<void> {}
 	async key(_key: string, _options?: KeyOptions): Promise<void> {}
 	async scroll(_options: ScrollOptions): Promise<void> {}
-	async drag(_options: DragOptions): Promise<void> {}
+	async drag(options: DragOptions): Promise<void> {
+		this.dragCalls.push(options);
+	}
 	async getCursorPosition(): Promise<Point> {
 		return { x: 1, y: 2 };
 	}
@@ -155,10 +170,10 @@ export class FakeComputer implements ComputerInterface {
 	}
 	async getAppState(targetPid?: number, options?: AppStateOptions): Promise<AppState> {
 		this.appStateCalls.push({ targetPid, options });
-		return appStateWith({ pid: targetPid ?? 321 });
+		return this.appState ?? appStateWith({ pid: targetPid ?? 321 });
 	}
-	async getScreenshotViewport(_targetPid: number): Promise<undefined> {
-		return undefined;
+	async getScreenshotViewport(_targetPid: number): Promise<ScreenshotViewport | undefined> {
+		return this.screenshotViewport;
 	}
 	async listApps(): Promise<AppInfo[]> {
 		return [{ name: "Finder", bundleId: "com.apple.finder", pid: 321, isRunning: true }];

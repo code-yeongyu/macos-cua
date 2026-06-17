@@ -39,6 +39,7 @@ describe("buildCodeModePrompt", () => {
 		expect(prompt).toContain("sandbox");
 		expect(prompt).toContain("ScreenshotHandle");
 		expect(prompt).toContain("Node.js globals are unavailable");
+		expect(prompt).toContain("Pointer x/y coordinates are pixels in the latest app screenshot");
 		expect(prompt).not.toContain("Buffer");
 	});
 });

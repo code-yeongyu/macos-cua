@@ -1,3 +1,4 @@
+import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
 import type { AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
 import type { CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
@@ -58,10 +59,10 @@ export class SandboxRpcHost {
 				await this.click(call.app, { ...call.target, button: "right" }, 1);
 				return undefined;
 			case "move":
-				await this.withTarget(call.app, async () => this.computer.move(call.point));
+				await this.move(call.app, call.point);
 				return undefined;
 			case "drag":
-				await this.withTarget(call.app, async () => this.computer.drag(call.options));
+				await this.drag(call.app, call.options);
 				return undefined;
 			case "scroll":
 				await this.scroll(call.app, call.target);
@@ -110,6 +111,21 @@ export class SandboxRpcHost {
 		});
 	}
 
+	private async move(app: CodeModeAppTarget, point: Point): Promise<void> {
+		const pid = await this.resolvePid(app);
+		const screenPoint = await this.resolvePoint(pid, point);
+		await this.withPid(pid, async () => this.computer.move(screenPoint));
+	}
+
+	private async drag(app: CodeModeAppTarget, options: { readonly from: Point; readonly to: Point }): Promise<void> {
+		const pid = await this.resolvePid(app);
+		const dragOptions = {
+			from: await this.resolvePoint(pid, options.from),
+			to: await this.resolvePoint(pid, options.to),
+		};
+		await this.withPid(pid, async () => this.computer.drag(dragOptions));
+	}
+
 	private async scroll(app: CodeModeAppTarget, target: CodeModeScrollTarget): Promise<void> {
 		const pid = await this.resolvePid(app);
 		const amount = Math.max(1, Math.trunc(target.amount ?? 1));
@@ -140,7 +156,7 @@ export class SandboxRpcHost {
 
 	private async resolvePoint(pid: number, target: CodeModePointerTarget): Promise<Point> {
 		if (target.x !== undefined && target.y !== undefined) {
-			return { x: target.x, y: target.y };
+			return await resolveScreenPoint(this.computer, pid, { x: target.x, y: target.y });
 		}
 		if (target.elementIndex === undefined) {
 			throw new CodeModeError("COMPILE_ERROR", "pointer target must include x/y or elementIndex");
@@ -150,10 +166,10 @@ export class SandboxRpcHost {
 		if (element === undefined) {
 			throw new CodeModeError("COMPILE_ERROR", `Element index ${target.elementIndex} not found`);
 		}
-		return {
+		return await resolveScreenPoint(this.computer, pid, {
 			x: element.frame.x + element.frame.width / 2,
 			y: element.frame.y + element.frame.height / 2,
-		};
+		});
 	}
 
 	private async withTarget<T>(app: CodeModeAppTarget, action: () => Promise<T>): Promise<T> {

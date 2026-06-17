@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeModeError } from "./errors.js";
 import {
 	FakeComputer,
+	appStateWith,
 	clearSandboxMocks,
 	fakeIvm,
 	importSandbox,
@@ -66,6 +67,69 @@ describe("#given a host method throws #when sandboxed code catches it #then name
 		`);
 
 		expect(result.result).toEqual({ name: "CodeModeError", message: "gone", code: "HANDLE_STALE" });
+	});
+});
+
+describe("#given code-mode pointer coordinates #when an app viewport exists #then screenshot pixels map to screen points", () => {
+	it("#given a Retina window viewport #when code clicks moves and drags #then host input receives logical points", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		computer.screenshotViewport = {
+			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
+			screenshotWidth: 500,
+			screenshotHeight: 400,
+		};
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		await sandbox.run(`
+			await mac.click("Finder", { x: 250, y: 200 });
+			await mac.move("Finder", { x: 0, y: 0 });
+			await mac.drag("Finder", { fromX: 0, fromY: 0, toX: 250, toY: 200 });
+		`);
+
+		expect(computer.clickCalls).toEqual([{ x: 800, y: 550 }]);
+		expect(computer.moveCalls).toEqual([{ x: 300, y: 150 }]);
+		expect(computer.dragCalls).toEqual([{ from: { x: 300, y: 150 }, to: { x: 800, y: 550 } }]);
+	});
+
+	it("#given an element frame in screenshot pixels #when code right-clicks it #then host input receives the logical center", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		computer.screenshotViewport = {
+			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
+			screenshotWidth: 500,
+			screenshotHeight: 400,
+		};
+		computer.appState = appStateWith({
+			elements: [
+				{
+					id: 7,
+					role: "AXButton",
+					label: "Save",
+					value: null,
+					frame: { x: 240, y: 180, width: 20, height: 40 },
+					actions: [],
+					children: [],
+				},
+			],
+		});
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		await sandbox.run('await mac.rightClick("Finder", { elementIndex: 7 })');
+
+		expect(computer.rightClickCalls).toEqual([{ x: 800, y: 550 }]);
+	});
+});
+
+describe("#given code-mode pointer coordinates #when no app viewport exists #then coordinates remain logical points", () => {
+	it("#given no screenshot viewport #when code clicks #then host input receives the original point", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		await sandbox.run('await mac.click("Finder", { x: 42, y: 17 })');
+
+		expect(computer.clickCalls).toEqual([{ x: 42, y: 17 }]);
 	});
 });
 
