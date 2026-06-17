@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { diffAxTreesByKey } from "../accessibility/diff.js";
 import { normalizeAxTree } from "../accessibility/normalize.js";
@@ -50,6 +51,8 @@ const SYSTEM_PROFILER_TIMEOUT_MILLISECONDS = 10_000;
 const SCREENSHOT_TIMEOUT_MILLISECONDS = 10_000;
 const SCREENSHOT_MAX_BUFFER_BYTES = 100 * 1024 * 1024;
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
+const APP_ACTIVATION_SETTLE_MILLISECONDS = 350;
+const APP_ACTIVATION_TIMEOUT_MILLISECONDS = 3_000;
 const debugCapture = createDebugLog("capture");
 
 type AppStateTargetWindow = {
@@ -178,17 +181,25 @@ export class MacOSHostComputer extends HostComputer {
 	async getAppState(targetPid?: number, options?: AppStateOptions): Promise<AppState> {
 		const settleMs = options?.settleMs ?? DEFAULT_APP_STATE_SETTLE_MILLISECONDS;
 		if (settleMs > 0) {
-			await new Promise((resolve) => setTimeout(resolve, settleMs));
+			await sleep(settleMs);
 		}
-		const apps = await getRunningMacOSApps();
-		const app = resolveTargetApp(apps, targetPid);
+		let apps = await getRunningMacOSApps();
+		let app = resolveTargetApp(apps, targetPid);
 		this.assertAppApproved(app);
 		await this.assertBrowserUrlAllowed(app);
-		const targetWindow = await this.resolveAppStateTargetWindow(app.pid);
+		let targetWindow = await this.resolveAppStateTargetWindow(app.pid);
+		if (targetWindow === undefined) {
+			await activateMacOSApp(app);
+			await sleep(APP_ACTIVATION_SETTLE_MILLISECONDS);
+			apps = await getRunningMacOSApps();
+			app = resolveTargetApp(apps, app.pid);
+			await this.assertBrowserUrlAllowed(app);
+			targetWindow = await this.resolveAppStateTargetWindow(app.pid);
+		}
 		if (targetWindow === undefined) {
 			this.lastViewportByPid.delete(app.pid);
 			throw new Error(
-				`No visible target window found for '${app.name}'. Bring the app to a visible window and retry.`,
+				`No visible target window found for '${app.name}' after activating it. Open a window in the app and retry.`,
 			);
 		}
 		// Scope the screenshot to the target window at its own aspect ratio (capped),
@@ -609,6 +620,12 @@ function resolveTargetApp(apps: readonly RunningAppInfo[], targetPid: number | u
 		throw new Error("No frontmost application available");
 	}
 	return frontmost;
+}
+
+async function activateMacOSApp(app: RunningAppInfo): Promise<void> {
+	await execFileAsync("open", ["-b", app.bundleId], {
+		timeout: APP_ACTIVATION_TIMEOUT_MILLISECONDS,
+	});
 }
 
 function smallestScreenSize(
