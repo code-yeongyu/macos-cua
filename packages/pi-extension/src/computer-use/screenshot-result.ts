@@ -17,17 +17,46 @@ type Rgba = {
 	readonly blue: number;
 	readonly alpha: number;
 };
+export type ScreenshotCursorMetadata = {
+	readonly captureFrame: {
+		readonly width: number;
+		readonly height: number;
+	};
+	readonly cursor: {
+		readonly logical: Point;
+		readonly image: Point;
+	};
+};
+export type ScreenshotResultWithCursorMetadata = {
+	readonly result: ComputerUseResult;
+	readonly metadata: ScreenshotCursorMetadata;
+};
 
 export async function screenshotResultWithCursor(
 	computer: CursorScreenshotComputer,
 	display: DisplayConfig,
 ): Promise<ComputerUseResult> {
+	return (await screenshotResultWithCursorMetadata(computer, display)).result;
+}
+
+export async function screenshotResultWithCursorMetadata(
+	computer: CursorScreenshotComputer,
+	display: DisplayConfig,
+): Promise<ScreenshotResultWithCursorMetadata> {
+	const captureFrame = { width: display.modelWidth, height: display.modelHeight };
 	const screenshot = await computer.screenshot({
-		targetSize: { width: display.modelWidth, height: display.modelHeight },
+		targetSize: captureFrame,
 	});
 	const cursor = await computer.getCursorPosition();
 	const exactScreenshot = ensureModelDimensions(screenshot, display);
-	return imageResult(drawCursorOnScreenshot(exactScreenshot, cursor, display).toString("base64"));
+	const cursorImage = cursorImagePoint(cursor, display, {
+		width: exactScreenshot.width,
+		height: exactScreenshot.height,
+	});
+	return {
+		result: imageResult(drawCursorOnScreenshot(exactScreenshot, cursor, display).toString("base64")),
+		metadata: { captureFrame, cursor: { logical: cursor, image: cursorImage } },
+	};
 }
 
 export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Point, display: DisplayConfig): Buffer {

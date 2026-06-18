@@ -16,6 +16,7 @@ import {
 } from "./anthropic-computer-use.js";
 import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
 import { toAgentToolErrorResult, toAgentToolResult } from "./computer-use/run-result.js";
+import { type OpenAIComputerBatchResultDetails, executeOpenAIComputerActionBatch } from "./openai-computer-batch.js";
 import {
 	type OpenAIComputerAction,
 	type OpenAIComputerActionBatch,
@@ -256,16 +257,9 @@ async function executeComputerFallback(
 	params: ComputerFallbackInput,
 	computer: MacOSHostComputer,
 	display: DisplayConfig,
-): Promise<AgentToolResult<undefined>> {
+): Promise<AgentToolResult<OpenAIComputerBatchResultDetails | undefined>> {
 	if (isOpenAIComputerActionBatch(params)) {
-		let result: AgentToolResult<undefined> | undefined;
-		for (const action of params.actions) {
-			result = await executeOpenAIComputerAction(action, computer, display);
-		}
-		if (result === undefined) {
-			throw new Error("OpenAI computer action batch must include at least one action");
-		}
-		return result;
+		return executeOpenAIComputerActionBatch(params, computer, display);
 	}
 	if (isOpenAIComputerAction(params)) {
 		return executeOpenAIComputerAction(params, computer, display);

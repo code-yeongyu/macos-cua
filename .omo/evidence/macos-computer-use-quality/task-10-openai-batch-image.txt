@@ -1,0 +1,73 @@
+Task: Wave 3 Todo 10 - guarantee post-action image content for OpenAI computer batches
+Artifact path: .omo/evidence/macos-computer-use-quality/task-10-openai-batch-image.txt
+Date: 2026-06-18
+
+Scope verified:
+- Actual pi-extension fallback path is packages/pi-extension/src/index.ts executeComputerFallback().
+- Previous batch behavior looped actions and returned only the final action result, so a batch ending in click/type could return only {"ok":true}.
+- Change is scoped to pi-extension OpenAI batch/fallback path plus shared screenshot-result metadata helper.
+- No GUI/local app automation was invoked.
+
+Changed files:
+- packages/pi-extension/src/openai-computer-batch.ts
+- packages/pi-extension/src/computer-use/screenshot-result.ts
+- packages/pi-extension/src/index.ts
+- packages/pi-extension/src/openai-computer-use.test.ts
+
+RED evidence:
+- Scenario: mutating OpenAI batch ending in click/type must return final image content and cursor/capture metadata.
+- Invocation: pnpm vitest --run packages/pi-extension/src/openai-computer-use.test.ts packages/pi-extension/src/index-code-mode.test.ts packages/pi-extension/src/computer-use/screenshot-result.test.ts
+- Binary observable: packages/pi-extension/src/openai-computer-use.test.ts failed 4 tests with "TypeError: executeOpenAIComputerActionBatch is not a function".
+- Captured result: 1 failed file, 4 failed tests, 11 passed tests. This was the expected failing-first baseline before implementation.
+
+GREEN evidence:
+- Scenario: targeted OpenAI batch/fallback tests, code-mode non-regression test, screenshot-result non-regression test.
+- Invocation: pnpm vitest --run packages/pi-extension/src/openai-computer-use.test.ts packages/pi-extension/src/index-code-mode.test.ts packages/pi-extension/src/computer-use/screenshot-result.test.ts
+- Binary observable: 3 test files passed, 15 tests passed.
+- Captured output summary: packages/pi-extension/src/computer-use/screenshot-result.test.ts (2), packages/pi-extension/src/openai-computer-use.test.ts (10), packages/pi-extension/src/index-code-mode.test.ts (3).
+
+- Scenario: full monorepo typecheck.
+- Invocation: pnpm -r typecheck
+- Binary observable: packages/core, packages/cli, packages/mcp, and packages/pi-extension typecheck scripts all completed with exit code 0.
+
+- Scenario: pi-extension targeted typecheck.
+- Invocation: pnpm --filter @macos-cua/pi-extension typecheck
+- Binary observable: tsgo --noEmit completed with exit code 0.
+
+- Scenario: targeted Biome on touched pi-extension files.
+- Invocation: pnpm exec biome check packages/pi-extension/src/openai-computer-batch.ts packages/pi-extension/src/openai-computer-use.ts packages/pi-extension/src/openai-computer-use.test.ts packages/pi-extension/src/computer-use/screenshot-result.ts packages/pi-extension/src/computer-use/screenshot-result.test.ts packages/pi-extension/src/index.ts packages/pi-extension/src/index-code-mode.test.ts
+- Binary observable: Checked 7 files. No fixes applied. Exit code 0.
+
+- Scenario: diff whitespace check.
+- Invocation: git diff --check -- packages/pi-extension/src/openai-computer-batch.ts packages/pi-extension/src/openai-computer-use.ts packages/pi-extension/src/openai-computer-use.test.ts packages/pi-extension/src/computer-use/screenshot-result.ts packages/pi-extension/src/index.ts
+- Binary observable: no output, exit code 0.
+
+- Scenario: process scan for forbidden GUI/local automation and unrelated task processes.
+- Invocation: pgrep -fl '[o]sascript'; pgrep -fl '[s]creencapture'; pgrep -fl '[c]ursor-overlay'; pgrep -fl '[t]ask-1'; pgrep -fl '[t]ask-13'
+- Binary observable: NO_PROHIBITED_PROCESSES.
+
+Requirement coverage:
+- Mutating OpenAI batches ending in click/type/etc return an image block: covered by openai-computer-use.test.ts batch test "captures a post-action screenshot with cursor metadata after the final mutating action".
+- Structured metadata returned with image: result.details includes ok/type/actionCount/finalActionType and screenshot source/captureFrame/cursor logical+image points.
+- Latest screenshot source tracking: covered by explicit screenshot batch test; latest explicit screenshot after the final mutating action is reused and marked source "explicit_screenshot".
+- No screenshot action in mutating batch captures after final mutating action: covered by click+type batch test; source is "post_action_capture" and computer.screenshot is called once after the actions.
+- Existing single screenshot behavior preserved: existing screenshot action test still expects the same image-only content block and passes.
+- Cursor overlay preserved: screenshotResultWithCursor remains the image creation path; screenshot-result.test.ts existing cursor overlay tests still pass.
+- Screenshot capture failure after mutating batch returns typed recoverable error: covered by batch failure test; rejects with ComputerUseError kind "execution_failed", action "screenshot", message "capture failed".
+- Non-mutating batch behavior preserved: wait-only batch returns "wait complete" text and does not call screenshot.
+- Anthropic schema churn avoided: no changes to anthropic-computer-use.ts or Anthropic tool schemas.
+
+Adversarial checks:
+- misleading_success_output: covered. Mutating batch test asserts image content and metadata, not only {"ok":true}.
+- stale_state/latest screenshot source: covered. Explicit screenshot is reused only when it occurs after the final mutating action; otherwise post_action_capture is taken.
+- dirty_worktree: covered. Pre-existing unrelated changes were observed and not staged.
+- malformed_input/failing screenshot result: covered by post-action screenshot rejection test with typed ComputerUseError.
+- task-1/task-13: N/A for implementation; process scan showed no matching processes.
+- osascript/screencapture/cursor-overlay/app activation/input/global lint: N/A and not invoked.
+
+Cleanup receipt:
+- No dev server started.
+- No GUI automation run.
+- No app activation/input, osascript, screencapture, cursor-overlay binary, task-1, or task-13 process observed.
+- No push, pull, rebase, force push, or destructive git command run.
+- Unrelated dirty files were preserved and left unstaged.

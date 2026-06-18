@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { type ComputerActionDriver, ComputerUseError } from "./anthropic-computer-use.js";
 import type { DisplayConfig } from "./computer-use/coords.js";
+import { executeOpenAIComputerActionBatch } from "./openai-computer-batch.js";
 import {
 	addOpenAIComputerUseToPayload,
 	executeOpenAIComputerAction,
@@ -168,6 +169,99 @@ describe("#given OpenAI scroll and screenshot actions #when executed #then direc
 		expect(secondScroll.content).toEqual([{ type: "text", text: JSON.stringify({ ok: true, type: "scroll" }) }]);
 		expect(computer.screenshot).toHaveBeenCalledWith({ targetSize: { width: 100, height: 100 } });
 		expect(result.content).toEqual([{ type: "image", data: rawPng.toString("base64"), mimeType: "image/png" }]);
+	});
+});
+
+describe("#given mutating OpenAI action batches #when executed #then final image state is returned", () => {
+	it("captures a post-action screenshot with cursor metadata after the final mutating action", async () => {
+		const computer = createComputer();
+		vi.mocked(computer.screenshot).mockResolvedValue({
+			data: Buffer.from("post-action"),
+			mimeType: "image/png",
+			width: 100,
+			height: 100,
+		});
+
+		const result = await executeOpenAIComputerActionBatch(
+			{
+				actions: [
+					{ type: "click", button: "left", x: 10, y: 20 },
+					{ type: "type", text: "hello" },
+				],
+			},
+			computer,
+			DISPLAY,
+		);
+
+		expect(computer.screenshot).toHaveBeenCalledTimes(1);
+		expect(computer.screenshot).toHaveBeenCalledWith({ targetSize: { width: 100, height: 100 } });
+		expect(result.content).toEqual([
+			{ type: "image", data: Buffer.from("post-action").toString("base64"), mimeType: "image/png" },
+		]);
+		expect(result.details).toEqual({
+			ok: true,
+			type: "batch",
+			actionCount: 2,
+			finalActionType: "type",
+			screenshot: {
+				source: "post_action_capture",
+				captureFrame: { width: 100, height: 100 },
+				cursor: {
+					logical: { x: 7, y: 9 },
+					image: { x: 4, y: 5 },
+				},
+			},
+		});
+	});
+
+	it("reuses the latest explicit screenshot after the final mutating action", async () => {
+		const computer = createComputer();
+		vi.mocked(computer.screenshot).mockResolvedValue({
+			data: Buffer.from("explicit"),
+			mimeType: "image/png",
+			width: 100,
+			height: 100,
+		});
+
+		const result = await executeOpenAIComputerActionBatch(
+			{
+				actions: [{ type: "click", button: "left", x: 10, y: 20 }, { type: "screenshot" }],
+			},
+			computer,
+			DISPLAY,
+		);
+
+		expect(computer.screenshot).toHaveBeenCalledTimes(1);
+		expect(result.content).toEqual([
+			{ type: "image", data: Buffer.from("explicit").toString("base64"), mimeType: "image/png" },
+		]);
+		expect(result.details?.screenshot.source).toBe("explicit_screenshot");
+	});
+
+	it("returns a typed execution failure when post-action screenshot capture fails", async () => {
+		const computer = createComputer();
+		vi.mocked(computer.screenshot).mockRejectedValue(new Error("capture failed"));
+
+		await expect(
+			executeOpenAIComputerActionBatch({ actions: [{ type: "type", text: "hello" }] }, computer, DISPLAY),
+		).rejects.toMatchObject({
+			kind: "execution_failed",
+			action: "screenshot",
+			message: "capture failed",
+		});
+	});
+
+	it("preserves non-mutating batch behavior", async () => {
+		const computer = createComputer();
+
+		const result = await executeOpenAIComputerActionBatch(
+			{ actions: [{ type: "wait", duration: 0 }] },
+			computer,
+			DISPLAY,
+		);
+
+		expect(computer.screenshot).not.toHaveBeenCalled();
+		expect(result).toEqual({ content: [{ type: "text", text: "wait complete" }], details: undefined });
 	});
 });
 
