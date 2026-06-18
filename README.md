@@ -180,6 +180,36 @@ The extension also registers Codex-compatible Computer Use tools:
 
 The extension default-exports a pi extension factory and keeps these tools available even when native computer-use auto-activation is disabled.
 
+### Capture frames, safety, and post-action observations
+
+`get_app_state` and app-targeted screenshots now carry a capture frame: a capture id, display freshness marker,
+target app/window metadata, screenshot/model dimensions, coordinate transforms, cursor metadata, and observation
+metadata. Coordinate actions must reference a fresh frame when they come from model screenshot space. Stale,
+negative, or out-of-bounds coordinates are rejected with typed recovery hints instead of being clamped or silently
+retargeted.
+
+Mutating app actions pass through a supervisor-backed action executor. The executor fails closed when the supervisor is
+stale, suspended, killed, or missing target-window readiness, and it records bounded audit events to a JSONL sink. Audit
+records include action ids, target app/pid, capture ids when available, status, error codes, and recovery hints; they
+redact screenshot bytes, full typed text, large accessibility values, and browser query strings.
+
+Clicks prefer accessibility element actions when an `elementIndex` is available, then fall back to capture-frame-backed
+coordinates. Text, key, scroll, value, and selection actions use the same target-aware executor and return post-action
+observation metadata where the surface supports it. OpenAI computer batches that end with a mutating action capture a
+final image block so the model sees the result instead of only an `{ ok: true }`-style acknowledgement.
+
+Linux, remote desktop, VM, cloud, and LCU bridge implementations remain out of scope for this macOS path. VM and cloud
+entries in this repository are interface stubs only. Default-on behavior must not expand beyond the existing macOS local
+surface until safety acceptance and local-environment QA evidence are complete.
+
+### Code mode
+
+When `MACOS_CUA_CODE_MODE=1` or MCP `--code-mode` is enabled, the discrete tool surface is replaced by a code runner.
+Inside code mode, `mac.getAppState`, `mac.screenshot`, `mac.click`, `mac.type`, `mac.scroll`, `mac.pressKeys`, and
+related methods share the same capture-frame, typed-error, audit, and post-action observation semantics as the normal
+Computer Use path. Screenshots are surfaced as handles, not inline base64 JSON; stale screenshot handles and stale
+capture frames are distinct typed errors.
+
 ### Programmatic API
 
 Import `MacOSHostComputer` from `@macos-cua/core` and drive macOS directly:
