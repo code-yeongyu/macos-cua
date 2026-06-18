@@ -56,3 +56,17 @@ describe("#given screenshot-store exists #when declaring CodeModeApi handles #th
 		expect(API_SURFACE_SOURCE).not.toContain("export type ScreenshotHandle =");
 	});
 });
+
+describe("#given CodeModeApi DTS #when declaring capture and action APIs #then app state and mutations expose handle-based results", () => {
+	it("includes capture frame screenshot handles and action result return types", () => {
+		// then
+		expect(CODE_MODE_API_DTS).toContain("interface CodeModeCaptureFrame");
+		expect(CODE_MODE_API_DTS).toContain("readonly screenshot: ScreenshotHandle;");
+		expect(CODE_MODE_API_DTS).toContain(
+			"click(app: CodeModeAppTarget, target: CodeModeClickTarget): CodeModeActionResult;",
+		);
+		expect(CODE_MODE_API_DTS).toContain(
+			"pressKeys(app: CodeModeAppTarget, keys: readonly CodeModeKeyInput[], options?: CodeModePressKeysOptions): CodeModeActionResult;",
+		);
+	});
+});

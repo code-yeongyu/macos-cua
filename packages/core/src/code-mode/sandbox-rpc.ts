@@ -1,9 +1,9 @@
 import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
-import { type PointerActionResult, executePointerClick } from "../computer/pointer-action.js";
+import { executePointerClick } from "../computer/pointer-action.js";
 import type { AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
-import type { CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
-import { splitAppState } from "./app-state-split.js";
+import type { CodeModeActionMethod, CodeModeActionResult, CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
+import { capturePostActionObservation, toCodeModeAppState } from "./capture-metadata.js";
 import { CodeModeError } from "./errors.js";
 import { serializeHostError } from "./sandbox-errors.js";
 import { findAppMatch, parseHostCall, parseKeyChord } from "./sandbox-parsers.js";
@@ -57,20 +57,15 @@ export class SandboxRpcHost {
 			case "rightClick":
 				return await this.click(call.app, { ...call.target, button: "right" }, 1);
 			case "move":
-				await this.move(call.app, call.point);
-				return undefined;
+				return await this.move(call.app, call.point);
 			case "drag":
-				await this.drag(call.app, call.options);
-				return undefined;
+				return await this.drag(call.app, call.options);
 			case "scroll":
-				await this.scroll(call.app, call.target);
-				return undefined;
+				return await this.scroll(call.app, call.target);
 			case "type":
-				await this.withTarget(call.app, async () => this.computer.type(call.text));
-				return undefined;
+				return await this.type(call.app, call.text);
 			case "pressKeys":
-				await this.pressKeys(call.app, call.keys, call.options);
-				return undefined;
+				return await this.pressKeys(call.app, call.keys, call.options);
 			case "setValue":
 				await this.computer.setValue(await this.resolvePid(call.app), call.elementIndex, call.value);
 				return undefined;
@@ -91,57 +86,71 @@ export class SandboxRpcHost {
 
 	private async getAppState(app?: CodeModeAppTarget, options?: AppStateOptions): Promise<CodeModeAppState> {
 		const targetPid = app === undefined ? undefined : await this.resolvePid(app);
-		const split = splitAppState(await this.computer.getAppState(targetPid, options));
-		return { ...split.structured, screenshot: this.store.put(split.screenshotBytes) };
+		return toCodeModeAppState(await this.computer.getAppState(targetPid, options), this.store);
 	}
 
 	private async click(
 		app: CodeModeAppTarget,
 		target: CodeModeClickTarget,
 		count: number,
-	): Promise<PointerActionResult> {
+	): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
-		return await executePointerClick(this.computer, {
+		const result = await executePointerClick(this.computer, {
 			actionId: `code-mode-click:${pid}`,
 			targetPid: pid,
 			target,
 			pressCount: count,
+			observeAfter: false,
 		});
+		return await this.actionResult(pid, result.actionId, result.method);
 	}
 
-	private async move(app: CodeModeAppTarget, point: Point): Promise<void> {
+	private async move(app: CodeModeAppTarget, point: Point): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
 		const screenPoint = await this.resolvePoint(pid, point);
 		await this.withPid(pid, async () => this.computer.move(screenPoint));
+		return await this.actionResult(pid, `code-mode-move:${pid}`, "move");
 	}
 
-	private async drag(app: CodeModeAppTarget, options: { readonly from: Point; readonly to: Point }): Promise<void> {
+	private async drag(
+		app: CodeModeAppTarget,
+		options: { readonly from: Point; readonly to: Point },
+	): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
 		const dragOptions = {
 			from: await this.resolvePoint(pid, options.from),
 			to: await this.resolvePoint(pid, options.to),
 		};
 		await this.withPid(pid, async () => this.computer.drag(dragOptions));
+		return await this.actionResult(pid, `code-mode-drag:${pid}`, "drag");
 	}
 
-	private async scroll(app: CodeModeAppTarget, target: CodeModeScrollTarget): Promise<void> {
+	private async scroll(app: CodeModeAppTarget, target: CodeModeScrollTarget): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
 		const amount = Math.max(1, Math.trunc(target.amount ?? 1));
 		if (target.elementIndex !== undefined) {
 			for (let index = 0; index < amount; index += 1) {
 				await this.computer.performAction(pid, target.elementIndex, SCROLL_ACTIONS[target.direction]);
 			}
-			return;
+			return await this.actionResult(pid, `code-mode-scroll:${pid}`, "scroll");
 		}
 		await this.withPid(pid, async () => this.computer.scroll({ direction: target.direction, amount }));
+		return await this.actionResult(pid, `code-mode-scroll:${pid}`, "scroll");
+	}
+
+	private async type(app: CodeModeAppTarget, text: string): Promise<CodeModeActionResult> {
+		const pid = await this.resolvePid(app);
+		await this.withPid(pid, async () => this.computer.type(text));
+		return await this.actionResult(pid, `code-mode-type:${pid}`, "type");
 	}
 
 	private async pressKeys(
 		app: CodeModeAppTarget,
 		keys: readonly ParsedKeyInput[],
 		options: ParsedPressOptions,
-	): Promise<void> {
-		await this.withTarget(app, async () => {
+	): Promise<CodeModeActionResult> {
+		const pid = await this.resolvePid(app);
+		await this.withPid(pid, async () => {
 			for (const input of keys) {
 				const parsed = parseKeyChord(input.key);
 				await this.computer.key(parsed.key, this.keyOptions(parsed.modifiers, input.holdMilliseconds));
@@ -150,6 +159,7 @@ export class SandboxRpcHost {
 				}
 			}
 		});
+		return await this.actionResult(pid, `code-mode-press-keys:${pid}`, "pressKeys");
 	}
 
 	private async resolvePoint(pid: number, target: CodeModePointerTarget): Promise<Point> {
@@ -174,8 +184,16 @@ export class SandboxRpcHost {
 		});
 	}
 
-	private async withTarget<T>(app: CodeModeAppTarget, action: () => Promise<T>): Promise<T> {
-		return await this.withPid(await this.resolvePid(app), action);
+	private async actionResult(
+		pid: number,
+		actionId: string,
+		method: CodeModeActionMethod,
+	): Promise<CodeModeActionResult> {
+		return {
+			actionId,
+			method,
+			postAction: await capturePostActionObservation(this.computer, this.store, pid),
+		};
 	}
 
 	private async withPid<T>(pid: number, action: () => Promise<T>): Promise<T> {

@@ -28,7 +28,7 @@ describe("#given a screenshot store #when a screenshot is put and read #then the
 });
 
 describe("#given a screenshot store with eight screenshots #when another screenshot is put #then the oldest handle is evicted", () => {
-	it("throws HANDLE_STALE for the evicted id", () => {
+	it("throws SCREENSHOT_HANDLE_STALE for the evicted id", () => {
 		const store = new ScreenshotStore();
 		const first = store.put(fakeScreenshot(Buffer.from("first")));
 		for (let index = 0; index < 8; index += 1) {
@@ -37,7 +37,7 @@ describe("#given a screenshot store with eight screenshots #when another screens
 
 		expect(store.size()).toBe(8);
 		expect(() => store.get(first.id)).toThrow(CodeModeError);
-		expect(() => store.get(first.id)).toThrow(expect.objectContaining({ code: "HANDLE_STALE" }));
+		expect(() => store.get(first.id)).toThrow(expect.objectContaining({ code: "SCREENSHOT_HANDLE_STALE" }));
 	});
 });
 
@@ -51,16 +51,16 @@ describe("#given screenshots over the byte budget #when a new screenshot is put 
 
 		expect(store.size()).toBe(2);
 		expect(store.totalBytes()).toBe(32 * 1024 * 1024 + 1);
-		expect(() => store.get(first.id)).toThrow(expect.objectContaining({ code: "HANDLE_STALE" }));
+		expect(() => store.get(first.id)).toThrow(expect.objectContaining({ code: "SCREENSHOT_HANDLE_STALE" }));
 		expect(store.get(second.id).data.byteLength).toBe(32 * 1024 * 1024);
 	});
 });
 
-describe("#given an unknown screenshot handle #when it is read #then HANDLE_STALE is thrown", () => {
+describe("#given an unknown screenshot handle #when it is read #then SCREENSHOT_HANDLE_STALE is thrown", () => {
 	it("uses the typed CodeModeError code", () => {
 		const store = new ScreenshotStore();
 
-		expect(() => store.get("shot_foreign")).toThrow(expect.objectContaining({ code: "HANDLE_STALE" }));
+		expect(() => store.get("shot_foreign")).toThrow(expect.objectContaining({ code: "SCREENSHOT_HANDLE_STALE" }));
 	});
 });
 

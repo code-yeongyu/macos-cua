@@ -51,7 +51,7 @@ export class ScreenshotStore {
 	get(id: string): ScreenshotResult {
 		const stored = this.screenshots.get(id);
 		if (stored === undefined) {
-			throw new CodeModeError("HANDLE_STALE", `Screenshot handle ${id} is stale or unknown`);
+			throw new CodeModeError("SCREENSHOT_HANDLE_STALE", `Screenshot handle ${id} is stale or unknown`);
 		}
 		return stored.result;
 	}

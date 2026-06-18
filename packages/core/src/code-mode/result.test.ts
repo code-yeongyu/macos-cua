@@ -51,7 +51,7 @@ describe("#given a stale surfaced screenshot handle #when assembling a run resul
 		);
 
 		expect(result.images).toEqual([{ data: Buffer.from("visible image"), mimeType: "image/png" }]);
-		expect(result.text).toBe('log line\nsurface failed: HANDLE_STALE shot_missing\n{"ok":false}');
+		expect(result.text).toBe('log line\nsurface failed: SCREENSHOT_HANDLE_STALE shot_missing\n{"ok":false}');
 	});
 });
 

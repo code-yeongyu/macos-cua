@@ -24,8 +24,8 @@ export function assembleRunResult(
 				mimeType: screenshot.mimeType,
 			});
 		} catch (error) {
-			if (error instanceof CodeModeError && error.code === "HANDLE_STALE") {
-				textLines.push(`surface failed: HANDLE_STALE ${id}`);
+			if (error instanceof CodeModeError && error.code === "SCREENSHOT_HANDLE_STALE") {
+				textLines.push(`surface failed: SCREENSHOT_HANDLE_STALE ${id}`);
 				continue;
 			}
 			throw error;
