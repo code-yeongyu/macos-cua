@@ -271,7 +271,19 @@ describe("#given key combo action #when executed #then combo is split into key a
 
 		await executeNativeComputerAction({ action: "key", text: "cmd+shift+t" }, computer, ONE_TO_ONE_DOWNSCALE);
 
-		expect(computer.key).toHaveBeenCalledWith("t", { modifiers: ["cmd", "shift"] });
+		expect(computer.key).toHaveBeenCalledWith("t", { modifiers: ["command", "shift"] });
+	});
+
+	it("normalizes Anthropic modifier aliases to the canonical core names", async () => {
+		const computer = createComputer();
+
+		await executeNativeComputerAction(
+			{ action: "key", text: "ctrl+alt+command+return" },
+			computer,
+			ONE_TO_ONE_DOWNSCALE,
+		);
+
+		expect(computer.key).toHaveBeenCalledWith("return", { modifiers: ["control", "option", "command"] });
 	});
 });
 

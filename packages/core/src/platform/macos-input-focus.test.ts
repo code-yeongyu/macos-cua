@@ -22,6 +22,10 @@ const coreGraphicsMock = vi.hoisted(() => ({
 	warpCursorPosition: vi.fn(),
 }));
 
+const accessibilityMock = vi.hoisted(() => ({
+	typeIntoFocusedAXElement: vi.fn(() => false),
+}));
+
 const windowMock = vi.hoisted(() => ({
 	openWindows: vi.fn<() => Promise<readonly TestWindow[]>>(() => Promise.resolve([])),
 }));
@@ -36,6 +40,9 @@ const skyLightMock = vi.hoisted(() => {
 });
 
 vi.mock("get-windows", () => ({ openWindows: windowMock.openWindows }));
+vi.mock("./macos-ffi/accessibility.js", () => ({
+	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
+}));
 vi.mock("./macos-ffi/lock-screen.js", () => ({ isScreenLocked: () => false }));
 vi.mock("./macos-ffi/skylight.js", () => ({
 	beginFocusWithoutRaise: skyLightMock.beginFocusWithoutRaise,
@@ -65,6 +72,7 @@ function callOrderAt(orders: readonly number[], index: number, label: string): n
 describe("#given focused app targeted input", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
 		windowMock.openWindows.mockResolvedValue([]);
 		skyLightMock.beginFocusWithoutRaise.mockReturnValue(skyLightMock.focusToken);
 	});

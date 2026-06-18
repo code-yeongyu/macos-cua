@@ -2,6 +2,7 @@ import { appendFile, mkdir, rename, stat, unlink } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
+import type { ComputerUseErrorCode } from "./errors.js";
 import type { SupervisorErrorCode } from "./supervisor.js";
 
 export const DEFAULT_AUDIT_RELATIVE_PATH = ".local/state/macos-cua/computer-use-audit.jsonl";
@@ -11,7 +12,7 @@ export const AUDIT_ROTATION_FILE_COUNT = 5;
 export const MAX_AUDIT_AX_VALUE_LENGTH = 256;
 
 export type AuditStatus = "allowed" | "blocked" | "started" | "succeeded" | "failed";
-export type AuditErrorCode = SupervisorErrorCode | "ACTION_FAILED" | "UNKNOWN_ERROR";
+export type AuditErrorCode = SupervisorErrorCode | ComputerUseErrorCode | "ACTION_FAILED" | "UNKNOWN_ERROR";
 
 export interface AuditTarget {
 	readonly app?: string;

@@ -25,6 +25,10 @@ const coreGraphicsMock = vi.hoisted(() => ({
 	warpCursorPosition: vi.fn(),
 }));
 
+const accessibilityMock = vi.hoisted(() => ({
+	typeIntoFocusedAXElement: vi.fn(() => false),
+}));
+
 const windowMock = vi.hoisted(() => ({
 	openWindows: vi.fn<() => Promise<readonly TestWindow[]>>(() => Promise.resolve([])),
 }));
@@ -39,6 +43,9 @@ const skyLightMock = vi.hoisted(() => {
 });
 
 vi.mock("get-windows", () => ({ openWindows: windowMock.openWindows }));
+vi.mock("./macos-ffi/accessibility.js", () => ({
+	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
+}));
 vi.mock("./macos-ffi/lock-screen.js", () => ({ isScreenLocked: () => false }));
 vi.mock("./macos-ffi/skylight.js", () => ({
 	beginFocusWithoutRaise: skyLightMock.beginFocusWithoutRaise,
@@ -93,6 +100,7 @@ function createSupervisor(clock: () => number): ComputerUseSupervisor {
 describe("#given MacOSInputController target routing", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
 		windowMock.openWindows.mockResolvedValue([]);
 		skyLightMock.beginFocusWithoutRaise.mockReturnValue(skyLightMock.focusToken);
 	});
@@ -328,14 +336,60 @@ describe("#given MacOSInputController target routing", () => {
 
 	it("#when typing with a target pid and no remembered window #then refuses unsafe public pid fallback", async () => {
 		// given
+		const auditSink = createRecordedAuditSink();
 		const { MacOSInputController } = await import("./macos-input.js");
-		const controller = new MacOSInputController(9876);
+		const controller = new MacOSInputController(
+			9876,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ auditSink },
+		);
 
 		// when/then
-		await expect(controller.typeText("Hello")).rejects.toThrow(
-			"targeted keyboard input requires get_app_state, a visible target window, or a prior pointer action",
-		);
+		await expect(controller.typeText("Hello")).rejects.toMatchObject({
+			code: "MISSING_TARGET_WINDOW",
+			recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
+		});
 		expect(coreGraphicsMock.postUnicodeText).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "type",
+				status: "failed",
+				errorCode: "MISSING_TARGET_WINDOW",
+				recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
+				typedText: { redacted: true, length: 5 },
+			}),
+		]);
+		controller.close();
+	});
+
+	it("#when scrolling with a target pid and no remembered window #then returns a typed missing-target-window error", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController(
+			9876,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ auditSink },
+		);
+
+		// when/then
+		await expect(controller.scroll({ direction: "down", amount: 2 })).rejects.toMatchObject({
+			code: "MISSING_TARGET_WINDOW",
+			recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
+		});
+		expect(coreGraphicsMock.postScrollEvent).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "scroll",
+				status: "failed",
+				errorCode: "MISSING_TARGET_WINDOW",
+				recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
+			}),
+		]);
 		controller.close();
 	});
 
@@ -495,6 +549,42 @@ describe("#given MacOSInputController target routing", () => {
 		// then
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(1, "o", undefined, undefined);
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(2, "k", undefined, undefined);
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "type",
+				status: "succeeded",
+				typedText: { redacted: true, length: 2 },
+			}),
+		]);
+		controller.close();
+	});
+
+	it("#when Korean text is accepted by focused AX insertion #then it is audited and no keyboard fallback is sent", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		windowMock.openWindows.mockResolvedValue([
+			{
+				id: 77,
+				owner: { processId: 9876 },
+				bounds: { x: 100, y: 200, width: 300, height: 240 },
+			},
+		]);
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(true);
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController(
+			9876,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ auditSink },
+		);
+
+		// when
+		await controller.typeText("한글");
+
+		// then
+		expect(accessibilityMock.typeIntoFocusedAXElement).toHaveBeenCalledWith(9876, "한글");
+		expect(coreGraphicsMock.postUnicodeText).not.toHaveBeenCalled();
 		expect(auditSink.events).toEqual([
 			expect.objectContaining({
 				action: "type",

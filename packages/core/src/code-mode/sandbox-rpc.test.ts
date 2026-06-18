@@ -176,6 +176,22 @@ describe("#given code-mode pointer coordinates from a stale capture #when the ho
 	});
 });
 
+describe("#given code-mode element scroll #when it runs #then AX scroll action is preferred over wheel input", () => {
+	it("#given an element index #when scrolling down #then the host performs an AX scroll action", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		await sandbox.run('await mac.scroll("Finder", { direction: "down", amount: 2, elementIndex: 7 })');
+
+		expect(computer.performActionCalls).toEqual([
+			{ targetPid: 321, elementIndex: 7, action: "AXScrollDownByPage" },
+			{ targetPid: 321, elementIndex: 7, action: "AXScrollDownByPage" },
+		]);
+		expect(computer.scrollCalls).toEqual([]);
+	});
+});
+
 describe("#given code-mode pointer coordinates #when no capture frame exists #then coordinates are rejected", () => {
 	it("#given no screenshot viewport #when code catches the error #then missing target window is surfaced", async () => {
 		const { CodeModeSandbox } = await importSandbox();

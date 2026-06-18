@@ -130,6 +130,12 @@ export class FakeComputer implements ComputerInterface {
 	readonly moveCalls: Point[] = [];
 	readonly rightClickCalls: Point[] = [];
 	readonly dragCalls: DragOptions[] = [];
+	readonly scrollCalls: ScrollOptions[] = [];
+	readonly performActionCalls: {
+		readonly targetPid: number;
+		readonly elementIndex: number;
+		readonly action: string;
+	}[] = [];
 	screenshotViewport: ScreenshotViewport | undefined;
 	appState: AppState | undefined;
 	failScreenshotWith: Error | undefined;
@@ -158,7 +164,9 @@ export class FakeComputer implements ComputerInterface {
 	async doubleClick(_position: Point): Promise<void> {}
 	async type(_text: string): Promise<void> {}
 	async key(_key: string, _options?: KeyOptions): Promise<void> {}
-	async scroll(_options: ScrollOptions): Promise<void> {}
+	async scroll(options: ScrollOptions): Promise<void> {
+		this.scrollCalls.push(options);
+	}
 	async drag(options: DragOptions): Promise<void> {
 		this.dragCalls.push(options);
 	}
@@ -180,7 +188,9 @@ export class FakeComputer implements ComputerInterface {
 	}
 	async setValue(_targetPid: number, _elementIndex: number, _value: string): Promise<void> {}
 	async selectText(_targetPid: number, _elementIndex: number, _options: SelectTextOptions): Promise<void> {}
-	async performAction(_targetPid: number, _elementIndex: number, _action: string): Promise<void> {}
+	async performAction(targetPid: number, elementIndex: number, action: string): Promise<void> {
+		this.performActionCalls.push({ targetPid, elementIndex, action });
+	}
 	async pressAtPosition(): Promise<boolean> {
 		return true;
 	}

@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuditEvent } from "../computer/audit.js";
+import { ComputerUseSupervisor, createSoftwareKillSwitch } from "../computer/supervisor.js";
+
 const accessibilityMock = vi.hoisted(() => ({
 	extractAccessibilityTree: vi.fn(),
 	performActionByIndex: vi.fn(),
@@ -53,6 +56,31 @@ function firstInputController(): (typeof inputControllerMock.instances)[number] 
 	return controller;
 }
 
+interface RecordedAuditSink {
+	readonly events: AuditEvent[];
+	append(event: AuditEvent): Promise<void>;
+}
+
+function createRecordedAuditSink(): RecordedAuditSink {
+	const events: AuditEvent[] = [];
+	return {
+		events,
+		append: async (event) => {
+			events.push(event);
+		},
+	};
+}
+
+function createSupervisor(clock: () => number): ComputerUseSupervisor {
+	const supervisor = new ComputerUseSupervisor({
+		clock,
+		requiredListeners: ["software-kill-switch"],
+	});
+	supervisor.recordHeartbeat(1_000);
+	createSoftwareKillSwitch(supervisor).markReady();
+	return supervisor;
+}
+
 describe("#given MacOSHostComputer.setValue #when called #then it writes through accessibility only", () => {
 	it("calls setValueByIndex with the requested value", async () => {
 		// given
@@ -78,5 +106,25 @@ describe("#given MacOSHostComputer.setValue #when called #then it writes through
 		expect(input.pressKey).not.toHaveBeenCalled();
 		expect(input.typeText).not.toHaveBeenCalled();
 		expect(input.setTarget).not.toHaveBeenCalled();
+	});
+
+	it("#given a stale supervisor #when setValue is called #then AX value side effects are blocked and audited", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 3_100);
+		const computer = new MacOSHostComputer({ supervisor, auditSink });
+
+		// when/then
+		await expect(computer.setValue(1234, 7, "updated")).rejects.toThrow("Computer Use supervisor heartbeat is stale");
+		expect(accessibilityMock.setValueByIndex).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "setValue",
+				status: "failed",
+				errorCode: "SUPERVISOR_HEARTBEAT_STALE",
+				elementTarget: { pid: 1234, elementIndex: 7 },
+				axValue: "updated",
+			}),
+		]);
 	});
 });

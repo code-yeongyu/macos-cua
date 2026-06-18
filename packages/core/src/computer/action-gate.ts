@@ -6,6 +6,7 @@ import {
 	type ElementTarget,
 	createAuditEvent,
 } from "./audit.js";
+import { ComputerUseError } from "./errors.js";
 import { type ComputerUseSupervisor, ComputerUseSupervisorError } from "./supervisor.js";
 
 export interface ComputerUseAuditSink {
@@ -115,6 +116,9 @@ interface AuditOutcome {
 
 function auditErrorFields(error: unknown): Pick<AuditOutcome, "errorCode" | "recoveryHint"> {
 	if (error instanceof ComputerUseSupervisorError) {
+		return { errorCode: error.code, recoveryHint: error.recoveryHint };
+	}
+	if (error instanceof ComputerUseError) {
 		return { errorCode: error.code, recoveryHint: error.recoveryHint };
 	}
 	if (error instanceof Error) {

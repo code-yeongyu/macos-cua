@@ -3,6 +3,7 @@ import {
 	ComputerUseActionGate,
 	type ComputerUseActionGateOptions,
 } from "../computer/action-gate.js";
+import { ComputerUseError } from "../computer/errors.js";
 import { assertScreenUnlocked } from "../computer/lock-guard.js";
 import { VirtualPointer } from "../computer/virtual-pointer.js";
 import type { DragOptions, KeyOptions, Point, ScrollOptions } from "../types/index.js";
@@ -237,7 +238,8 @@ export class MacOSInputController {
 		}
 		const targetWindow = await this.visibleWindowForPid(this.targetPid);
 		if (targetWindow === undefined) {
-			throw new Error(
+			throw new ComputerUseError(
+				"MISSING_TARGET_WINDOW",
 				`targeted ${action} input requires get_app_state, a visible target window, or a prior pointer action`,
 			);
 		}

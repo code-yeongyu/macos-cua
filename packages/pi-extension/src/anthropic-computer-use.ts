@@ -19,7 +19,7 @@ import type { AgentToolResult } from "./pi/index.js";
 
 type ComputerUseErrorKind = "unsupported_action" | "invalid_arguments" | "execution_failed";
 export type ComputerUseResult = AgentToolResult<undefined>;
-type KeyModifier = "command" | "option" | "control" | "shift" | "cmd" | "alt" | "ctrl";
+type KeyModifier = "command" | "option" | "control" | "shift";
 type ScrollDirection = "up" | "down" | "left" | "right";
 
 export interface ComputerActionDriver extends Omit<ComputerInterface, "key" | "scroll"> {
@@ -170,12 +170,15 @@ function parseModifier(modifier: string): KeyModifier {
 	switch (modifier) {
 		case "cmd":
 		case "command":
-		case "alt":
+			return "command";
 		case "option":
-		case "ctrl":
+		case "alt":
+			return "option";
 		case "control":
+		case "ctrl":
+			return "control";
 		case "shift":
-			return modifier;
+			return "shift";
 		default:
 			throw new ComputerUseError("invalid_arguments", `unsupported key modifier: ${modifier}`);
 	}

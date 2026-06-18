@@ -21,6 +21,10 @@ const coreGraphicsMock = vi.hoisted(() => ({
 	postUnicodeText: vi.fn(),
 }));
 
+const accessibilityMock = vi.hoisted(() => ({
+	typeIntoFocusedAXElement: vi.fn(() => false),
+}));
+
 const windowMock = vi.hoisted(() => ({
 	openWindows: vi.fn<() => Promise<readonly TestWindow[]>>(() => Promise.resolve([])),
 }));
@@ -30,6 +34,9 @@ const fallbackMock = vi.hoisted(() => ({
 }));
 
 vi.mock("get-windows", () => ({ openWindows: windowMock.openWindows }));
+vi.mock("./macos-ffi/accessibility.js", () => ({
+	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
+}));
 vi.mock("./macos-ffi/lock-screen.js", () => ({ isScreenLocked: () => false }));
 vi.mock("./macos-ffi/coregraphics.js", () => ({
 	K_CG_EVENT_FLAG_MASK_ALTERNATE: 0x00080000,
@@ -49,6 +56,7 @@ vi.mock("./macos-window-target-fallback.js", () => ({
 describe("#given target windows without owner metadata", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
 		windowMock.openWindows.mockResolvedValue([]);
 		fallbackMock.selectSystemEventsTargetWindow.mockResolvedValue(undefined);
 	});

@@ -6,6 +6,10 @@ const coreGraphicsMock = vi.hoisted(() => ({
 	postUnicodeText: vi.fn(),
 }));
 
+const accessibilityMock = vi.hoisted(() => ({
+	typeIntoFocusedAXElement: vi.fn(() => false),
+}));
+
 const skyLightMock = vi.hoisted(() => {
 	const focusToken = { previousPsn: Buffer.alloc(8) };
 	return {
@@ -15,6 +19,9 @@ const skyLightMock = vi.hoisted(() => {
 	};
 });
 
+vi.mock("./macos-ffi/accessibility.js", () => ({
+	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
+}));
 vi.mock("./macos-ffi/coregraphics.js", () => ({
 	K_CG_EVENT_FLAG_MASK_ALTERNATE: 0x00080000,
 	K_CG_EVENT_FLAG_MASK_COMMAND: 0x00100000,
@@ -40,6 +47,7 @@ function callOrderAt(orders: readonly number[], index: number, label: string): n
 describe("#given targeted session input #when typing, pressing keys, or scrolling #then it leases focus", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
 		skyLightMock.beginFocusWithoutRaise.mockReturnValue(skyLightMock.focusToken);
 	});
 
@@ -53,6 +61,18 @@ describe("#given targeted session input #when typing, pressing keys, or scrollin
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(1, "H", 9876, targetWindow);
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(2, "i", 9876, targetWindow);
 		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledWith(skyLightMock.focusToken);
+	});
+
+	it("#given Korean text and a target pid #when the focused AX element accepts text #then keyboard injection is skipped", async () => {
+		const { postFocusedText } = await import("./macos-input-session.js");
+		const targetWindow = { id: 77, bounds: { x: 100, y: 200, width: 300, height: 240 } };
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(true);
+
+		await postFocusedText({ text: "안녕하세요", targetPid: 9876, targetWindow });
+
+		expect(accessibilityMock.typeIntoFocusedAXElement).toHaveBeenCalledWith(9876, "안녕하세요");
+		expect(coreGraphicsMock.postUnicodeText).not.toHaveBeenCalled();
+		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
 	});
 
 	it("keeps target focus leased until key release completes", async () => {

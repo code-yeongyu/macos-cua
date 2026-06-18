@@ -9,6 +9,13 @@ const coreGraphicsMock = vi.hoisted(() => ({
 	warpCursorPosition: vi.fn(),
 }));
 
+const accessibilityMock = vi.hoisted(() => ({
+	typeIntoFocusedAXElement: vi.fn(() => false),
+}));
+
+vi.mock("./macos-ffi/accessibility.js", () => ({
+	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
+}));
 vi.mock("./macos-ffi/lock-screen.js", () => ({ isScreenLocked: () => false }));
 vi.mock("./macos-ffi/coregraphics.js", () => ({
 	K_CG_EVENT_FLAG_MASK_ALTERNATE: 0x00080000,
@@ -26,6 +33,7 @@ vi.mock("./macos-ffi/coregraphics.js", () => ({
 describe("#given MacOSInputController keyboard input", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
 	});
 
 	it("#when pressing a key with hold milliseconds #then releases after the hold duration", async () => {

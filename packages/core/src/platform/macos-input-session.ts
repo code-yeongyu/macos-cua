@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { KeyOptions, ScrollOptions } from "../types/index.js";
+import { typeIntoFocusedAXElement } from "./macos-ffi/accessibility.js";
 import { postKeyboardEvent, postScrollEvent, postUnicodeText } from "./macos-ffi/coregraphics.js";
 import type { SkyLightTargetWindow } from "./macos-ffi/skylight.js";
 import { modifierFlags, virtualKeyCodeFor } from "./macos-keycodes.js";
@@ -24,6 +25,9 @@ interface ScrollInputOptions extends TargetedInputOptions {
 }
 
 export async function postFocusedText(options: TextInputOptions): Promise<void> {
+	if (options.targetPid !== undefined && typeIntoFocusedAXElement(options.targetPid, options.text)) {
+		return;
+	}
 	await withTargetFocus(options, async () => {
 		for (const segment of Array.from(options.text)) {
 			postUnicodeText(segment, options.targetPid, options.targetWindow);
