@@ -70,20 +70,27 @@ describe("#given scroll tool #when executed #then it performs AX and targeted wh
 		expect(performAction).toHaveBeenNthCalledWith(3, 1234, 7, "AXScrollDownByPage");
 		expect(setTarget).toHaveBeenNthCalledWith(1, 1234);
 		expect(scroll).toHaveBeenCalledWith({ direction: "down", amount: 30 });
+		expect(setTarget).toHaveBeenLastCalledWith(undefined);
 	});
 
-	it("throws when element_index is missing instead of taking over the cursor", async () => {
+	it("falls back to targeted wheel scrolling when element_index is missing", async () => {
 		const computer = createComputer();
+		const setTarget = vi.spyOn(computer, "setTarget");
+		const performAction = vi.spyOn(computer, "performAction").mockResolvedValue(undefined);
+		const scroll = vi.spyOn(computer, "scroll").mockResolvedValue(undefined);
 		const tool = createScrollTool(computer);
 
-		await expect(
-			tool.execute(
-				"tool-call",
-				{ app: "Finder", direction: "down", pages: 1 },
-				undefined,
-				undefined,
-				{} as ExtensionContext,
-			),
-		).rejects.toThrow(/element_index/);
+		await tool.execute(
+			"tool-call",
+			{ app: "Finder", direction: "down", pages: 3 },
+			undefined,
+			undefined,
+			{} as ExtensionContext,
+		);
+
+		expect(performAction).not.toHaveBeenCalled();
+		expect(setTarget).toHaveBeenNthCalledWith(1, 1234);
+		expect(scroll).toHaveBeenCalledWith({ direction: "down", amount: 30 });
+		expect(setTarget).toHaveBeenLastCalledWith(undefined);
 	});
 });
