@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuditEvent } from "../computer/audit.js";
+import { ComputerUseSupervisor, createSoftwareKillSwitch } from "../computer/supervisor.js";
+
 type ExecFileCallback = (error: Error | null, stdout: string | Buffer, stderr: string) => void;
 type ExecFileMock = (
 	file: string,
@@ -47,6 +50,31 @@ import { MacOSHostComputer } from "./macos.js";
 const TARGET_PID = 1234;
 const WINDOW_BOUNDS = { x: 300, y: 150, width: 2560, height: 1600 };
 
+interface RecordedAuditSink {
+	readonly events: AuditEvent[];
+	append(event: AuditEvent): Promise<void>;
+}
+
+function createRecordedAuditSink(): RecordedAuditSink {
+	const events: AuditEvent[] = [];
+	return {
+		events,
+		append: async (event) => {
+			events.push(event);
+		},
+	};
+}
+
+function createSupervisor(clock: () => number): ComputerUseSupervisor {
+	const supervisor = new ComputerUseSupervisor({
+		clock,
+		requiredListeners: ["software-kill-switch"],
+	});
+	supervisor.recordHeartbeat(1_000);
+	createSoftwareKillSwitch(supervisor).markReady();
+	return supervisor;
+}
+
 function fakePng(width: number, height: number): Buffer {
 	const data = globalThis.Buffer.alloc(24);
 	data.write("PNG\r\n\n", 0, "latin1");
@@ -59,6 +87,10 @@ beforeEach(() => {
 	childProcessMock.execFile.mockReset();
 	windowMock.openWindows.mockReset();
 	accessibilityMock.extractAccessibilityTree.mockReset();
+	accessibilityMock.performActionByIndex.mockReset();
+	accessibilityMock.pressElementAtScreenPoint.mockReset();
+	accessibilityMock.setValueByIndex.mockReset();
+	accessibilityMock.typeIntoFocusedAXElement.mockReset();
 	screenshotMock.captureDisplayRectPng.mockReset();
 	screenshotMock.captureMainDisplayPng.mockReset();
 	screenshotMock.getMainDisplayLogicalSize.mockReset();
@@ -445,5 +477,51 @@ describe("#given a window on a secondary display #when get_app_state remaps fram
 		expect(state.windowBounds).toEqual(negativeBounds);
 		// scale = 960/960 = 1; offset = -(-1920, -200): (-1440+1920, 100+200).
 		expect(state.elements[0]?.frame).toEqual({ x: 480, y: 300, width: 96, height: 60 });
+	});
+});
+
+describe("#given MacOSHostComputer AX mutators #when the supervisor is stale #then side effects are blocked and audited", () => {
+	it("prevents setValue before Accessibility mutation", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 3_100);
+		const computer = new MacOSHostComputer({ supervisor, auditSink });
+
+		// when/then
+		await expect(computer.setValue(TARGET_PID, 5, "private")).rejects.toThrow(
+			"Computer Use supervisor heartbeat is stale",
+		);
+		expect(accessibilityMock.setValueByIndex).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "setValue",
+				status: "failed",
+				errorCode: "SUPERVISOR_HEARTBEAT_STALE",
+				elementTarget: { pid: TARGET_PID, elementIndex: 5 },
+				axValue: "private",
+			}),
+		]);
+	});
+});
+
+describe("#given MacOSHostComputer AX mutators #when the supervisor is live #then side effects run and audit succeeds", () => {
+	it("permits performAction after the gate", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 1_000);
+		const computer = new MacOSHostComputer({ supervisor, auditSink });
+
+		// when
+		await computer.performAction(TARGET_PID, 5, "AXPress");
+
+		// then
+		expect(accessibilityMock.performActionByIndex).toHaveBeenCalledWith(TARGET_PID, 5, "AXPress");
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "performAction",
+				status: "succeeded",
+				elementTarget: { pid: TARGET_PID, elementIndex: 5 },
+			}),
+		]);
 	});
 });

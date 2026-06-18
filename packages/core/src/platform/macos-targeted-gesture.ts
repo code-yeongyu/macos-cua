@@ -48,3 +48,21 @@ export async function runFocusLeasedGesture(
 		restoreFrontProcessNoWindows(token);
 	}
 }
+
+export async function runFocusLeasedInput(
+	targetWindow: SkyLightTargetWindow,
+	body: () => Promise<void>,
+): Promise<void> {
+	const token = beginFocusWithoutRaise(targetWindow);
+	if (token === null) {
+		await body();
+		return;
+	}
+	try {
+		await sleep(FOCUS_SETTLE_MILLISECONDS);
+		await body();
+		await sleep(CLICK_DRAIN_MILLISECONDS);
+	} finally {
+		restoreFrontProcessNoWindows(token);
+	}
+}

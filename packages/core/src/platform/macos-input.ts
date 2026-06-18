@@ -1,14 +1,13 @@
+import {
+	type ComputerUseActionAuditDetails,
+	ComputerUseActionGate,
+	type ComputerUseActionGateOptions,
+} from "../computer/action-gate.js";
 import { assertScreenUnlocked } from "../computer/lock-guard.js";
 import { VirtualPointer } from "../computer/virtual-pointer.js";
 import type { DragOptions, KeyOptions, Point, ScrollOptions } from "../types/index.js";
 import { readRealCursorPosition } from "./macos-cursor.js";
-import {
-	type MouseButton,
-	postKeyboardEvent,
-	postMouseEvent,
-	postScrollEvent,
-	postUnicodeText,
-} from "./macos-ffi/coregraphics.js";
+import { type MouseButton, postMouseEvent } from "./macos-ffi/coregraphics.js";
 import { NOOP_POINTER_OVERLAY, type PointerOverlay } from "./macos-ffi/cursor-overlay.js";
 import { isScreenLocked } from "./macos-ffi/lock-screen.js";
 import { type DisplaySleepAssertion, NOOP_DISPLAY_SLEEP } from "./macos-ffi/power.js";
@@ -22,10 +21,12 @@ import {
 	runFocusLeasedDoubleClick,
 	runFocusLeasedDrag,
 } from "./macos-input-pointer.js";
-import { modifierFlags, virtualKeyCodeFor } from "./macos-keycodes.js";
+import { postFocusedKey, postFocusedScroll, postFocusedText } from "./macos-input-session.js";
 import { openWindowsForTargeting } from "./macos-open-windows.js";
 import { selectSystemEventsTargetWindow } from "./macos-window-target-fallback.js";
 import { selectVisibleTargetWindow } from "./macos-window-target.js";
+
+export type MacOSInputControllerOptions = ComputerUseActionGateOptions;
 
 export class MacOSInputController {
 	private targetPid: number | undefined;
@@ -35,6 +36,7 @@ export class MacOSInputController {
 	private readonly pointer: VirtualPointer;
 	private readonly isLocked: () => boolean;
 	private readonly displaySleep: DisplaySleepAssertion;
+	private readonly actionGate: ComputerUseActionGate;
 	private gestureChain: Promise<void> = Promise.resolve();
 	private readonly postMouse: MousePost = async (kind, position, button, clickState, targetWindow) => {
 		postMouseEvent({ kind, position, button, clickState, targetPid: this.targetPid, targetWindow });
@@ -45,10 +47,12 @@ export class MacOSInputController {
 		overlay: PointerOverlay = NOOP_POINTER_OVERLAY,
 		isLocked: () => boolean = isScreenLocked,
 		displaySleep: DisplaySleepAssertion = NOOP_DISPLAY_SLEEP,
+		options: MacOSInputControllerOptions = {},
 	) {
 		this.overlay = overlay;
 		this.isLocked = isLocked;
 		this.displaySleep = displaySleep;
+		this.actionGate = new ComputerUseActionGate(options);
 		this.pointer = new VirtualPointer(readRealCursorPosition());
 		this.setTarget(targetPid);
 	}
@@ -65,6 +69,14 @@ export class MacOSInputController {
 			() => undefined,
 		);
 		return result;
+	}
+
+	private runInputAction<T>(
+		action: string,
+		details: ComputerUseActionAuditDetails,
+		run: () => Promise<T>,
+	): Promise<T> {
+		return this.serialize(async () => await this.actionGate.run(action, details, run));
 	}
 
 	setTarget(pid?: number): void {
@@ -90,19 +102,20 @@ export class MacOSInputController {
 	}
 
 	async move(position: Point): Promise<void> {
-		this.beforeInput();
-		await this.postMouse("move", position, "left", undefined, await this.targetWindow(position));
-		this.markPointer(position);
+		await this.runInputAction("move", { coordinateTarget: position }, async () => {
+			this.beforeInput();
+			await this.postMove(position);
+		});
 	}
 
 	async click(position: Point, button: MouseButton = "left"): Promise<void> {
-		await this.serialize(async () => {
+		await this.runInputAction(clickActionName(button), { coordinateTarget: position }, async () => {
 			this.beforeInput();
 			const targetWindow = await this.targetWindow(position);
 			this.requirePointerWindow(targetWindow);
 			this.lastTargetWindow = targetWindow;
 			if (this.targetPid === undefined) {
-				await this.move(position);
+				await this.postMove(position);
 				await postClick(this.postMouse, position, button, 1, targetWindow);
 				this.markPointer(position);
 			} else if (targetWindow !== undefined) {
@@ -113,13 +126,13 @@ export class MacOSInputController {
 	}
 
 	async doubleClick(position: Point): Promise<void> {
-		await this.serialize(async () => {
+		await this.runInputAction("doubleClick", { coordinateTarget: position }, async () => {
 			this.beforeInput();
 			const targetWindow = await this.targetWindow(position);
 			this.requirePointerWindow(targetWindow);
 			this.lastTargetWindow = targetWindow;
 			if (this.targetPid === undefined) {
-				await this.move(position);
+				await this.postMove(position);
 				await postDoubleClick(this.postMouse, position, targetWindow);
 				this.markPointer(position);
 			} else if (targetWindow !== undefined) {
@@ -130,67 +143,37 @@ export class MacOSInputController {
 	}
 
 	async typeText(text: string): Promise<void> {
-		this.beforeInput();
-		const targetWindow = await this.requireSessionWindow("keyboard");
-		for (const segment of Array.from(text)) {
-			postUnicodeText(segment, this.targetPid, targetWindow);
-		}
+		await this.runInputAction("type", { typedText: text }, async () => {
+			this.beforeInput();
+			const targetWindow = await this.requireSessionWindow("keyboard");
+			await postFocusedText({ text, targetPid: this.targetPid, targetWindow });
+		});
 	}
 
 	async pressKey(key: string, options?: KeyOptions): Promise<void> {
-		this.beforeInput();
-		const keyCode = virtualKeyCodeFor(key);
-		const flags = modifierFlags(options?.modifiers ?? []);
-		const targetWindow = await this.requireSessionWindow("keyboard");
-		postKeyboardEvent({
-			keyCode,
-			keyDown: true,
-			flags,
-			text: undefined,
-			targetPid: this.targetPid,
-			targetWindow,
-		});
-		if (options?.holdMilliseconds !== undefined) {
-			await delayMilliseconds(options.holdMilliseconds);
-		}
-		postKeyboardEvent({
-			keyCode,
-			keyDown: false,
-			flags,
-			text: undefined,
-			targetPid: this.targetPid,
-			targetWindow,
+		await this.runInputAction("key", {}, async () => {
+			this.beforeInput();
+			const targetWindow = await this.requireSessionWindow("keyboard");
+			await postFocusedKey({ key, options, targetPid: this.targetPid, targetWindow });
 		});
 	}
 
 	async scroll(options: ScrollOptions): Promise<void> {
-		this.beforeInput();
-		const amount = Math.trunc(options.amount);
-		const targetWindow = await this.requireSessionWindow("scroll");
-		switch (options.direction) {
-			case "up":
-				postScrollEvent({ deltaX: 0, deltaY: amount, targetPid: this.targetPid, targetWindow });
-				return;
-			case "down":
-				postScrollEvent({ deltaX: 0, deltaY: -amount, targetPid: this.targetPid, targetWindow });
-				return;
-			case "left":
-				postScrollEvent({ deltaX: -amount, deltaY: 0, targetPid: this.targetPid, targetWindow });
-				return;
-			case "right":
-				postScrollEvent({ deltaX: amount, deltaY: 0, targetPid: this.targetPid, targetWindow });
-				return;
-		}
+		await this.runInputAction("scroll", {}, async () => {
+			this.beforeInput();
+			const targetWindow = await this.requireSessionWindow("scroll");
+			await postFocusedScroll({ options, targetPid: this.targetPid, targetWindow });
+		});
 	}
 
 	async drag(options: DragOptions): Promise<void> {
-		await this.serialize(async () => {
+		await this.runInputAction("drag", { coordinateTarget: options.from }, async () => {
 			this.beforeInput();
 			const targetWindow = await this.targetWindow(options.from);
 			this.requirePointerWindow(targetWindow);
 			this.lastTargetWindow = targetWindow;
 			if (this.targetPid === undefined) {
-				await this.move(options.from);
+				await this.postMove(options.from);
 				await postDragSequence(this.postMouse, options, targetWindow);
 				this.markPointer(options.to);
 			} else if (targetWindow !== undefined) {
@@ -212,6 +195,12 @@ export class MacOSInputController {
 	private markPointer(position: Point): void {
 		this.pointer.moveTo(position);
 		this.overlay.set(position);
+	}
+
+	private async postMove(position: Point): Promise<void> {
+		const targetWindow = await this.targetWindow(position);
+		await this.postMouse("move", position, "left", undefined, targetWindow);
+		this.markPointer(position);
 	}
 
 	private async targetWindow(position: Point): Promise<SkyLightTargetWindow | undefined> {
@@ -258,8 +247,13 @@ export class MacOSInputController {
 	}
 }
 
-function delayMilliseconds(milliseconds: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, milliseconds);
-	});
+function clickActionName(button: MouseButton): string {
+	switch (button) {
+		case "left":
+			return "click";
+		case "right":
+			return "rightClick";
+		case "middle":
+			return "middleClick";
+	}
 }

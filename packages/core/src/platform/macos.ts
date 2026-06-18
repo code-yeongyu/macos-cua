@@ -3,6 +3,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import type { AppInfo, AppState, DisplayInfo } from "../accessibility/types.js";
 import { resolveAppInstructions } from "../app-instructions/index.js";
+import {
+	type ComputerUseActionAuditDetails,
+	ComputerUseActionGate,
+	type ComputerUseActionGateOptions,
+} from "../computer/action-gate.js";
 import { resolveDisplayMetadata } from "../computer/display-metadata.js";
 import { ComputerUseError } from "../computer/errors.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
@@ -57,6 +62,10 @@ export interface MacOSHostComputerOptions extends HostComputerOptions {
 	overlay?: PointerOverlay;
 	appApproval?: AppApprovalStore;
 	urlBlocklist?: readonly string[];
+	supervisor?: ComputerUseActionGateOptions["supervisor"];
+	auditSink?: ComputerUseActionGateOptions["auditSink"];
+	now?: ComputerUseActionGateOptions["now"];
+	nextActionId?: ComputerUseActionGateOptions["nextActionId"];
 }
 
 export class MacOSHostComputer extends HostComputer {
@@ -72,17 +81,26 @@ export class MacOSHostComputer extends HostComputer {
 	private readonly overlay: PointerOverlay;
 	private readonly session: MacOSDesktopSession;
 	private readonly urlBlocklist: readonly string[];
+	private readonly actionGate: ComputerUseActionGate;
 
 	constructor(options: MacOSHostComputerOptions = {}) {
 		super();
 		this.appApproval = options.appApproval;
 		this.urlBlocklist = options.urlBlocklist ?? [];
 		this.overlay = options.overlay ?? createCursorOverlay();
+		const actionGateOptions: ComputerUseActionGateOptions = {
+			...(options.supervisor !== undefined ? { supervisor: options.supervisor } : {}),
+			...(options.auditSink !== undefined ? { auditSink: options.auditSink } : {}),
+			...(options.now !== undefined ? { now: options.now } : {}),
+			...(options.nextActionId !== undefined ? { nextActionId: options.nextActionId } : {}),
+		};
+		this.actionGate = new ComputerUseActionGate(actionGateOptions);
 		this.input = new MacOSInputController(
 			options.defaultTargetPid,
 			this.overlay,
 			undefined,
 			createDisplaySleepAssertion(),
+			actionGateOptions,
 		);
 		this.session = new MacOSDesktopSession({
 			activateApp,
@@ -303,34 +321,74 @@ export class MacOSHostComputer extends HostComputer {
 
 	async setValue(targetPid: number, elementIndex: number, value: string): Promise<void> {
 		await this.session.runExclusive("setValue", async () => {
-			setValueByIndex(targetPid, elementIndex, value);
+			await this.runAccessibilityAction(
+				"setValue",
+				{ elementTarget: { pid: targetPid, elementIndex }, axValue: value },
+				async () => {
+					setValueByIndex(targetPid, elementIndex, value);
+				},
+			);
 		});
 	}
 
 	async selectText(targetPid: number, elementIndex: number, options: SelectTextOptions): Promise<void> {
 		await this.session.runExclusive("selectText", async () => {
-			selectTextByIndex(targetPid, elementIndex, options);
+			await this.runAccessibilityAction(
+				"selectText",
+				{ elementTarget: { pid: targetPid, elementIndex } },
+				async () => {
+					selectTextByIndex(targetPid, elementIndex, options);
+				},
+			);
 		});
 	}
 
 	async performAction(targetPid: number, elementIndex: number, action: string): Promise<void> {
 		await this.session.runExclusive("performAction", async () => {
-			performActionByIndex(targetPid, elementIndex, action);
+			await this.runAccessibilityAction(
+				"performAction",
+				{ elementTarget: { pid: targetPid, elementIndex } },
+				async () => {
+					performActionByIndex(targetPid, elementIndex, action);
+				},
+			);
 		});
 	}
 
 	async pressAtPosition(targetPid: number, position: Point): Promise<boolean> {
-		return await this.session.runExclusive("pressAtPosition", async () =>
-			pressElementAtScreenPoint(targetPid, position.x, position.y),
+		return await this.session.runExclusive(
+			"pressAtPosition",
+			async () =>
+				await this.runAccessibilityAction(
+					"pressAtPosition",
+					{ target: { pid: targetPid }, coordinateTarget: position },
+					async () => pressElementAtScreenPoint(targetPid, position.x, position.y),
+				),
 		);
 	}
 
 	async typeIntoFocused(targetPid: number, text: string): Promise<boolean> {
-		return await this.session.runExclusive("typeIntoFocused", async () => typeIntoFocusedAXElement(targetPid, text));
+		return await this.session.runExclusive(
+			"typeIntoFocused",
+			async () =>
+				await this.runAccessibilityAction(
+					"typeIntoFocused",
+					{ target: { pid: targetPid }, typedText: text },
+					async () => typeIntoFocusedAXElement(targetPid, text),
+				),
+		);
 	}
 
 	async close(): Promise<void> {
 		this.input.close();
+	}
+
+	private async runAccessibilityAction<T>(
+		action: string,
+		details: ComputerUseActionAuditDetails,
+		body: () => Promise<T>,
+	): Promise<T> {
+		return await this.actionGate.run(action, details, body);
 	}
 }
 

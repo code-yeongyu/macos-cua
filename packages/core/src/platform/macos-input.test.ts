@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuditEvent } from "../computer/audit.js";
+import { ComputerUseSupervisor, createSoftwareKillSwitch } from "../computer/supervisor.js";
+
 interface TestWindow {
 	readonly id: number;
 	readonly owner: {
@@ -60,6 +63,31 @@ function callOrderAt(orders: readonly number[], index: number, label: string): n
 		throw new Error(`missing ${label} call order at index ${index}`);
 	}
 	return order;
+}
+
+interface RecordedAuditSink {
+	readonly events: AuditEvent[];
+	append(event: AuditEvent): Promise<void>;
+}
+
+function createRecordedAuditSink(): RecordedAuditSink {
+	const events: AuditEvent[] = [];
+	return {
+		events,
+		append: async (event) => {
+			events.push(event);
+		},
+	};
+}
+
+function createSupervisor(clock: () => number): ComputerUseSupervisor {
+	const supervisor = new ComputerUseSupervisor({
+		clock,
+		requiredListeners: ["software-kill-switch"],
+	});
+	supervisor.recordHeartbeat(1_000);
+	createSoftwareKillSwitch(supervisor).markReady();
+	return supervisor;
 }
 
 describe("#given MacOSInputController target routing", () => {
@@ -144,7 +172,6 @@ describe("#given MacOSInputController target routing", () => {
 		});
 		expect(coreGraphicsMock.warpCursorPosition).toHaveBeenCalledOnce();
 		expect(coreGraphicsMock.warpCursorPosition).toHaveBeenCalledWith({ x: 1, y: 2 });
-		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledOnce();
 		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledWith(skyLightMock.focusToken);
 
 		const beginOrder = callOrderAt(skyLightMock.beginFocusWithoutRaise.mock.invocationCallOrder, 0, "begin focus");
@@ -384,6 +411,128 @@ describe("#given MacOSInputController target routing", () => {
 
 		// when/then
 		expect(controller.getCursorPosition()).toEqual({ x: 1, y: 2 });
+		controller.close();
+	});
+
+	it("#when the supervisor heartbeat is stale #then type is blocked before text side effects and audited as failed", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 3_100);
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController(
+			undefined,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ supervisor, auditSink },
+		);
+
+		// when/then
+		await expect(controller.typeText("blocked")).rejects.toThrow("Computer Use supervisor heartbeat is stale");
+		expect(coreGraphicsMock.postUnicodeText).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "type",
+				status: "failed",
+				errorCode: "SUPERVISOR_HEARTBEAT_STALE",
+				typedText: { redacted: true, length: 7 },
+			}),
+		]);
+		controller.close();
+	});
+
+	it("#when the supervisor heartbeat is stale #then keypress and scroll are blocked before side effects", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 3_100);
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController(
+			undefined,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ supervisor, auditSink },
+		);
+
+		// when/then
+		await expect(controller.pressKey("l")).rejects.toThrow("Computer Use supervisor heartbeat is stale");
+		await expect(controller.scroll({ direction: "down", amount: 3 })).rejects.toThrow(
+			"Computer Use supervisor heartbeat is stale",
+		);
+		expect(coreGraphicsMock.postKeyboardEvent).not.toHaveBeenCalled();
+		expect(coreGraphicsMock.postScrollEvent).not.toHaveBeenCalled();
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "key",
+				status: "failed",
+				errorCode: "SUPERVISOR_HEARTBEAT_STALE",
+			}),
+			expect.objectContaining({
+				action: "scroll",
+				status: "failed",
+				errorCode: "SUPERVISOR_HEARTBEAT_STALE",
+			}),
+		]);
+		controller.close();
+	});
+
+	it("#when the supervisor is live #then text input is permitted and audited as succeeded", async () => {
+		// given
+		const auditSink = createRecordedAuditSink();
+		const supervisor = createSupervisor(() => 1_000);
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController(
+			undefined,
+			{ set: vi.fn(), highlight: vi.fn(), hide: vi.fn(), close: vi.fn() },
+			() => false,
+			undefined,
+			{ supervisor, auditSink },
+		);
+
+		// when
+		await controller.typeText("ok");
+
+		// then
+		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(1, "o", undefined, undefined);
+		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(2, "k", undefined, undefined);
+		expect(auditSink.events).toEqual([
+			expect.objectContaining({
+				action: "type",
+				status: "succeeded",
+				typedText: { redacted: true, length: 2 },
+			}),
+		]);
+		controller.close();
+	});
+
+	it("#when keypress is still holding #then scroll waits for the same action queue", async () => {
+		// given
+		vi.useFakeTimers();
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController();
+
+		// when
+		const pressing = controller.pressKey("l", { holdMilliseconds: 250 });
+		await vi.advanceTimersByTimeAsync(0);
+		const scrolling = controller.scroll({ direction: "down", amount: 4 });
+		await vi.advanceTimersByTimeAsync(0);
+
+		// then
+		expect(coreGraphicsMock.postKeyboardEvent).toHaveBeenCalledTimes(1);
+		expect(coreGraphicsMock.postScrollEvent).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(250);
+		await pressing;
+		await scrolling;
+		expect(coreGraphicsMock.postKeyboardEvent).toHaveBeenCalledTimes(2);
+		expect(coreGraphicsMock.postScrollEvent).toHaveBeenCalledWith({
+			deltaX: 0,
+			deltaY: -4,
+			targetPid: undefined,
+			targetWindow: undefined,
+		});
+		expect(vi.getTimerCount()).toBe(0);
+		vi.useRealTimers();
 		controller.close();
 	});
 });
