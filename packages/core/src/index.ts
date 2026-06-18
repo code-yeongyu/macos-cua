@@ -68,6 +68,21 @@ export {
 	fileSegmentSink,
 } from "./passive-memory/segment-writer.js";
 export { createDebugLog, type LogValue } from "./log/debug-log.js";
+export {
+	ACTION_COMPLETED_CODE,
+	ACTION_COMPLETED_HINT,
+	formatSurfaceAction,
+	formatSurfaceError,
+	surfaceActionPayload,
+	surfaceErrorPayload,
+	toSurfaceJsonValue,
+	type SurfaceActionInput,
+	type SurfaceActionPayload,
+	type SurfaceCaptureMetadata,
+	type SurfaceErrorPayload,
+	type SurfaceJsonPrimitive,
+	type SurfaceJsonValue,
+} from "./surface-vocabulary.js";
 export type { PermissionInterface, PermissionKind, PermissionStatus } from "./permission/interface.js";
 export { MacOSPermissions } from "./permission/macos.js";
 export { CloudComputer, type CloudComputerOptions } from "./platform/cloud.js";

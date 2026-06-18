@@ -47,7 +47,9 @@ describe("run-code command #given a code-mode script #when executed #then it wri
 		expect(await readFile(join(outDir, "surface-0.png"), "utf8")).toBe("image:shot_1");
 		const output = stdout.join("");
 		expect(output).toContain("hello");
-		expect(output).toContain('{"ok":true}');
+		expect(output).toContain('"ok":true');
+		expect(output).toContain('"code":"ACTION_COMPLETED"');
+		expect(output).toContain('"capture"');
 		expect(output).toContain(join(outDir, "surface-0.png"));
 		expect(output).not.toContain(Buffer.from("image:shot_1").toString("base64"));
 	});

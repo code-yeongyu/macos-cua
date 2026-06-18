@@ -13,9 +13,10 @@ export {
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-payload.js";
 export type { ComputerToolInput } from "./anthropic-payload.js";
-import { type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
+import { type CaptureFreshnessMarker, type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
 import { screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
 import type { AgentToolResult } from "./pi/index.js";
+import { type JsonValue, formatActionComplete, toJsonValue } from "./surface-vocabulary.js";
 
 type ComputerUseErrorKind = "unsupported_action" | "invalid_arguments" | "execution_failed";
 export type ComputerUseResult = AgentToolResult<undefined>;
@@ -34,16 +35,28 @@ const MAX_WAIT_SECONDS = 10;
 export class ComputerUseError extends Error {
 	readonly kind: ComputerUseErrorKind;
 	readonly action: string | undefined;
+	readonly code: string;
+	readonly recoveryHint: string | undefined;
+	readonly details: JsonValue | undefined;
 
 	constructor(
 		kind: ComputerUseErrorKind,
 		message: string,
-		options?: { readonly action?: string; readonly cause?: unknown },
+		options?: {
+			readonly action?: string;
+			readonly cause?: unknown;
+			readonly code?: string;
+			readonly recoveryHint?: string;
+			readonly details?: JsonValue;
+		},
 	) {
 		super(message, options);
 		this.name = kind === "unsupported_action" ? "UnsupportedAnthropicAction" : "ComputerUseError";
 		this.kind = kind;
 		this.action = options?.action;
+		this.code = options?.code ?? codeForKind(kind);
+		this.recoveryHint = options?.recoveryHint ?? recoveryHintForKind(kind);
+		this.details = options?.details;
 	}
 }
 
@@ -59,33 +72,47 @@ export async function executeNativeComputerAction(
 	input: ComputerToolInput,
 	computer: ComputerActionDriver,
 	display: DisplayConfig,
+	freshness?: CaptureFreshnessMarker,
 ): Promise<ComputerUseResult> {
 	try {
 		switch (input.action) {
 			case "screenshot":
 				return await screenshotResultWithCursor(computer, display);
 			case "mouse_move":
-				await computer.move(unscaleCoord(parseCoordinate(input.coordinate, "mouse_move"), display));
+				await computer.move(unscaleCoord(parseCoordinate(input.coordinate, "mouse_move"), display, freshness));
 				return okResult(input.action);
 			case "left_click":
-				await computer.click(unscaleCoord(parseCoordinate(input.coordinate, "left_click"), display));
+				await computer.click(unscaleCoord(parseCoordinate(input.coordinate, "left_click"), display, freshness));
 				return okResult(input.action);
 			case "right_click":
-				await computer.rightClick(unscaleCoord(parseCoordinate(input.coordinate, "right_click"), display));
+				await computer.rightClick(
+					unscaleCoord(parseCoordinate(input.coordinate, "right_click"), display, freshness),
+				);
 				return okResult(input.action);
 			case "middle_click":
-				await computer.middleClick(unscaleCoord(parseCoordinate(input.coordinate, "middle_click"), display));
+				await computer.middleClick(
+					unscaleCoord(parseCoordinate(input.coordinate, "middle_click"), display, freshness),
+				);
 				return okResult(input.action);
 			case "double_click":
-				await computer.doubleClick(unscaleCoord(parseCoordinate(input.coordinate, "double_click"), display));
+				await computer.doubleClick(
+					unscaleCoord(parseCoordinate(input.coordinate, "double_click"), display, freshness),
+				);
 				return okResult(input.action);
 			case "triple_click":
-				await tripleClick(computer, unscaleCoord(parseCoordinate(input.coordinate, "triple_click"), display));
+				await tripleClick(
+					computer,
+					unscaleCoord(parseCoordinate(input.coordinate, "triple_click"), display, freshness),
+				);
 				return okResult(input.action);
 			case "left_click_drag":
 				await computer.drag({
-					from: unscaleCoord(parseCoordinate(input.start_coordinate, "left_click_drag.start_coordinate"), display),
-					to: unscaleCoord(parseCoordinate(input.coordinate, "left_click_drag.coordinate"), display),
+					from: unscaleCoord(
+						parseCoordinate(input.start_coordinate, "left_click_drag.start_coordinate"),
+						display,
+						freshness,
+					),
+					to: unscaleCoord(parseCoordinate(input.coordinate, "left_click_drag.coordinate"), display, freshness),
 					duration: DEFAULT_DRAG_DURATION_MILLISECONDS,
 				});
 				return okResult(input.action);
@@ -113,10 +140,7 @@ export async function executeNativeComputerAction(
 				throwUnsupportedAction(input.action);
 		}
 	} catch (error) {
-		if (error instanceof ComputerUseError) {
-			throw error;
-		}
-		throw new ComputerUseError("execution_failed", errorMessage(error), { cause: error });
+		throw toComputerUseExecutionError(error);
 	}
 }
 
@@ -125,7 +149,7 @@ function textResult(text: string): ComputerUseResult {
 }
 
 function okResult(action: string): ComputerUseResult {
-	return textResult(JSON.stringify({ ok: true, action }));
+	return textResult(formatActionComplete({ action }));
 }
 
 function scaleCoord(point: Point, display: DisplayConfig): Point {
@@ -220,6 +244,69 @@ function throwUnsupportedAction(action: "left_mouse_down" | "left_mouse_up" | "h
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
+}
+
+export function toComputerUseExecutionError(error: unknown): ComputerUseError {
+	if (error instanceof ComputerUseError) {
+		return error;
+	}
+	if (isSurfaceErrorLike(error)) {
+		return computerUseErrorFromSurface(error);
+	}
+	return new ComputerUseError("execution_failed", errorMessage(error), { cause: error });
+}
+
+function codeForKind(kind: ComputerUseErrorKind): string {
+	switch (kind) {
+		case "unsupported_action":
+			return "UNSUPPORTED_ACTION";
+		case "invalid_arguments":
+			return "INVALID_ARGUMENTS";
+		case "execution_failed":
+			return "ACTION_FAILED";
+	}
+}
+
+function recoveryHintForKind(kind: ComputerUseErrorKind): string {
+	switch (kind) {
+		case "unsupported_action":
+			return "Use a supported Computer Use action for this target.";
+		case "invalid_arguments":
+			return "Fix the tool arguments and retry the action.";
+		case "execution_failed":
+			return "Refresh app state and retry the action.";
+	}
+}
+
+function isSurfaceErrorLike(error: unknown): error is {
+	readonly message: string;
+	readonly code: string;
+	readonly recoveryHint?: string;
+	readonly details?: unknown;
+} {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"message" in error &&
+		typeof error.message === "string" &&
+		"code" in error &&
+		typeof error.code === "string"
+	);
+}
+
+function computerUseErrorFromSurface(error: {
+	readonly message: string;
+	readonly code: string;
+	readonly recoveryHint?: string;
+	readonly details?: unknown;
+}): ComputerUseError {
+	const details = toJsonValue(error.details);
+	return new ComputerUseError("execution_failed", error.message, {
+		code: error.code,
+		cause: error,
+		...(error.recoveryHint !== undefined ? { recoveryHint: error.recoveryHint } : {}),
+		...(details !== undefined ? { details } : {}),
+	});
 }
 
 async function sleep(milliseconds: number): Promise<void> {

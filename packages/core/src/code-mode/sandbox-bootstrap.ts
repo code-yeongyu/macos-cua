@@ -51,12 +51,13 @@ const __codeModeUnwrap = (envelope) => {
 	if (envelope && envelope.ok === true) {
 		return envelope.value;
 	}
-	const errorInfo = envelope && envelope.error ? envelope.error : { name: "Error", message: "Host RPC failed" };
-	const error = new Error(String(errorInfo.message));
-	error.name = String(errorInfo.name || "Error");
-		if (errorInfo.code !== undefined) {
-			error.code = String(errorInfo.code);
-		}
+		const errorInfo = envelope && envelope.error ? envelope.error : { name: "Error", message: "Host RPC failed" };
+		const error = new Error(String(errorInfo.message));
+		error.name = String(errorInfo.name || "Error");
+		error.stack = undefined;
+			if (errorInfo.code !== undefined) {
+				error.code = String(errorInfo.code);
+			}
 		if (errorInfo.recoveryHint !== undefined) {
 			error.recoveryHint = String(errorInfo.recoveryHint);
 		}

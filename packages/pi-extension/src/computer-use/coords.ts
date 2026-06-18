@@ -8,7 +8,7 @@ type CoordinateErrorOptions = {
 };
 type CoordinateErrorCode = "STALE_CAPTURE" | "OUT_OF_BOUNDS_COORDINATE";
 type CoordinateErrorDetails = Readonly<Record<string, string | number | boolean | null>>;
-type CaptureFreshnessMarker = {
+export type CaptureFreshnessMarker = {
 	readonly captureId: string;
 	readonly displayEpoch: string;
 };

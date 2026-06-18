@@ -1,6 +1,7 @@
 import type { CodeModeRunResult } from "@macos-cua/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
+import { formatToolError } from "./surface-vocabulary.js";
 import type { ToolContent, ToolResult } from "./tool-result.js";
 
 export interface CodeModeRunner {
@@ -26,7 +27,7 @@ export function registerRunTool(server: McpServer, runnerFactory: CodeModeRunner
 				return runResultToToolResult(await (await runnerFactory()).run(code));
 			} catch (error) {
 				if (isCodeModeErrorLike(error)) {
-					return { content: [{ type: "text", text: `${error.code}: ${error.message}` }] };
+					return { content: [{ type: "text", text: formatToolError(error) }] };
 				}
 				throw error;
 			}

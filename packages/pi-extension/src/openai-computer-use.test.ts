@@ -17,6 +17,15 @@ const DISPLAY = {
 	modelHeight: 100,
 } satisfies DisplayConfig;
 
+const STALE_DISPLAY = {
+	logicalWidth: 200,
+	logicalHeight: 200,
+	modelWidth: 100,
+	modelHeight: 100,
+	captureId: "capture-1",
+	displayEpoch: "display-1",
+} satisfies DisplayConfig;
+
 function createComputer(): ComputerActionDriver {
 	return {
 		capabilities: {
@@ -165,10 +174,37 @@ describe("#given OpenAI scroll and screenshot actions #when executed #then direc
 
 		expect(computer.scroll).toHaveBeenNthCalledWith(1, { direction: "down", amount: 30 });
 		expect(computer.scroll).toHaveBeenNthCalledWith(2, { direction: "left", amount: 50 });
-		expect(firstScroll.content).toEqual([{ type: "text", text: JSON.stringify({ ok: true, type: "scroll" }) }]);
-		expect(secondScroll.content).toEqual([{ type: "text", text: JSON.stringify({ ok: true, type: "scroll" }) }]);
+		expect(JSON.parse(firstScroll.content[0]?.type === "text" ? firstScroll.content[0].text : "")).toMatchObject({
+			ok: true,
+			type: "scroll",
+			code: "ACTION_COMPLETED",
+			recoveryHint: "Call get_app_state to fetch the updated UI state.",
+		});
+		expect(JSON.parse(secondScroll.content[0]?.type === "text" ? secondScroll.content[0].text : "")).toMatchObject({
+			ok: true,
+			type: "scroll",
+			code: "ACTION_COMPLETED",
+			recoveryHint: "Call get_app_state to fetch the updated UI state.",
+		});
 		expect(computer.screenshot).toHaveBeenCalledWith({ targetSize: { width: 100, height: 100 } });
 		expect(result.content).toEqual([{ type: "image", data: rawPng.toString("base64"), mimeType: "image/png" }]);
+	});
+});
+
+describe("#given OpenAI stale coordinates #when native computer use rejects them #then code and hint match code-mode", () => {
+	it("#given a stale capture marker #when click executes #then STALE_CAPTURE is preserved", async () => {
+		const computer = createComputer();
+
+		await expect(
+			executeOpenAIComputerAction({ type: "click", button: "left", x: 10, y: 20 }, computer, STALE_DISPLAY, {
+				captureId: "capture-2",
+				displayEpoch: "display-1",
+			}),
+		).rejects.toMatchObject({
+			code: "STALE_CAPTURE",
+			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+		});
+		expect(computer.click).not.toHaveBeenCalled();
 	});
 });
 

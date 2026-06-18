@@ -88,12 +88,6 @@ function registerGetAppStateTool(server: McpServer, computer: ComputerInterface)
 				{ type: "image", data: state.screenshotBase64, mimeType: state.screenshotMimeType ?? "image/png" },
 				{ type: "text", text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
 			];
-			if (state.appInstructions !== undefined) {
-				content.push({
-					type: "text",
-					text: `<app_specific_instructions>\n${state.appInstructions}\n</app_specific_instructions>`,
-				});
-			}
 			return { content };
 		},
 	);

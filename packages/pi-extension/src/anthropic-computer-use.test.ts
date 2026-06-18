@@ -7,6 +7,7 @@ import {
 	type ComputerActionDriver,
 	ComputerUseError,
 	addAnthropicComputerUseToPayload,
+	anthropicComputerToolSchema,
 	executeNativeComputerAction,
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-computer-use.js";
@@ -24,6 +25,15 @@ const ONE_TO_ONE_DOWNSCALE = {
 	logicalHeight: 80,
 	modelWidth: 100,
 	modelHeight: 80,
+} satisfies DisplayConfig;
+
+const STALE_DISPLAY = {
+	logicalWidth: 100,
+	logicalHeight: 80,
+	modelWidth: 100,
+	modelHeight: 80,
+	captureId: "capture-1",
+	displayEpoch: "display-1",
 } satisfies DisplayConfig;
 
 function createComputer(): ComputerActionDriver {
@@ -145,6 +155,14 @@ describe("#given a fresh Anthropic payload #when adding computer use #then beta 
 	});
 });
 
+describe("#given Anthropic model-facing schema #when inspected #then its root remains flat", () => {
+	it("#given the computer tool schema #when serialized #then root combinators are not present", () => {
+		expect(anthropicComputerToolSchema).not.toHaveProperty("oneOf");
+		expect(anthropicComputerToolSchema).not.toHaveProperty("anyOf");
+		expect(anthropicComputerToolSchema).not.toHaveProperty("allOf");
+	});
+});
+
 describe("#given an existing Anthropic beta header #when adding computer use #then beta is comma-deduped", () => {
 	it("does not duplicate the computer-use beta header", () => {
 		const payload = { headers: { "anthropic-beta": `foo, ${ANTHROPIC_COMPUTER_USE_BETA}` } };
@@ -261,7 +279,29 @@ describe("#given left_click action #when executed #then click runs once and ligh
 
 		expect(computer.click).toHaveBeenCalledTimes(1);
 		expect(computer.click).toHaveBeenCalledWith({ x: 10, y: 20 });
-		expect(result.content).toEqual([{ type: "text", text: JSON.stringify({ ok: true, action: "left_click" }) }]);
+		expect(JSON.parse(result.content[0]?.type === "text" ? result.content[0].text : "")).toMatchObject({
+			ok: true,
+			action: "left_click",
+			code: "ACTION_COMPLETED",
+			recoveryHint: "Call get_app_state to fetch the updated UI state.",
+		});
+	});
+});
+
+describe("#given Anthropic stale coordinates #when native computer use rejects them #then code and hint match code-mode", () => {
+	it("#given a stale capture marker #when left_click executes #then STALE_CAPTURE is preserved", async () => {
+		const computer = createComputer();
+
+		await expect(
+			executeNativeComputerAction({ action: "left_click", coordinate: [10, 20] }, computer, STALE_DISPLAY, {
+				captureId: "capture-2",
+				displayEpoch: "display-1",
+			}),
+		).rejects.toMatchObject({
+			code: "STALE_CAPTURE",
+			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+		});
+		expect(computer.click).not.toHaveBeenCalled();
 	});
 });
 

@@ -158,6 +158,7 @@ describe("MCP run tool #given code mode result #when called #then image blocks p
 		const error = new Error("bad code");
 		error.name = "CodeModeError";
 		Object.defineProperty(error, "code", { value: "COMPILE_ERROR" });
+		Object.defineProperty(error, "recoveryHint", { value: "Fix the code and retry." });
 		const server = new McpServer({ name: "test", version: "0.1.0" });
 		registerRunTool(server, async () => ({
 			async run() {
@@ -167,6 +168,14 @@ describe("MCP run tool #given code mode result #when called #then image blocks p
 
 		const result = await withClient(server, (client) => client.callTool({ name: "run", arguments: { code: "!" } }));
 
-		expect(result.content).toEqual([{ type: "text", text: "COMPILE_ERROR: bad code" }]);
+		expect(result.content).toHaveLength(1);
+		const content = result.content[0];
+		expect(content?.type).toBe("text");
+		expect(JSON.parse(content?.type === "text" ? content.text : "")).toEqual({
+			ok: false,
+			code: "COMPILE_ERROR",
+			message: "bad code",
+			recoveryHint: "Fix the code and retry.",
+		});
 	});
 });

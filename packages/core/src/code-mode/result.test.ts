@@ -63,7 +63,7 @@ describe("#given a void run with no logs #when assembling a run result #then tex
 
 		expect(result).toEqual({
 			images: [],
-			text: '{"ok":true}',
+			text: '{"ok":true,"code":"ACTION_COMPLETED","recoveryHint":"Call get_app_state to fetch the updated UI state.","auditRef":null}',
 		});
 	});
 });

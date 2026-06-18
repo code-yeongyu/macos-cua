@@ -1,9 +1,10 @@
 import type { ComputerInterface, Point, ScrollOptions } from "@macos-cua/core";
 
-import { ComputerUseError, type ComputerUseResult } from "./anthropic-computer-use.js";
-import { type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
+import { ComputerUseError, type ComputerUseResult, toComputerUseExecutionError } from "./anthropic-computer-use.js";
+import { type CaptureFreshnessMarker, type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
 import { screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
 import type { OpenAIComputerAction, OpenAIComputerToolInput } from "./openai-payload.js";
+import { formatActionComplete } from "./surface-vocabulary.js";
 export {
 	OPENAI_COMPUTER_TOOL_TYPE,
 	addOpenAIComputerUseToPayload,
@@ -20,25 +21,27 @@ export async function executeOpenAINativeComputerAction(
 	input: OpenAIComputerToolInput,
 	computer: ComputerInterface,
 	display: DisplayConfig,
+	freshness?: CaptureFreshnessMarker,
 ): Promise<ComputerUseResult> {
-	return executeOpenAIComputerAction(input, computer, display);
+	return executeOpenAIComputerAction(input, computer, display, freshness);
 }
 
 export async function executeOpenAIComputerAction(
 	input: OpenAIComputerAction,
 	computer: ComputerInterface,
 	display: DisplayConfig,
+	freshness?: CaptureFreshnessMarker,
 ): Promise<ComputerUseResult> {
 	try {
 		switch (input.type) {
 			case "click":
-				await click(input, computer, display);
+				await click(input, computer, display, freshness);
 				return okResult(input.type);
 			case "double_click":
-				await computer.doubleClick(parsePosition(input.x, input.y, "double_click", display));
+				await computer.doubleClick(parsePosition(input.x, input.y, "double_click", display, freshness));
 				return okResult(input.type);
 			case "drag":
-				await computer.drag(parseDrag(input.path, display));
+				await computer.drag(parseDrag(input.path, display, freshness));
 				return okResult(input.type);
 			case "keypress": {
 				const keypress = normalizeOpenAIKeys(input.keys ?? []);
@@ -49,12 +52,12 @@ export async function executeOpenAIComputerAction(
 				return okResult(input.type);
 			}
 			case "move":
-				await computer.move(parsePosition(input.x, input.y, "move", display));
+				await computer.move(parsePosition(input.x, input.y, "move", display, freshness));
 				return okResult(input.type);
 			case "screenshot":
 				return await screenshotResultWithCursor(computer, display);
 			case "scroll":
-				await computer.move(parsePosition(input.x, input.y, "scroll", display));
+				await computer.move(parsePosition(input.x, input.y, "scroll", display, freshness));
 				await computer.scroll(parseScroll(input.scroll_x, input.scroll_y));
 				return okResult(input.type);
 			case "type":
@@ -65,10 +68,7 @@ export async function executeOpenAIComputerAction(
 				return textResult("wait complete");
 		}
 	} catch (error) {
-		if (error instanceof ComputerUseError) {
-			throw error;
-		}
-		throw new ComputerUseError("execution_failed", errorMessage(error), { cause: error });
+		throw toComputerUseExecutionError(error);
 	}
 }
 
@@ -76,8 +76,9 @@ async function click(
 	input: OpenAIComputerToolInput,
 	computer: ComputerInterface,
 	display: DisplayConfig,
+	freshness: CaptureFreshnessMarker | undefined,
 ): Promise<void> {
-	const position = parsePosition(input.x, input.y, "click", display);
+	const position = parsePosition(input.x, input.y, "click", display, freshness);
 	for (const modifier of parseModifierKeys(input.keys ?? [])) {
 		await computer.key(modifier);
 	}
@@ -99,16 +100,23 @@ async function click(
 	}
 }
 
-function parsePosition(x: number | undefined, y: number | undefined, action: string, display: DisplayConfig): Point {
+function parsePosition(
+	x: number | undefined,
+	y: number | undefined,
+	action: string,
+	display: DisplayConfig,
+	freshness?: CaptureFreshnessMarker,
+): Point {
 	if (x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y)) {
 		throw new ComputerUseError("invalid_arguments", `${action} requires finite x and y`);
 	}
-	return unscaleCoord({ x, y }, display);
+	return unscaleCoord({ x, y }, display, freshness);
 }
 
 function parseDrag(
 	path: readonly Point[] | undefined,
 	display: DisplayConfig,
+	freshness?: CaptureFreshnessMarker,
 ): { readonly from: Point; readonly to: Point } {
 	if (path === undefined || path.length < 1) {
 		throw new ComputerUseError("invalid_arguments", "drag requires at least one path point");
@@ -122,8 +130,8 @@ function parseDrag(
 		process.stderr.write("macos-cua: collapsed OpenAI drag path to endpoints\n");
 	}
 	return {
-		from: parsePosition(from.x, from.y, "drag.path[0]", display),
-		to: parsePosition(to.x, to.y, "drag.path[last]", display),
+		from: parsePosition(from.x, from.y, "drag.path[0]", display, freshness),
+		to: parsePosition(to.x, to.y, "drag.path[last]", display, freshness),
 	};
 }
 
@@ -216,7 +224,7 @@ function parseWaitDurationMilliseconds(duration: number | undefined): number {
 }
 
 function okResult(type: string): ComputerUseResult {
-	return textResult(JSON.stringify({ ok: true, type }));
+	return textResult(formatActionComplete({ type }));
 }
 
 function textResult(text: string): ComputerUseResult {
@@ -224,10 +232,6 @@ function textResult(text: string): ComputerUseResult {
 		content: [{ type: "text", text }],
 		details: undefined,
 	};
-}
-
-function errorMessage(error: unknown): string {
-	return error instanceof Error ? error.message : String(error);
 }
 
 async function sleep(milliseconds: number): Promise<void> {

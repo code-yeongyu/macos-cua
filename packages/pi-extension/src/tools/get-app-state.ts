@@ -43,12 +43,6 @@ export function createGetAppStateTool(computer: ComputerInterface): ToolDefiniti
 				{ type: "image" as const, data: imageBase64, mimeType: state.screenshotMimeType ?? "image/png" },
 				{ type: "text" as const, text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
 			];
-			if (state.appInstructions !== undefined) {
-				content.push({
-					type: "text" as const,
-					text: `<app_specific_instructions>\n${state.appInstructions}\n</app_specific_instructions>`,
-				});
-			}
 			return { content, details: state };
 		},
 	});

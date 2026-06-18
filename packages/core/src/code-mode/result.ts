@@ -1,4 +1,5 @@
 import type { Buffer } from "node:buffer";
+import { surfaceActionPayload, toSurfaceJsonValue } from "../surface-vocabulary.js";
 import { CodeModeError } from "./errors.js";
 import type { ScreenshotStore } from "./screenshot-store.js";
 
@@ -31,12 +32,34 @@ export function assembleRunResult(
 			throw error;
 		}
 	}
+	const capture = raw.surfaced.length === 0 ? undefined : { surfaced: raw.surfaced, imageCount: images.length };
 	if (raw.result !== undefined) {
-		textLines.push(JSON.stringify(raw.result) ?? "undefined");
+		textLines.push(JSON.stringify(normalizeRunResult(raw.result, capture)) ?? "undefined");
 	}
-	const text = textLines.length === 0 ? '{"ok":true}' : textLines.join("\n");
+	const text =
+		textLines.length === 0
+			? JSON.stringify(surfaceActionPayload(capture === undefined ? {} : { capture }))
+			: textLines.join("\n");
 	return {
 		images,
 		text,
 	};
+}
+
+function normalizeRunResult(
+	result: unknown,
+	capture: { readonly surfaced: readonly string[]; readonly imageCount: number } | undefined,
+): unknown {
+	const jsonResult = toSurfaceJsonValue(result);
+	if (isOkRecord(result)) {
+		return surfaceActionPayload({
+			...(capture === undefined ? {} : { capture }),
+			...(jsonResult === undefined ? {} : { result: jsonResult }),
+		});
+	}
+	return result;
+}
+
+function isOkRecord(value: unknown): value is { readonly ok: true } {
+	return typeof value === "object" && value !== null && "ok" in value && value.ok === true;
 }

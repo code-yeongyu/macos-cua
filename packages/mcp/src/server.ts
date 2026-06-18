@@ -58,8 +58,11 @@ function createComputer(codeMode: boolean): ComputerInterface {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	main().catch((error: unknown) => {
-		const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
-		process.stderr.write(`Fatal error: ${details}\n`);
+		process.stderr.write(`Fatal error: ${formatFatalError(error)}\n`);
 		process.exit(1);
 	});
+}
+
+export function formatFatalError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }

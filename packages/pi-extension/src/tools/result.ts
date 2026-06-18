@@ -1,11 +1,9 @@
 import type { Point } from "@macos-cua/core";
 import type { AgentToolResult } from "../pi/index.js";
+import { ACTION_COMPLETED_HINT, formatActionComplete } from "../surface-vocabulary.js";
 
-const ACTION_COMPLETE_TEXT = "Action completed. Call `get_app_state` to fetch the updated UI state.";
-
-// A dispatched click is fire-and-forget and can silently miss; every click result must instruct the model to verify and retry.
 const CLICK_VERIFY_TEXT =
-	"The click was dispatched but may not have registered on the target. ALWAYS confirm by calling `get_app_state`: if the accessibility tree did not change (axChangeSummary 0/0/0), the click most likely missed — retry it once, or use `element_index` for a reliable accessibility press. Do NOT fall back to osascript, AppleScript, JXA, Swift, or any shell scripting to perform the click — those bypass this agent's native input path and are NOT allowed. ALWAYS use this `click` tool (with `element_index` when available) and simply retry it when a click does not register.";
+	"The click was dispatched but may not have registered on the target. Confirm by calling get_app_state; if axChangeSummary is 0/0/0, retry once or use element_index for a reliable accessibility press. Do not use osascript, AppleScript, JXA, Swift, or shell scripting to work around this `click` tool.";
 
 export interface CursorFeedback {
 	cursorBefore: Point;
@@ -17,7 +15,9 @@ export function actionCompleteWithCursor(cursorBefore: Point, cursorAfter: Point
 		content: [
 			{
 				type: "text",
-				text: `${ACTION_COMPLETE_TEXT} Pointer before (${cursorBefore.x}, ${cursorBefore.y}); after (${cursorAfter.x}, ${cursorAfter.y}).`,
+				text: formatActionComplete({
+					recoveryHint: `${ACTION_COMPLETED_HINT} Pointer before (${cursorBefore.x}, ${cursorBefore.y}); after (${cursorAfter.x}, ${cursorAfter.y}).`,
+				}),
 			},
 		],
 		details: { cursorBefore, cursorAfter },
@@ -29,7 +29,9 @@ export function clickCompleteWithCursor(cursorBefore: Point, cursorAfter: Point)
 		content: [
 			{
 				type: "text",
-				text: `${ACTION_COMPLETE_TEXT} Pointer before (${cursorBefore.x}, ${cursorBefore.y}); after (${cursorAfter.x}, ${cursorAfter.y}). ${CLICK_VERIFY_TEXT}`,
+				text: formatActionComplete({
+					recoveryHint: `${ACTION_COMPLETED_HINT} Pointer before (${cursorBefore.x}, ${cursorBefore.y}); after (${cursorAfter.x}, ${cursorAfter.y}). ${CLICK_VERIFY_TEXT}`,
+				}),
 			},
 		],
 		details: { cursorBefore, cursorAfter },
@@ -37,7 +39,7 @@ export function clickCompleteWithCursor(cursorBefore: Point, cursorAfter: Point)
 }
 
 export function clickCompleteResult(): AgentToolResult<undefined> {
-	return textResult(`${ACTION_COMPLETE_TEXT} ${CLICK_VERIFY_TEXT}`);
+	return textResult(formatActionComplete({ recoveryHint: `${ACTION_COMPLETED_HINT} ${CLICK_VERIFY_TEXT}` }));
 }
 
 export function textResult<TDetails = undefined>(
@@ -51,7 +53,7 @@ export function textResult<TDetails = undefined>(
 }
 
 export function actionCompleteResult(): AgentToolResult<undefined> {
-	return textResult(ACTION_COMPLETE_TEXT);
+	return textResult(formatActionComplete({}));
 }
 
 export function imageResult<TDetails = undefined>(
