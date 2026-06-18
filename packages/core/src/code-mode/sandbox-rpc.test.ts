@@ -89,10 +89,11 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 				scaleFactor: 2,
 			},
 		});
+		computer.pressAtPosition = async () => false;
 		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
 
 		await sandbox.run(`
-			await mac.click("Finder", { x: 250, y: 200 });
+			await mac.click("Finder", { x: 250, y: 200, captureId: "capture-1", displayEpoch: "display-1" });
 			await mac.move("Finder", { x: 0, y: 0 });
 			await mac.drag("Finder", { fromX: 0, fromY: 0, toX: 250, toY: 200 });
 		`);
@@ -105,7 +106,7 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 	it("#given an element frame in screenshot pixels #when code right-clicks it #then host input receives the logical center", async () => {
 		const { CodeModeSandbox } = await importSandbox();
 		const computer = new FakeComputer();
-		computer.screenshotViewport = createCaptureFrame({
+		const captureFrame = createCaptureFrame({
 			captureId: "capture-1",
 			capturedAt: "2026-06-18T00:00:00.000Z",
 			displayEpoch: "display-1",
@@ -119,7 +120,9 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 				scaleFactor: 2,
 			},
 		});
+		computer.screenshotViewport = captureFrame;
 		computer.appState = appStateWith({
+			captureFrame,
 			elements: [
 				{
 					id: 7,
@@ -211,6 +214,43 @@ describe("#given code-mode pointer coordinates #when no capture frame exists #th
 			code: "MISSING_TARGET_WINDOW",
 			recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
 		});
+	});
+});
+
+describe("#given code-mode pointer coordinates without capture freshness #when a capture frame exists #then side effects are rejected", () => {
+	it("#given app-targeted x y without capture id #when click runs #then computer click is not called", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		computer.screenshotViewport = createCaptureFrame({
+			captureId: "capture-1",
+			capturedAt: "2026-06-18T00:00:00.000Z",
+			displayEpoch: "display-1",
+			target: { pid: 321, bundleId: "com.apple.finder", appName: "Finder" },
+			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
+			screenshot: { width: 500, height: 400 },
+			model: { width: 500, height: 400 },
+			display: {
+				logical: { x: 0, y: 0, width: 1728, height: 1117 },
+				native: { width: 3456, height: 2234 },
+				scaleFactor: 2,
+			},
+		});
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		const result = await sandbox.run(`
+			try {
+				await mac.click("Finder", { x: 250, y: 200 });
+			} catch (error) {
+				return { name: error.name, code: error.code, recoveryHint: error.recoveryHint };
+			}
+		`);
+
+		expect(result.result).toEqual({
+			name: "ComputerUseError",
+			code: "STALE_CAPTURE",
+			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+		});
+		expect(computer.clickCalls).toEqual([]);
 	});
 });
 

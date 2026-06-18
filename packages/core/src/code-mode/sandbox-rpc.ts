@@ -1,5 +1,6 @@
 import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
+import { type PointerActionResult, executePointerClick } from "../computer/pointer-action.js";
 import type { AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
 import type { CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
 import { splitAppState } from "./app-state-split.js";
@@ -50,14 +51,11 @@ export class SandboxRpcHost {
 			case "listApps":
 				return await this.computer.listApps();
 			case "click":
-				await this.click(call.app, call.target, 1);
-				return undefined;
+				return await this.click(call.app, call.target, 1);
 			case "doubleClick":
-				await this.click(call.app, call.target, 2);
-				return undefined;
+				return await this.click(call.app, call.target, 2);
 			case "rightClick":
-				await this.click(call.app, { ...call.target, button: "right" }, 1);
-				return undefined;
+				return await this.click(call.app, { ...call.target, button: "right" }, 1);
 			case "move":
 				await this.move(call.app, call.point);
 				return undefined;
@@ -97,17 +95,17 @@ export class SandboxRpcHost {
 		return { ...split.structured, screenshot: this.store.put(split.screenshotBytes) };
 	}
 
-	private async click(app: CodeModeAppTarget, target: CodeModeClickTarget, count: number): Promise<void> {
+	private async click(
+		app: CodeModeAppTarget,
+		target: CodeModeClickTarget,
+		count: number,
+	): Promise<PointerActionResult> {
 		const pid = await this.resolvePid(app);
-		if (target.elementIndex !== undefined && (target.button ?? "left") === "left") {
-			await this.pressElement(pid, target.elementIndex, count);
-			return;
-		}
-		const point = await this.resolvePoint(pid, target);
-		await this.withPid(pid, async () => {
-			for (let index = 0; index < count; index += 1) {
-				await this.clickButton(target.button ?? "left", point);
-			}
+		return await executePointerClick(this.computer, {
+			actionId: `code-mode-click:${pid}`,
+			targetPid: pid,
+			target,
+			pressCount: count,
 		});
 	}
 
@@ -206,26 +204,6 @@ export class SandboxRpcHost {
 			throw new CodeModeError("COMPILE_ERROR", `No running app matched "${app}"`);
 		}
 		return match.pid;
-	}
-
-	private async pressElement(pid: number, elementIndex: number, count: number): Promise<void> {
-		for (let index = 0; index < count; index += 1) {
-			await this.computer.performAction(pid, elementIndex, "AXPress");
-		}
-	}
-
-	private async clickButton(button: NonNullable<CodeModeClickTarget["button"]>, point: Point): Promise<void> {
-		switch (button) {
-			case "left":
-				await this.computer.click(point);
-				return;
-			case "right":
-				await this.computer.rightClick(point);
-				return;
-			case "middle":
-				await this.computer.middleClick(point);
-				return;
-		}
 	}
 
 	private keyOptions(modifiers: NonNullable<KeyOptions["modifiers"]>, holdMilliseconds?: number): KeyOptions {

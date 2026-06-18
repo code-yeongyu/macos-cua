@@ -11,6 +11,7 @@ export {
 	axScrollActionFor,
 	clickElementByIndex,
 	clickPoint,
+	executePointerClick,
 	getAppStateForApp,
 	parseElementIndex,
 	parseKeyChord,
@@ -20,6 +21,10 @@ export {
 	scrollElement,
 	withTargetedApp,
 	type ComputerUseMouseButton,
+	type ExecutePointerClickInput,
+	type PointerActionPostObservation,
+	type PointerActionResult,
+	type PointerClickTarget,
 } from "./computer/actions.js";
 export {
 	createCaptureFrame,

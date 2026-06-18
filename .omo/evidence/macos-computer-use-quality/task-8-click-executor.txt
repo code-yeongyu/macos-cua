@@ -1,0 +1,69 @@
+Task: Wave 2 Todo 8 click executor
+Artifact: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+Date: 2026-06-18
+
+Changed Todo 8 files:
+- packages/core/src/computer/pointer-action.ts
+- packages/core/src/computer/actions.ts
+- packages/core/src/computer/actions.test.ts
+- packages/core/src/code-mode/sandbox-rpc.ts
+- packages/core/src/code-mode/sandbox-rpc.test.ts
+- packages/core/src/index.ts
+
+Preexisting/shared-worktree changes intentionally not owned:
+- packages/core/native/cursor-overlay
+- packages/core/native/cursor-overlay.m
+- packages/pi-extension/src/tools/scroll*.ts
+- skills/macos-cua/** deletions
+- screenshot.png
+
+Implementation summary:
+- Added shared executePointerClick action layer with AXPress-first element clicks, capture-frame coordinate fallback, targeted AX hit-test press, synthetic targeted click fallback, action id, method, and post-action observation metadata.
+- Routed clickElementByIndex and code-mode click/doubleClick/rightClick through the shared pointer executor.
+- Required app-targeted code-mode coordinate clicks to include fresh captureId/displayEpoch before side effects when a capture frame exists.
+- Element coordinate fallback now maps element centers through the fresh capture frame instead of using raw AX/model coordinates.
+
+RED evidence:
+- Scenario: elementIndex click uses capture-aware fallback, pointer result includes action id/post metadata, and app-targeted x/y without freshness rejects before computer.click.
+- Invocation: pnpm exec vitest --run packages/core/src/computer/actions.test.ts packages/core/src/code-mode/sandbox-rpc.test.ts
+- Binary observable: exit code 1.
+- Captured failures:
+  - packages/core/src/computer/actions.test.ts expected pressAtPosition(1234, { x: 420, y: 204 }) but received { x: 60, y: 52 }.
+  - packages/core/src/computer/actions.test.ts executePointerClick is not a function.
+  - packages/core/src/code-mode/sandbox-rpc.test.ts expected ComputerUseError STALE_CAPTURE for missing capture freshness but result was undefined.
+- Artifact path: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+
+GREEN evidence:
+- Scenario: shared click executor and code-mode RPC pointer behavior.
+- Invocation: pnpm exec vitest --run packages/core/src/computer/actions.test.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/pi-extension/src/tools/click.test.ts
+- Binary observable: exit code 0; 3 test files passed; 29 tests passed.
+- Artifact path: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+
+- Scenario: workspace type safety after pointer executor changes.
+- Invocation: pnpm -r typecheck
+- Binary observable: exit code 0; packages/core, packages/cli, packages/mcp, and packages/pi-extension typecheck scripts completed with Done. Node engine warning observed because current node is v26.3.0 while package wants >=24 <25.
+- Artifact path: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+
+- Scenario: targeted Biome formatting/linting for touched Todo 8 files.
+- Invocation: pnpm exec biome check packages/core/src/computer/actions.ts packages/core/src/computer/pointer-action.ts packages/core/src/computer/actions.test.ts packages/core/src/code-mode/sandbox-rpc.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/core/src/index.ts
+- Binary observable: exit code 0; checked 6 files; no fixes applied.
+- Artifact path: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+
+- Scenario: whitespace diff check for Todo 8 files.
+- Invocation: git diff --check -- packages/core/src/computer/actions.ts packages/core/src/computer/pointer-action.ts packages/core/src/computer/actions.test.ts packages/core/src/code-mode/sandbox-rpc.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/core/src/index.ts
+- Binary observable: exit code 0; no output.
+- Artifact path: .omo/evidence/macos-computer-use-quality/task-8-click-executor.txt
+
+Cleanup receipt:
+- No GUI/local app automation commands were run for validation.
+- Process scan invocation: ps -axo pid,ppid,stat,command | rg 'vitest|tsgo|screencapture|osascript|cursor-overlay' || true
+- Process scan observable: exit code 0; only the scan shell and rg process matched, no lingering vitest/tsgo processes and no screencapture, osascript, or cursor-overlay commands.
+- No push, pull, rebase, force, task-1, task-13, app activation, input injection, cursor overlay, global lint, screencapture, or osascript validation was performed.
+
+Adversarial cases:
+- stale_state: covered by code-mode missing freshness rejection and existing stale capture tests.
+- malformed_input: covered by existing invalid pointer target parser test.
+- dirty_worktree: handled by checking git status and staging only Todo 8 files/hunks.
+- misleading_success_output: mitigated by binary exit-code checks and explicit test counts.
+- hung_commands: process scan found no lingering vitest/tsgo commands.
+- others: N/A.

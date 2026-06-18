@@ -3,6 +3,15 @@ import { createDebugLog } from "../log/debug-log.js";
 import { resolveElementCoordinate } from "../platform/macos-accessibility.js";
 import type { AppStateOptions, ScrollOptions } from "../types/index.js";
 import type { ComputerInterface } from "./interface.js";
+import { executePointerClick } from "./pointer-action.js";
+
+export {
+	executePointerClick,
+	type ExecutePointerClickInput,
+	type PointerActionPostObservation,
+	type PointerActionResult,
+	type PointerClickTarget,
+} from "./pointer-action.js";
 
 export type ComputerUseMouseButton = "left" | "right" | "middle";
 
@@ -37,63 +46,18 @@ export async function clickElementByIndex(
 	button: ComputerUseMouseButton = "left",
 ): Promise<void> {
 	const count = Math.max(1, Math.trunc(pressCount));
-	try {
-		for (let index = 0; index < count; index += 1) {
-			await pressElement(computer, targetPid, elementIndex);
-		}
-		debugClick("axpress-ok", { targetPid, id: elementIndex, pressCount: count });
-		return;
-	} catch (error) {
-		if (!(error instanceof Error)) {
-			throw error;
-		}
-	}
-
-	const state = await computer.getAppState(targetPid);
-	const element = state.elements.find((candidate) => candidate.id === elementIndex);
-	if (element === undefined) {
-		throw new Error(`Element index ${elementIndex} not found in AX tree`);
-	}
-	const point = resolveElementCoordinate(state.elements, elementIndex);
-	debugClick("axpress-fallback", {
+	const result = await executePointerClick(computer, {
+		targetPid,
+		target: { elementIndex, button },
+		pressCount: count,
+		observeAfter: false,
+	});
+	debugClick(result.method, {
 		targetPid,
 		id: elementIndex,
-		role: element.role,
 		pressCount: count,
 		button,
 	});
-
-	if (button === "left") {
-		let pressedAll = true;
-		for (let index = 0; index < count; index += 1) {
-			if (!(await tryPressAtPosition(computer, targetPid, point))) {
-				pressedAll = false;
-				break;
-			}
-		}
-		if (pressedAll) {
-			return;
-		}
-	}
-
-	await withTargetedApp(computer, targetPid, async () => {
-		await clickPoint(computer, point, button, count);
-	});
-}
-
-async function tryPressAtPosition(
-	computer: ComputerInterface,
-	targetPid: number,
-	point: { readonly x: number; readonly y: number },
-): Promise<boolean> {
-	try {
-		return await computer.pressAtPosition(targetPid, point);
-	} catch (error) {
-		if (error instanceof Error) {
-			return false;
-		}
-		throw error;
-	}
 }
 
 export async function scrollElement(
