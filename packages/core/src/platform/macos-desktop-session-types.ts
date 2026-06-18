@@ -1,6 +1,6 @@
 import type { AXTreeElement, DisplayInfo } from "../accessibility/types.js";
 import type { ScreenshotResult } from "../computer/interface.js";
-import type { Rect, Size } from "../types/index.js";
+import type { Point, Rect, Size } from "../types/index.js";
 import type { RunningAppInfo } from "./app-list.js";
 
 export type MacOSAppStateTargetWindow = {
@@ -15,6 +15,7 @@ export interface MacOSDesktopSessionBackend {
 	resolveTargetWindow(pid: number): Promise<MacOSAppStateTargetWindow | undefined>;
 	activateApp(app: RunningAppInfo): Promise<void>;
 	captureWindowScreenshot(window: MacOSAppStateTargetWindow, size: Size): Promise<ScreenshotResult>;
+	resolveCursorPosition?(): Point | Promise<Point | undefined> | undefined;
 	extractAccessibilityTree(pid: number): {
 		readonly axAvailable: boolean;
 		readonly elements: readonly AXTreeElement[];

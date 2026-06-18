@@ -96,6 +96,7 @@ export class MacOSHostComputer extends HostComputer {
 			highlightWindow: (bounds) => this.overlay.highlight(bounds),
 			listApps: getRunningMacOSApps,
 			resolveAppInstructions,
+			resolveCursorPosition: () => this.input.getCursorPosition(),
 			resolveDisplayInfo,
 			resolveTargetWindow: (pid) => this.resolveAppStateTargetWindow(pid),
 			sleep,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { AXTreeElement, DisplayInfo } from "../accessibility/types.js";
 import { ComputerUseError } from "../computer/errors.js";
 import type { ScreenshotResult } from "../computer/interface.js";
-import type { Rect, Size } from "../types/index.js";
+import type { Point, Rect, Size } from "../types/index.js";
 import type { RunningAppInfo } from "./app-list.js";
 import type { MacOSDesktopSessionBackend } from "./macos-desktop-session-types.js";
 import { MacOSDesktopSession } from "./macos-desktop-session.js";
@@ -28,6 +28,8 @@ const ELEMENT: AXTreeElement = {
 	role: "AXButton",
 	value: null,
 };
+const CURSOR: Point = { x: 51, y: 62 };
+const SECRET_AX_VALUE = "typed-secret".repeat(80);
 
 type SessionWindow = {
 	readonly id?: number;
@@ -38,6 +40,8 @@ class FakeSessionBackend implements MacOSDesktopSessionBackend {
 	apps: readonly RunningAppInfo[] = [APP, OTHER_APP];
 	window: SessionWindow | undefined = WINDOW;
 	display: DisplayInfo = DISPLAY;
+	cursor: Point | undefined = CURSOR;
+	elements: readonly AXTreeElement[] = [ELEMENT];
 	approved = true;
 	urlAllowed = true;
 	readonly calls: string[] = [];
@@ -82,7 +86,7 @@ class FakeSessionBackend implements MacOSDesktopSessionBackend {
 		readonly elements: readonly AXTreeElement[];
 	} {
 		this.calls.push(`ax:${pid}`);
-		return { axAvailable: true, elements: [ELEMENT] };
+		return { axAvailable: true, elements: this.elements };
 	}
 
 	resolveDisplayInfo(): DisplayInfo {
@@ -92,6 +96,11 @@ class FakeSessionBackend implements MacOSDesktopSessionBackend {
 
 	resolveAppInstructions(): string | undefined {
 		return undefined;
+	}
+
+	async resolveCursorPosition(): Promise<Point | undefined> {
+		this.calls.push("cursor");
+		return this.cursor;
 	}
 
 	highlightWindow(bounds: Rect): void {
@@ -183,6 +192,67 @@ describe("#given a warm same-target session #when get_app_state repeats #then re
 	});
 });
 
+describe("#given a fake desktop observation #when get_app_state captures it #then metadata is rich and bounded", () => {
+	it("#given first observation #when returned #then app window display cursor and capture metadata are present", async () => {
+		const session = new MacOSDesktopSession(backend);
+
+		const state = await session.getAppState(TARGET_PID, { settleMs: 0 });
+		const metadata = recordProperty(state, "observation");
+
+		expect(metadata).toMatchObject({
+			app: { bundleId: APP.bundleId, frontmost: true, name: APP.name, pid: TARGET_PID },
+			ax: { available: true, elementCount: 1 },
+			capture: {
+				captureId: "macos-capture-1",
+				displayEpoch: "1440x900@2",
+				model: { height: 200, width: 400 },
+				screenshot: { height: 200, mimeType: "image/jpeg", width: 400 },
+			},
+			cursor: CURSOR,
+			display: {
+				epoch: "1440x900@2",
+				logical: { height: 900, width: 1440, x: 0, y: 0 },
+				native: { height: 1800, width: 2880 },
+				scaleFactor: 2,
+			},
+			freshness: { captureId: "macos-capture-1", displayEpoch: "1440x900@2", stale: false },
+			window: { bounds: WINDOW.bounds, id: WINDOW.id },
+		});
+		expect(JSON.stringify(metadata)).not.toContain(Buffer.from("screen").toString("base64"));
+	});
+
+	it("#given changed AX with large untrusted text #when recaptured #then only bounded diff metadata is included", async () => {
+		const session = new MacOSDesktopSession(backend);
+		await session.getAppState(TARGET_PID, { settleMs: 0 });
+		backend.elements = [{ ...ELEMENT, value: SECRET_AX_VALUE }];
+
+		const state = await session.getAppState(TARGET_PID, { settleMs: 0 });
+		const metadata = recordProperty(state, "observation");
+
+		expect(metadata).toMatchObject({
+			ax: { available: true, changeSummary: { added: 0, changed: 1, removed: 0 }, elementCount: 1 },
+		});
+		expect(JSON.stringify(metadata)).not.toContain(SECRET_AX_VALUE);
+	});
+
+	it("#given display and window changed #when recaptured #then capture metadata is refreshed", async () => {
+		const session = new MacOSDesktopSession(backend);
+		await session.getAppState(TARGET_PID, { settleMs: 0 });
+		backend.display = { height: 720, scaleFactor: 1, width: 1280 };
+		backend.window = { bounds: { height: 300, width: 500, x: 25, y: 35 }, id: 100 };
+
+		const state = await session.getAppState(TARGET_PID, { settleMs: 0 });
+		const metadata = recordProperty(state, "observation");
+
+		expect(metadata).toMatchObject({
+			capture: { captureId: "macos-capture-2", displayEpoch: "1280x720@1", model: { height: 300, width: 500 } },
+			display: { epoch: "1280x720@1", logical: { height: 720, width: 1280, x: 0, y: 0 } },
+			freshness: { captureId: "macos-capture-2", displayEpoch: "1280x720@1", stale: false },
+			window: { bounds: { height: 300, width: 500, x: 25, y: 35 }, id: 100 },
+		});
+	});
+});
+
 describe("#given target or display changes #when get_app_state runs #then stale AX and viewport state are invalidated", () => {
 	it("omits AX diff after pid changes and after display geometry changes", async () => {
 		const session = new MacOSDesktopSession(backend);
@@ -220,3 +290,7 @@ describe("#given concurrent session work #when queued #then operations run in or
 		expect(backend.calls).toEqual(["start:first", "end:first", "start:second", "end:second"]);
 	});
 });
+
+function recordProperty(value: object, key: string): unknown {
+	return Object.entries(value).find(([entryKey]) => entryKey === key)?.[1];
+}

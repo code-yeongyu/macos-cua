@@ -1,4 +1,5 @@
 import type { CaptureFrame } from "../computer/capture-frame.js";
+import type { Point } from "../types/index.js";
 
 export interface AXTreeElement {
 	id: number;
@@ -28,6 +29,54 @@ export interface AxTreeChangeSummary {
 	changed: number;
 }
 
+export interface ObservationMetadata {
+	readonly app: {
+		readonly name: string;
+		readonly bundleId: string;
+		readonly pid: number;
+		readonly frontmost: boolean;
+	};
+	readonly window?: {
+		readonly id?: number;
+		readonly bounds: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+	};
+	readonly display: {
+		readonly epoch: string;
+		readonly logical: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+		readonly native: { readonly width: number; readonly height: number };
+		readonly scaleFactor: number;
+		readonly id?: string;
+		readonly name?: string;
+	};
+	readonly cursor?: Point;
+	readonly capture: {
+		readonly captureId: string;
+		readonly capturedAt: string;
+		readonly displayEpoch: string;
+		readonly target: {
+			readonly name: string;
+			readonly bundleId: string;
+			readonly pid: number;
+		};
+		readonly screenshot: {
+			readonly width: number;
+			readonly height: number;
+			readonly mimeType?: "image/png" | "image/jpeg";
+		};
+		readonly model: { readonly width: number; readonly height: number };
+	};
+	readonly ax: {
+		readonly available: boolean;
+		readonly elementCount: number;
+		readonly changeSummary?: AxTreeChangeSummary;
+	};
+	readonly freshness: {
+		readonly captureId: string;
+		readonly displayEpoch: string;
+		readonly stale: boolean;
+	};
+}
+
 export interface AppState {
 	app: string;
 	bundleId: string;
@@ -41,6 +90,7 @@ export interface AppState {
 	screenshotMimeType?: "image/png" | "image/jpeg";
 	display: DisplayInfo;
 	captureFrame?: CaptureFrame;
+	observation?: ObservationMetadata;
 	axChangeSummary?: AxTreeChangeSummary;
 	appInstructions?: string;
 	/**
