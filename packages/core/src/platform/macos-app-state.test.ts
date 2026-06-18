@@ -37,6 +37,9 @@ const screenshotMock = vi.hoisted(() => ({
 }));
 vi.mock("./macos-ffi/screenshot.js", () => screenshotMock);
 vi.mock("./macos-ffi/accessibility.js", () => accessibilityMock);
+vi.mock("./macos-ffi/cursor-overlay.js", () => ({
+	createCursorOverlay: () => ({ set() {}, highlight() {}, hide() {}, close() {} }),
+}));
 
 import { AppApprovalStore } from "../permission/app-approval.js";
 import { MacOSHostComputer } from "./macos.js";
@@ -111,18 +114,19 @@ describe("#given a target window #when get_app_state captures it #then the scree
 describe("#given two get_app_state calls #when the second runs #then it reports an AX change summary", () => {
 	it("omits the summary on the first call and includes it on the second", async () => {
 		childProcessMock.execFile.mockReset();
-		for (let call = 0; call < 2; call += 1) {
-			childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-				callback(
-					null,
-					JSON.stringify([{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true }]),
-					"",
-				);
-			});
-			childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-				callback(null, fakePng(1280, 800), "");
-			});
-		}
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
+			callback(
+				null,
+				JSON.stringify([{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true }]),
+				"",
+			);
+		});
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
+			callback(null, fakePng(1280, 800), "");
+		});
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
+			callback(null, fakePng(1280, 800), "");
+		});
 		const computer = new MacOSHostComputer();
 
 		const first = await computer.getAppState(TARGET_PID, { settleMs: 0 });
@@ -139,9 +143,6 @@ describe("#given an app-approval store #when an app is not approved #then get_ap
 			{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true },
 		]);
 		childProcessMock.execFile.mockReset();
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
-			callback(null, appsJson, ""),
-		);
 		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
 			callback(null, appsJson, ""),
 		);
@@ -187,14 +188,15 @@ describe("#given a fresh app session #when get_app_state runs #then it highlight
 			{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true },
 		]);
 		childProcessMock.execFile.mockReset();
-		for (let call = 0; call < 2; call += 1) {
-			childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
-				callback(null, appsJson, ""),
-			);
-			childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
-				callback(null, fakePng(1280, 800), ""),
-			);
-		}
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
+			callback(null, appsJson, ""),
+		);
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
+			callback(null, fakePng(1280, 800), ""),
+		);
+		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) =>
+			callback(null, fakePng(1280, 800), ""),
+		);
 		const computer = new MacOSHostComputer({ overlay });
 
 		await computer.getAppState(TARGET_PID, { settleMs: 0 });

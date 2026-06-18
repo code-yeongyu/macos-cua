@@ -26,6 +26,7 @@ export interface AppStateOptions {
 	screenshotSize?: Size;
 	timeoutMs?: number;
 	settleMs?: number;
+	refresh?: boolean;
 }
 
 export interface KeyOptions {

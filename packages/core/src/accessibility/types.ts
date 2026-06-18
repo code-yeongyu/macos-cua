@@ -1,3 +1,5 @@
+import type { CaptureFrame } from "../computer/capture-frame.js";
+
 export interface AXTreeElement {
 	id: number;
 	role: string;
@@ -38,6 +40,7 @@ export interface AppState {
 	screenshotHeight: number;
 	screenshotMimeType?: "image/png" | "image/jpeg";
 	display: DisplayInfo;
+	captureFrame?: CaptureFrame;
 	axChangeSummary?: AxTreeChangeSummary;
 	appInstructions?: string;
 	/**
