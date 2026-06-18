@@ -9,7 +9,15 @@ const macOSHostComputerMock = vi.hoisted(() => {
 });
 const snapshotFlagPresentMock = vi.hoisted(() => vi.fn());
 const sandboxRunMock = vi.hoisted(() => vi.fn());
+const fsMock = vi.hoisted(() => ({
+	existsSync: vi.fn(() => false),
+	readFileSync: vi.fn(() => "{}"),
+}));
 
+vi.mock("node:fs", () => ({
+	existsSync: fsMock.existsSync,
+	readFileSync: fsMock.readFileSync,
+}));
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
 	createDebugLog: vi.fn(() => vi.fn()),
@@ -90,8 +98,10 @@ function createMockPi(): MockPi {
 }
 
 beforeEach(() => {
-	process.env["MACOS_CUA_CODE_MODE"] = "1";
+	Reflect.deleteProperty(process.env, "MACOS_CUA_CODE_MODE");
 	vi.clearAllMocks();
+	fsMock.existsSync.mockReturnValue(false);
+	fsMock.readFileSync.mockReturnValue("{}");
 	snapshotFlagPresentMock.mockReturnValue(true);
 	sandboxRunMock.mockResolvedValue({ logs: ["ok"], result: { done: true }, surfaced: ["shot_1"] });
 });
@@ -102,6 +112,14 @@ async function runSessionStart(pi: MockPi): Promise<void> {
 		throw new Error("session_start handler missing");
 	}
 	await handler({ reason: "startup" }, { model: undefined });
+}
+
+async function runSessionStartInCwd(pi: MockPi, cwd: string): Promise<void> {
+	const handler = pi.handlers.get("session_start");
+	if (handler === undefined) {
+		throw new Error("session_start handler missing");
+	}
+	await handler({ reason: "startup" }, { model: undefined, cwd });
 }
 
 function runBeforeProviderRequest(pi: MockPi, payload: unknown): unknown {
@@ -128,6 +146,7 @@ async function runBeforeAgentStart(pi: MockPi): Promise<unknown> {
 
 describe("#given codeMode env var #when session_start runs #then only run is registered", () => {
 	it("skips discrete tools and native payload injection", async () => {
+		process.env["MACOS_CUA_CODE_MODE"] = "1";
 		const pi = createMockPi();
 		macosCuaExtension(pi);
 
@@ -148,6 +167,7 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 	});
 
 	it("returns launch instructions when the node snapshot flag is absent", async () => {
+		process.env["MACOS_CUA_CODE_MODE"] = "1";
 		snapshotFlagPresentMock.mockReturnValue(false);
 		const pi = createMockPi();
 		macosCuaExtension(pi);
@@ -167,6 +187,7 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 	});
 
 	it("maps run results to ordered images and text", async () => {
+		process.env["MACOS_CUA_CODE_MODE"] = "1";
 		const pi = createMockPi();
 		macosCuaExtension(pi);
 
@@ -181,5 +202,17 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 			],
 			details: undefined,
 		});
+	});
+
+	it("enables code mode from project settings when the env var is unset", async () => {
+		const pi = createMockPi();
+		fsMock.existsSync.mockReturnValue(true);
+		fsMock.readFileSync.mockReturnValue(JSON.stringify({ macosCua: { codeMode: true } }));
+		macosCuaExtension(pi);
+
+		await runSessionStartInCwd(pi, "/repo");
+
+		expect(fsMock.existsSync).toHaveBeenCalledWith("/repo/.senpi/settings.json");
+		expect(pi.registeredTools.map((tool) => tool.name)).toEqual(["run"]);
 	});
 });

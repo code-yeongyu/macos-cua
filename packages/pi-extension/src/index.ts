@@ -28,6 +28,7 @@ import {
 	sanitizeOpenAIComputerUsePayload,
 } from "./openai-computer-use.js";
 import { type AgentToolResult, type ExtensionAPI, defineTool } from "./pi/index.js";
+import { isComputerUseBetaEnabled, isMacOSCuaCodeModeEnabled } from "./settings.js";
 import { registerAllTools } from "./tools/index.js";
 
 // Verified Pi ImageContent shape: { type: "image"; data: string; mimeType: string }.
@@ -48,8 +49,6 @@ interface ComputerUseModel {
 	readonly id?: string;
 }
 
-const DISABLE_COMPUTER_USE_BETA_ENV = "MACOS_CUA_DISABLE_COMPUTER_USE_BETA";
-const CODE_MODE_ENV = "MACOS_CUA_CODE_MODE";
 const NOOP_OVERLAY = {
 	set(): void {},
 	highlight(): void {},
@@ -74,11 +73,11 @@ export default function macosCuaExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
-		const codeMode = process.env[CODE_MODE_ENV] === "1";
+		const codeMode = isMacOSCuaCodeModeEnabled(ctx.cwd);
 		const computer = new MacOSHostComputer(codeMode ? { overlay: NOOP_OVERLAY } : {});
 		const screenSize = await computer.getScreenSize();
 		const display = resolveDisplayConfig(screenSize, displayProfileForModel(ctx.model?.api, ctx.model?.id));
-		const enabled = !isOptedOut(process.env[DISABLE_COMPUTER_USE_BETA_ENV]);
+		const enabled = isComputerUseBetaEnabled();
 		state = { computer, screenSize, display, enabled, codeMode };
 
 		if (codeMode) {
@@ -162,14 +161,6 @@ function recomputeDisplayForModel(model: ComputerUseModel | undefined): void {
 		return;
 	}
 	state.display = resolveDisplayConfig(state.screenSize, displayProfileForModel(model?.api, model?.id));
-}
-
-function isOptedOut(value: string | undefined): boolean {
-	if (value === undefined) {
-		return false;
-	}
-	const normalized = value.trim().toLowerCase();
-	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
 function syncComputerToolActivation(pi: ExtensionAPI, model: ComputerUseModel | undefined): void {
