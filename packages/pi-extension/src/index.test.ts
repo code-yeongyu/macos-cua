@@ -46,6 +46,12 @@ const macOSHostComputerMock = vi.hoisted(() => {
 		instance,
 	};
 });
+const fsMock = vi.hoisted(() => ({
+	existsSync: vi.fn(() => false),
+}));
+vi.mock("node:fs", () => ({
+	existsSync: fsMock.existsSync,
+}));
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
 	createDebugLog: vi.fn(() => vi.fn()),
@@ -131,6 +137,7 @@ beforeEach(() => {
 	process.env["MACOS_CUA_DISABLE_COMPUTER_USE_BETA"] = undefined;
 	process.env["MACOS_CUA_CODE_MODE"] = undefined;
 	vi.clearAllMocks();
+	fsMock.existsSync.mockReturnValue(false);
 	macOSHostComputerMock.instance.getScreenSize.mockResolvedValue({ width: 2560, height: 1440 });
 	macOSHostComputerMock.instance.close.mockResolvedValue(undefined);
 });
