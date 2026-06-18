@@ -46,6 +46,7 @@ export type SerializedHostError = {
 	readonly name: string;
 	readonly message: string;
 	readonly code?: string;
+	readonly recoveryHint?: string;
 };
 
 export type HostRpcEnvelope =

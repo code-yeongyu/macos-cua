@@ -7,10 +7,11 @@ export function serializeHostError(error: unknown): SerializedHostError {
 	}
 	if (error instanceof Error) {
 		const codeValue = errorCode(error);
+		const recoveryHint = errorRecoveryHint(error);
 		if (codeValue !== undefined) {
-			return { name: error.name, message: error.message, code: codeValue };
+			return withRecoveryHint({ name: error.name, message: error.message, code: codeValue }, recoveryHint);
 		}
-		return { name: error.name, message: error.message };
+		return withRecoveryHint({ name: error.name, message: error.message }, recoveryHint);
 	}
 	return { name: "Error", message: String(error) };
 }
@@ -65,4 +66,19 @@ function errorCode(error: Error): string | undefined {
 	}
 	const codeValue = error["code"];
 	return typeof codeValue === "string" ? codeValue : undefined;
+}
+
+function errorRecoveryHint(error: Error): string | undefined {
+	if (!isRecord(error)) {
+		return undefined;
+	}
+	const hintValue = error["recoveryHint"];
+	return typeof hintValue === "string" ? hintValue : undefined;
+}
+
+function withRecoveryHint(error: SerializedHostError, recoveryHint: string | undefined): SerializedHostError {
+	if (recoveryHint === undefined) {
+		return error;
+	}
+	return { ...error, recoveryHint };
 }

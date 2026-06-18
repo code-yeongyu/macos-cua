@@ -1,4 +1,6 @@
 import type { Point, Rect, Size } from "../types/index.js";
+import type { CaptureFrame, CaptureFreshnessMarker } from "./capture-frame.js";
+import { ComputerUseError } from "./errors.js";
 
 /** Longest screenshot edge sent to the model, matching the native full-display path. */
 export const MAX_SCREENSHOT_LONG_EDGE = 1280;
@@ -41,17 +43,20 @@ export function resolveWindowScreenshotSize(window: Size, maxLongEdge = MAX_SCRE
 }
 
 /**
- * Map a screenshot pixel coordinate (relative to the window screenshot) to a
- * global logical screen point. Pixels that fall outside the screenshot are
- * clamped back onto the window rect so a click can never resolve a neighbouring
- * window or the desktop.
+ * Map a screenshot pixel coordinate (relative to the window screenshot or model
+ * capture frame) to a global logical screen point.
  */
-export function screenshotPointToScreen(point: Point, viewport: ScreenshotViewport): Point {
+export function screenshotPointToScreen(
+	point: Point,
+	viewport: ScreenshotViewport | CaptureFrame,
+	freshness?: CaptureFreshnessMarker,
+): Point {
+	assertFreshCapture(viewport, freshness);
 	const { windowBounds } = viewport;
-	const screenshotWidth = assertPositiveFinite(viewport.screenshotWidth, "screenshotWidth");
-	const screenshotHeight = assertPositiveFinite(viewport.screenshotHeight, "screenshotHeight");
-	const fractionX = clamp(point.x / screenshotWidth, 0, 1);
-	const fractionY = clamp(point.y / screenshotHeight, 0, 1);
+	const captureSize = modelSizeFor(viewport);
+	assertPointInsideCapture(point, captureSize);
+	const fractionX = point.x / captureSize.width;
+	const fractionY = point.y / captureSize.height;
 	return {
 		x: Math.round(windowBounds.x + fractionX * windowBounds.width),
 		y: Math.round(windowBounds.y + fractionY * windowBounds.height),
@@ -82,6 +87,62 @@ function assertPositiveFinite(value: number, name: string): number {
 	return value;
 }
 
-function clamp(value: number, minimum: number, maximum: number): number {
-	return Math.min(maximum, Math.max(minimum, value));
+function modelSizeFor(viewport: ScreenshotViewport | CaptureFrame): Size {
+	if ("model" in viewport) {
+		return {
+			width: assertPositiveFinite(viewport.model.width, "model.width"),
+			height: assertPositiveFinite(viewport.model.height, "model.height"),
+		};
+	}
+	return {
+		width: assertPositiveFinite(viewport.screenshotWidth, "screenshotWidth"),
+		height: assertPositiveFinite(viewport.screenshotHeight, "screenshotHeight"),
+	};
+}
+
+function assertPointInsideCapture(point: Point, size: Size): void {
+	if (!Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.y < 0) {
+		throwOutOfBounds(point, size);
+	}
+	if (point.x > size.width || point.y > size.height) {
+		throwOutOfBounds(point, size);
+	}
+}
+
+function assertFreshCapture(
+	viewport: ScreenshotViewport | CaptureFrame,
+	freshness: CaptureFreshnessMarker | undefined,
+): void {
+	if (freshness === undefined || !("captureId" in viewport)) {
+		return;
+	}
+	if (viewport.captureId !== freshness.captureId || viewport.displayEpoch !== freshness.displayEpoch) {
+		throw new ComputerUseError(
+			"STALE_CAPTURE",
+			`Capture ${viewport.captureId} is stale for display epoch ${freshness.displayEpoch}`,
+			{
+				details: {
+					captureId: viewport.captureId,
+					expectedCaptureId: freshness.captureId,
+					displayEpoch: viewport.displayEpoch,
+					expectedDisplayEpoch: freshness.displayEpoch,
+				},
+			},
+		);
+	}
+}
+
+function throwOutOfBounds(point: Point, size: Size): never {
+	throw new ComputerUseError(
+		"OUT_OF_BOUNDS_COORDINATE",
+		`Point (${point.x}, ${point.y}) is outside capture frame ${size.width}x${size.height}`,
+		{
+			details: {
+				x: Number.isFinite(point.x) ? point.x : String(point.x),
+				y: Number.isFinite(point.y) ? point.y : String(point.y),
+				width: size.width,
+				height: size.height,
+			},
+		},
+	);
 }

@@ -57,3 +57,15 @@ export interface ComputerCapabilities {
 	supportsAccessibility: boolean;
 	supportsClipboard: boolean;
 }
+
+export type {
+	CaptureFrame,
+	CaptureFrameCursor,
+	CaptureFrameDisplay,
+	CaptureFrameInput,
+	CaptureFrameTarget,
+	CaptureFrameTransform,
+	CaptureFreshnessMarker,
+} from "../computer/capture-frame.js";
+
+export type { ComputerUseErrorCode, ComputerUseErrorDetails } from "../computer/errors.js";

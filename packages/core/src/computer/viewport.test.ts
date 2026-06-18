@@ -93,15 +93,36 @@ describe("#given a window screenshot viewport #when mapping a screenshot pixel #
 		expect(screenshotPointToScreen({ x: 480, y: 300 }, viewport)).toEqual({ x: -1440, y: 100 });
 	});
 
-	it("clamps screenshot pixels that fall outside the image back into the window rect", () => {
+	it("#given negative screenshot pixels #when mapping the point #then it rejects without clamping", () => {
 		const viewport: ScreenshotViewport = {
 			windowBounds: { x: 0, y: 0, width: 1000, height: 800 },
 			screenshotWidth: 500,
 			screenshotHeight: 400,
 		};
 
-		expect(screenshotPointToScreen({ x: -50, y: -10 }, viewport)).toEqual({ x: 0, y: 0 });
-		expect(screenshotPointToScreen({ x: 600, y: 500 }, viewport)).toEqual({ x: 1000, y: 800 });
+		expect(() => screenshotPointToScreen({ x: -50, y: -10 }, viewport)).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
+	});
+
+	it("#given out-of-range screenshot pixels #when mapping the point #then it rejects without clamping", () => {
+		const viewport: ScreenshotViewport = {
+			windowBounds: { x: 0, y: 0, width: 1000, height: 800 },
+			screenshotWidth: 500,
+			screenshotHeight: 400,
+		};
+
+		expect(() => screenshotPointToScreen({ x: 600, y: 500 }, viewport)).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
 	});
 });
 

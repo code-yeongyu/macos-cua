@@ -21,7 +21,20 @@ export {
 	withTargetedApp,
 	type ComputerUseMouseButton,
 } from "./computer/actions.js";
+export {
+	createCaptureFrame,
+	createCaptureFrameTransform,
+	type CaptureFrame,
+	type CaptureFrameCursor,
+	type CaptureFrameDisplay,
+	type CaptureFrameInput,
+	type CaptureFrameTarget,
+	type CaptureFrameTransform,
+	type CaptureFreshnessMarker,
+	captureFrameToViewport,
+} from "./computer/capture-frame.js";
 export { resolveScreenPoint } from "./computer/coordinate.js";
+export { ComputerUseError, type ComputerUseErrorCode, type ComputerUseErrorDetails } from "./computer/errors.js";
 export { pressKeySequence, type KeySequenceEntry, type KeySequenceOptions } from "./computer/key-sequence.js";
 export {
 	type SelectionMode,
