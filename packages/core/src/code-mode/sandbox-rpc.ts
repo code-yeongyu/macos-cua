@@ -156,7 +156,11 @@ export class SandboxRpcHost {
 
 	private async resolvePoint(pid: number, target: CodeModePointerTarget): Promise<Point> {
 		if (target.x !== undefined && target.y !== undefined) {
-			return await resolveScreenPoint(this.computer, pid, { x: target.x, y: target.y });
+			const point =
+				target.captureId === undefined || target.displayEpoch === undefined
+					? { x: target.x, y: target.y }
+					: { x: target.x, y: target.y, captureId: target.captureId, displayEpoch: target.displayEpoch };
+			return await resolveScreenPoint(this.computer, pid, point);
 		}
 		if (target.elementIndex === undefined) {
 			throw new CodeModeError("COMPILE_ERROR", "pointer target must include x/y or elementIndex");

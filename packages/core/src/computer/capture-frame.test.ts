@@ -113,3 +113,25 @@ describe("#given malformed model coordinates #when mapping through a capture fra
 		);
 	});
 });
+
+describe("#given a capture frame outside the display #when mapping a model point #then it rejects the stale transform", () => {
+	it("#given the target window no longer fits the display #when point is mapped #then out-of-bounds is rejected", () => {
+		const offscreenFrame = createCaptureFrame({
+			...CAPTURE_FRAME,
+			windowBounds: { x: 1700, y: 1000, width: 1000, height: 800 },
+		});
+
+		expect(() =>
+			screenshotPointToScreen({ x: 250, y: 200 }, offscreenFrame, {
+				captureId: "capture-1",
+				displayEpoch: "display-1",
+			}),
+		).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
+	});
+});

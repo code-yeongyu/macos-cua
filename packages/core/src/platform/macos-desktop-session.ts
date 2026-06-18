@@ -13,6 +13,7 @@ import {
 	macOSNativeDisplaySize,
 } from "./macos-desktop-session-signature.js";
 import type { MacOSAppStateTargetWindow, MacOSDesktopSessionBackend } from "./macos-desktop-session-types.js";
+import { createMacOSObservationMetadata } from "./macos-observation-metadata.js";
 
 const APP_ACTIVATION_SETTLE_MILLISECONDS = 350;
 
@@ -142,6 +143,18 @@ export class MacOSDesktopSession {
 		this.previousAxByPid.set(app.pid, elements);
 		const captureFrame = this.createCaptureFrame(app, viewport, screenshot, display);
 		this.captureFrameByPid.set(app.pid, captureFrame);
+		const cursor = await this.backend.resolveCursorPosition?.();
+		const observation = createMacOSObservationMetadata({
+			app,
+			axAvailable: tree.axAvailable,
+			...(axChangeSummary !== undefined ? { axChangeSummary } : {}),
+			captureFrame,
+			...(cursor !== undefined ? { cursor } : {}),
+			display,
+			elements,
+			screenshot,
+			targetWindow,
+		});
 		const appInstructions = this.backend.resolveAppInstructions(app.name, app.bundleId);
 		return {
 			app: app.name,
@@ -151,6 +164,7 @@ export class MacOSDesktopSession {
 			display,
 			elements,
 			frontmost: app.isActive,
+			observation,
 			pid: app.pid,
 			screenshotBase64: screenshot.data.toString("base64"),
 			screenshotHeight: screenshot.height,

@@ -1,0 +1,77 @@
+Task: Wave 1 Todo 5 - enforce capture-frame coordinate validation and stale rejection everywhere.
+Date: 2026-06-18
+Repository: /Users/yeongyu/local-workspaces/macos-cua
+
+Changed files:
+- packages/core/src/computer/coordinate.ts
+- packages/core/src/computer/coordinate.test.ts
+- packages/core/src/computer/viewport.ts
+- packages/core/src/computer/capture-frame.test.ts
+- packages/core/src/code-mode/api-surface.ts
+- packages/core/src/code-mode/sandbox-bootstrap.ts
+- packages/core/src/code-mode/sandbox-parser-primitives.ts
+- packages/core/src/code-mode/sandbox-parsers.ts
+- packages/core/src/code-mode/sandbox-rpc.ts
+- packages/core/src/code-mode/sandbox-rpc.test.ts
+- packages/core/src/code-mode/sandbox-types.ts
+- packages/core/src/platform/macos-desktop-session.ts
+- packages/pi-extension/src/computer-use/coords.ts
+- packages/pi-extension/src/computer-use/coords.test.ts
+
+RED evidence:
+- Scenario: core resolveScreenPoint requires a fresh capture frame and rejects stale capture markers.
+  Invocation: pnpm exec vitest run packages/core/src/computer/coordinate.test.ts packages/core/src/computer/capture-frame.test.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/pi-extension/src/computer-use/coords.test.ts --reporter=verbose
+  Binary observable: exit code 1.
+  Artifact: this file.
+  Observed failing tests: missing viewport resolved {x:10,y:20} instead of rejecting; stale capture marker resolved {x:800,y:550} instead of rejecting.
+- Scenario: capture-frame transform rejects mapped points outside target display.
+  Invocation: same RED vitest command.
+  Binary observable: exit code 1.
+  Artifact: this file.
+  Observed failing test: off-display capture frame did not throw.
+- Scenario: code-mode x/y stale capture is distinct from stale screenshot handle.
+  Invocation: same RED vitest command.
+  Binary observable: exit code 1.
+  Artifact: this file.
+  Observed failing test: stale capture marker was dropped and sandbox result was undefined instead of STALE_CAPTURE.
+- Scenario: pi-extension model coordinate parsing rejects malformed/OOB points.
+  Invocation: same RED vitest command.
+  Binary observable: exit code 1.
+  Artifact: this file.
+  Observed failing tests: negative, OOB, and NaN model coordinates did not throw.
+
+GREEN evidence:
+- Scenario: core coordinate, capture-frame transform, code-mode stale/missing capture, and pi-extension coordinate validation.
+  Invocation: pnpm exec vitest run packages/core/src/computer/coordinate.test.ts packages/core/src/computer/capture-frame.test.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/pi-extension/src/computer-use/coords.test.ts --reporter=verbose
+  Binary observable: exit code 0, 4 test files passed, 31 tests passed.
+  Artifact: this file.
+- Scenario: workspace type safety.
+  Invocation: pnpm -r typecheck
+  Binary observable: exit code 0; packages/core, packages/cli, packages/mcp, and packages/pi-extension typecheck completed.
+  Artifact: this file.
+- Scenario: Biome on changed files only.
+  Invocation: pnpm exec biome check packages/core/src/computer/coordinate.ts packages/core/src/computer/coordinate.test.ts packages/core/src/computer/viewport.ts packages/core/src/computer/capture-frame.test.ts packages/core/src/code-mode/sandbox-rpc.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/core/src/code-mode/sandbox-types.ts packages/core/src/code-mode/api-surface.ts packages/core/src/code-mode/sandbox-parsers.ts packages/core/src/code-mode/sandbox-parser-primitives.ts packages/core/src/code-mode/sandbox-bootstrap.ts packages/core/src/platform/macos-desktop-session.ts packages/pi-extension/src/computer-use/coords.ts packages/pi-extension/src/computer-use/coords.test.ts
+  Binary observable: exit code 0, checked 14 files, no fixes applied.
+  Artifact: this file.
+- Scenario: whitespace conflict check on changed files only.
+  Invocation: git diff --check -- packages/core/src/computer/coordinate.ts packages/core/src/computer/coordinate.test.ts packages/core/src/computer/viewport.ts packages/core/src/computer/capture-frame.test.ts packages/core/src/code-mode/sandbox-rpc.ts packages/core/src/code-mode/sandbox-rpc.test.ts packages/core/src/code-mode/sandbox-types.ts packages/core/src/code-mode/api-surface.ts packages/core/src/code-mode/sandbox-parsers.ts packages/core/src/code-mode/sandbox-parser-primitives.ts packages/core/src/code-mode/sandbox-bootstrap.ts packages/core/src/platform/macos-desktop-session.ts packages/pi-extension/src/computer-use/coords.ts packages/pi-extension/src/computer-use/coords.test.ts
+  Binary observable: exit code 0, no output.
+  Artifact: this file.
+- Scenario: forbidden GUI/local app automation process scan.
+  Invocation: ps -axo pid=,command= | rg -v 'rg|ps -axo' | rg 'osascript|screencapture|cursor-overlay|open -a|CGEventPost|System Events|activateApp'
+  Binary observable: exit code 1, no matching processes.
+  Artifact: this file.
+
+Adversarial coverage:
+- malformed_input: covered by NaN, negative, and OOB model-coordinate tests in core capture-frame and pi-extension coords.
+- stale_state: covered by captureId/displayEpoch mismatch tests in core coordinate, capture-frame, code-mode, and pi-extension coords.
+- dirty_worktree: unrelated dirty files were present before and during the task; verification and staging are restricted to Todo 5 files.
+- misleading_success_output: all claims use command exit codes plus test counts or no-output observables.
+- flaky_tests: no sleeps or async polling were added; targeted tests are deterministic.
+- Others: not applicable.
+
+Cleanup receipt:
+- No GUI/local app automation commands were run for validation.
+- No push, pull, rebase, force, task-1, task-13, osascript, screencapture, cursor overlay, app activation, input injection, or global lint command was run.
+- Optional scripts/typescript/check-no-excuse-rules.ts was checked and is absent in this repo.
+- File size review: coordinate.ts 43 LOC; coordinate.test.ts 123; viewport.ts 167; capture-frame.test.ts 126; sandbox-rpc.ts 219; sandbox-rpc.test.ts 197; sandbox-types.ts 135; api-surface.ts 215; sandbox-parsers.ts 203; sandbox-parser-primitives.ts 192; sandbox-bootstrap.ts 136; macos-desktop-session.ts 234; coords.ts 127; coords.test.ts 101. Files in the 200-250 warning band were not split because the touched changes were narrow contract threading in existing API surface files.

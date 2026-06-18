@@ -206,7 +206,7 @@ function requiredInteger(value: unknown, label: string, minimum: number): number
 	throw new CodeModeError("COMPILE_ERROR", `${label} must be an integer >= ${minimum}`);
 }
 
-function optionalString(value: unknown, label: string): string | undefined {
+export function optionalString(value: unknown, label: string): string | undefined {
 	if (value === undefined) {
 		return undefined;
 	}

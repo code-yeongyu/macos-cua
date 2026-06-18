@@ -87,6 +87,8 @@ export type CodeModePointerTarget = {
 	readonly x?: number;
 	readonly y?: number;
 	readonly elementIndex?: number;
+	readonly captureId?: string;
+	readonly displayEpoch?: string;
 };
 
 export type CodeModeClickTarget = CodeModePointerTarget & {

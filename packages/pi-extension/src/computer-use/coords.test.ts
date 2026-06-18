@@ -63,3 +63,64 @@ describe("#given an unscaled display #when unscaling model coordinates #then coo
 		expect(point).toEqual({ x: 12, y: 46 });
 	});
 });
+
+describe("#given malformed model coordinates #when unscaling #then typed coordinate guidance is thrown", () => {
+	it("#given negative coordinates #when unscaling #then out-of-bounds is rejected", () => {
+		const display = { logicalWidth: 2560, logicalHeight: 1440, modelWidth: 1280, modelHeight: 720 };
+
+		expect(() => unscaleCoord({ x: -1, y: 20 }, display)).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
+	});
+
+	it("#given coordinates beyond model dimensions #when unscaling #then out-of-bounds is rejected", () => {
+		const display = { logicalWidth: 2560, logicalHeight: 1440, modelWidth: 1280, modelHeight: 720 };
+
+		expect(() => unscaleCoord({ x: 1281, y: 20 }, display)).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
+	});
+
+	it("#given NaN coordinates #when unscaling #then malformed input is rejected", () => {
+		const display = { logicalWidth: 2560, logicalHeight: 1440, modelWidth: 1280, modelHeight: 720 };
+
+		expect(() => unscaleCoord({ x: Number.NaN, y: 20 }, display)).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "OUT_OF_BOUNDS_COORDINATE",
+				recoveryHint: expect.stringContaining("inside the capture frame"),
+			}),
+		);
+	});
+});
+
+describe("#given a stale display capture #when unscaling #then typed stale guidance is thrown", () => {
+	it("#given the capture id changed #when unscaling #then stale capture is rejected", () => {
+		const display = {
+			captureId: "capture-1",
+			displayEpoch: "display-1",
+			logicalWidth: 2560,
+			logicalHeight: 1440,
+			modelWidth: 1280,
+			modelHeight: 720,
+		};
+
+		expect(() =>
+			unscaleCoord({ x: 10, y: 20 }, display, { captureId: "capture-2", displayEpoch: "display-1" }),
+		).toThrowError(
+			expect.objectContaining({
+				name: "ComputerUseError",
+				code: "STALE_CAPTURE",
+				recoveryHint: expect.stringContaining("refresh the capture"),
+			}),
+		);
+	});
+});

@@ -57,10 +57,12 @@ export function screenshotPointToScreen(
 	assertPointInsideCapture(point, captureSize);
 	const fractionX = point.x / captureSize.width;
 	const fractionY = point.y / captureSize.height;
-	return {
+	const screenPoint = {
 		x: Math.round(windowBounds.x + fractionX * windowBounds.width),
 		y: Math.round(windowBounds.y + fractionY * windowBounds.height),
 	};
+	assertPointInsideDisplay(screenPoint, viewport);
+	return screenPoint;
 }
 
 /**
@@ -106,6 +108,34 @@ function assertPointInsideCapture(point: Point, size: Size): void {
 	}
 	if (point.x > size.width || point.y > size.height) {
 		throwOutOfBounds(point, size);
+	}
+}
+
+function assertPointInsideDisplay(point: Point, viewport: ScreenshotViewport | CaptureFrame): void {
+	if (!("display" in viewport)) {
+		return;
+	}
+	const display = viewport.display.logical;
+	if (
+		point.x < display.x ||
+		point.y < display.y ||
+		point.x > display.x + display.width ||
+		point.y > display.y + display.height
+	) {
+		throw new ComputerUseError(
+			"OUT_OF_BOUNDS_COORDINATE",
+			`Mapped point (${point.x}, ${point.y}) is outside display ${display.width}x${display.height}`,
+			{
+				details: {
+					x: point.x,
+					y: point.y,
+					displayX: display.x,
+					displayY: display.y,
+					displayWidth: display.width,
+					displayHeight: display.height,
+				},
+			},
+		);
 	}
 }
 

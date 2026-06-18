@@ -21,6 +21,8 @@ export type CodeModePointerTarget = {
 	readonly x?: number;
 	readonly y?: number;
 	readonly elementIndex?: number;
+	readonly captureId?: string;
+	readonly displayEpoch?: string;
 };
 
 export type CodeModeClickTarget = CodeModePointerTarget & {
@@ -181,11 +183,13 @@ interface CodeModeAppStateOptions {
 	readonly settleMs?: number;
 }
 
-interface CodeModePointerTarget {
-	readonly x?: number;
-	readonly y?: number;
-	readonly elementIndex?: number;
-}
+	interface CodeModePointerTarget {
+		readonly x?: number;
+		readonly y?: number;
+		readonly elementIndex?: number;
+		readonly captureId?: string;
+		readonly displayEpoch?: string;
+	}
 
 interface CodeModeClickTarget extends CodeModePointerTarget {
 	readonly button?: CodeModeMouseButton;

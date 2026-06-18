@@ -54,11 +54,14 @@ const __codeModeUnwrap = (envelope) => {
 	const errorInfo = envelope && envelope.error ? envelope.error : { name: "Error", message: "Host RPC failed" };
 	const error = new Error(String(errorInfo.message));
 	error.name = String(errorInfo.name || "Error");
-	if (errorInfo.code !== undefined) {
-		error.code = String(errorInfo.code);
-	}
-	throw error;
-};
+		if (errorInfo.code !== undefined) {
+			error.code = String(errorInfo.code);
+		}
+		if (errorInfo.recoveryHint !== undefined) {
+			error.recoveryHint = String(errorInfo.recoveryHint);
+		}
+		throw error;
+	};
 const __codeModeInvoke = (method, args) => __codeModeUnwrap(globalThis.__codeModeRpc.applySyncPromise(
 	undefined,
 	[method, args],

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createCaptureFrame } from "../computer/capture-frame.js";
 import { CodeModeError } from "./errors.js";
 import {
 	FakeComputer,
@@ -74,11 +75,20 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 	it("#given a Retina window viewport #when code clicks moves and drags #then host input receives logical points", async () => {
 		const { CodeModeSandbox } = await importSandbox();
 		const computer = new FakeComputer();
-		computer.screenshotViewport = {
+		computer.screenshotViewport = createCaptureFrame({
+			captureId: "capture-1",
+			capturedAt: "2026-06-18T00:00:00.000Z",
+			displayEpoch: "display-1",
+			target: { pid: 321, bundleId: "com.apple.finder", appName: "Finder" },
 			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		};
+			screenshot: { width: 500, height: 400 },
+			model: { width: 500, height: 400 },
+			display: {
+				logical: { x: 0, y: 0, width: 1728, height: 1117 },
+				native: { width: 3456, height: 2234 },
+				scaleFactor: 2,
+			},
+		});
 		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
 
 		await sandbox.run(`
@@ -95,11 +105,20 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 	it("#given an element frame in screenshot pixels #when code right-clicks it #then host input receives the logical center", async () => {
 		const { CodeModeSandbox } = await importSandbox();
 		const computer = new FakeComputer();
-		computer.screenshotViewport = {
+		computer.screenshotViewport = createCaptureFrame({
+			captureId: "capture-1",
+			capturedAt: "2026-06-18T00:00:00.000Z",
+			displayEpoch: "display-1",
+			target: { pid: 321, bundleId: "com.apple.finder", appName: "Finder" },
 			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		};
+			screenshot: { width: 500, height: 400 },
+			model: { width: 500, height: 400 },
+			display: {
+				logical: { x: 0, y: 0, width: 1728, height: 1117 },
+				native: { width: 3456, height: 2234 },
+				scaleFactor: 2,
+			},
+		});
 		computer.appState = appStateWith({
 			elements: [
 				{
@@ -121,15 +140,61 @@ describe("#given code-mode pointer coordinates #when an app viewport exists #the
 	});
 });
 
-describe("#given code-mode pointer coordinates #when no app viewport exists #then coordinates remain logical points", () => {
-	it("#given no screenshot viewport #when code clicks #then host input receives the original point", async () => {
+describe("#given code-mode pointer coordinates from a stale capture #when the host resolves x y #then stale capture is surfaced", () => {
+	it("#given a stale capture id #when code catches the error #then it is distinct from a stale screenshot handle", async () => {
+		const { CodeModeSandbox } = await importSandbox();
+		const computer = new FakeComputer();
+		computer.screenshotViewport = createCaptureFrame({
+			captureId: "capture-1",
+			capturedAt: "2026-06-18T00:00:00.000Z",
+			displayEpoch: "display-1",
+			target: { pid: 321, bundleId: "com.apple.finder", appName: "Finder" },
+			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
+			screenshot: { width: 1000, height: 800 },
+			model: { width: 500, height: 400 },
+			display: {
+				logical: { x: 0, y: 0, width: 1728, height: 1117 },
+				native: { width: 3456, height: 2234 },
+				scaleFactor: 2,
+			},
+		});
+		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
+
+		const result = await sandbox.run(`
+			try {
+				await mac.click("Finder", { x: 250, y: 200, captureId: "capture-2", displayEpoch: "display-1" });
+			} catch (error) {
+				return { name: error.name, code: error.code, recoveryHint: error.recoveryHint };
+			}
+		`);
+
+		expect(result.result).toEqual({
+			name: "ComputerUseError",
+			code: "STALE_CAPTURE",
+			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+		});
+	});
+});
+
+describe("#given code-mode pointer coordinates #when no capture frame exists #then coordinates are rejected", () => {
+	it("#given no screenshot viewport #when code catches the error #then missing target window is surfaced", async () => {
 		const { CodeModeSandbox } = await importSandbox();
 		const computer = new FakeComputer();
 		const sandbox = new CodeModeSandbox(computer, new ScreenshotStore());
 
-		await sandbox.run('await mac.click("Finder", { x: 42, y: 17 })');
+		const result = await sandbox.run(`
+			try {
+				await mac.click("Finder", { x: 42, y: 17 });
+			} catch (error) {
+				return { name: error.name, code: error.code, recoveryHint: error.recoveryHint };
+			}
+		`);
 
-		expect(computer.clickCalls).toEqual([{ x: 42, y: 17 }]);
+		expect(result.result).toEqual({
+			name: "ComputerUseError",
+			code: "MISSING_TARGET_WINDOW",
+			recoveryHint: "Bring the target window onscreen, refresh app state, and retry.",
+		});
 	});
 });
 

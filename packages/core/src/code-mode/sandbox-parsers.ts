@@ -10,6 +10,7 @@ import {
 	optionalRecord,
 	optionalScreenshotCall,
 	optionalScrollTarget,
+	optionalString,
 	parseDragOptions,
 	parseElementIndex,
 	parseKeyInputs,
@@ -184,13 +185,25 @@ function parsePointerTarget(value: unknown): CodeModePointerTarget {
 	const x = optionalNumber(record["x"], "x");
 	const y = optionalNumber(record["y"], "y");
 	const elementIndex = optionalElementIndex(record["elementIndex"]);
+	const captureId = optionalString(record["captureId"], "captureId");
+	const displayEpoch = optionalString(record["displayEpoch"], "displayEpoch");
 	if ((x === undefined) !== (y === undefined)) {
 		throw new CodeModeError("COMPILE_ERROR", "pointer target must include both x and y");
 	}
-	if (x !== undefined && y !== undefined) {
-		return elementIndex === undefined ? { x, y } : { x, y, elementIndex };
+	if ((captureId === undefined) !== (displayEpoch === undefined)) {
+		throw new CodeModeError("COMPILE_ERROR", "pointer target must include both captureId and displayEpoch");
 	}
-	return elementIndex === undefined ? {} : { elementIndex };
+	const freshness =
+		captureId === undefined || displayEpoch === undefined
+			? {}
+			: {
+					captureId,
+					displayEpoch,
+				};
+	if (x !== undefined && y !== undefined) {
+		return elementIndex === undefined ? { x, y, ...freshness } : { x, y, elementIndex, ...freshness };
+	}
+	return elementIndex === undefined ? freshness : { elementIndex, ...freshness };
 }
 
 function parseScrollTarget(value: unknown): CodeModeScrollTarget {
