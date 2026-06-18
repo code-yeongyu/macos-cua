@@ -157,11 +157,22 @@ export async function resolveAppPid(computer: ComputerInterface, app: string): P
 	throw new Error(`No running app matched "${app}"`);
 }
 
+type AppStateForAppComputer = ComputerInterface & {
+	readonly getAppStateForApp: (app: string, options?: AppStateOptions) => Promise<AppState>;
+};
+
+function supportsAppStateForApp(computer: ComputerInterface): computer is AppStateForAppComputer {
+	return "getAppStateForApp" in computer && typeof computer.getAppStateForApp === "function";
+}
+
 export async function getAppStateForApp(
 	computer: ComputerInterface,
 	app: string,
 	options?: AppStateOptions,
 ): Promise<AppState> {
+	if (supportsAppStateForApp(computer)) {
+		return await computer.getAppStateForApp(app, options);
+	}
 	return await computer.getAppState(await resolveAppPid(computer, app), options);
 }
 

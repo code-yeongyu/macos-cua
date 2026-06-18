@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AppState } from "../accessibility/types.js";
-import type { ComputerCapabilities } from "../types/index.js";
-import { clickElementByIndex } from "./actions.js";
+import type { AppStateOptions, ComputerCapabilities } from "../types/index.js";
+import { clickElementByIndex, getAppStateForApp } from "./actions.js";
 import type { ComputerInterface } from "./interface.js";
 
 const CAPABILITIES: ComputerCapabilities = {
@@ -64,6 +64,52 @@ function createComputer(): ComputerInterface {
 		close: vi.fn<ComputerInterface["close"]>(),
 	};
 }
+
+type FastAppStateComputer = ComputerInterface & {
+	readonly getAppStateForApp: (app: string, options?: AppStateOptions) => Promise<AppState>;
+};
+
+function createFastComputer(): FastAppStateComputer {
+	return {
+		...createComputer(),
+		getAppStateForApp: vi.fn<FastAppStateComputer["getAppStateForApp"]>().mockResolvedValue(createAppState()),
+	};
+}
+
+describe("#given a computer with a native app-name state path #when get_app_state resolves an app #then it skips pid lookup", () => {
+	it("delegates the app name directly without listing apps first", async () => {
+		// given
+		const computer = createFastComputer();
+		const options = { settleMs: 0 } satisfies AppStateOptions;
+
+		// when
+		const state = await getAppStateForApp(computer, "Finder", options);
+
+		// then
+		expect(state.app).toBe("Finder");
+		expect(computer.getAppStateForApp).toHaveBeenCalledWith("Finder", options);
+		expect(computer.listApps).not.toHaveBeenCalled();
+		expect(computer.getAppState).not.toHaveBeenCalled();
+	});
+});
+
+describe("#given a generic computer #when get_app_state resolves an app #then it falls back through pid lookup", () => {
+	it("keeps the existing listApps and getAppState flow", async () => {
+		// given
+		const computer = createComputer();
+		vi.mocked(computer.listApps).mockResolvedValue([
+			{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true },
+		]);
+		const options = { settleMs: 0 } satisfies AppStateOptions;
+
+		// when
+		await getAppStateForApp(computer, "Finder", options);
+
+		// then
+		expect(computer.listApps).toHaveBeenCalledOnce();
+		expect(computer.getAppState).toHaveBeenCalledWith(1234, options);
+	});
+});
 
 describe("#given an element-index click #when AXPress succeeds #then it presses without coordinate fallback", () => {
 	it("presses the element the requested number of times", async () => {
