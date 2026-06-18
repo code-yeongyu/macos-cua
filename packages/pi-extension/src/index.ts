@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -68,8 +69,8 @@ const computerFallbackToolSchema = Type.Union([
 let state: ExtensionState | undefined;
 
 export default function macosCuaExtension(pi: ExtensionAPI): void {
-	pi.on("resources_discover", async () => {
-		return { skillPaths: [skillPath] };
+	pi.on("resources_discover", () => {
+		return { skillPaths: existsSync(skillPath) ? [skillPath] : [] };
 	});
 
 	pi.on("session_start", async (_event, ctx) => {

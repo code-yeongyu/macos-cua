@@ -1,19 +1,14 @@
-import { execFile } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
-import type { AppInfo, AppState, DisplayInfo } from "../accessibility/types.js";
+import type { AppInfo, AppState } from "../accessibility/types.js";
 import { resolveAppInstructions } from "../app-instructions/index.js";
 import {
 	type ComputerUseActionAuditDetails,
 	ComputerUseActionGate,
 	type ComputerUseActionGateOptions,
 } from "../computer/action-gate.js";
-import { resolveDisplayMetadata } from "../computer/display-metadata.js";
-import { ComputerUseError } from "../computer/errors.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
 import type { ScreenshotViewport } from "../computer/viewport.js";
 import type { AppApprovalStore } from "../permission/app-approval.js";
-import { blockedUrl, browserUrlScript, isBrowserBundle } from "../permission/url-blocklist.js";
 import type {
 	AppStateOptions,
 	DragOptions,
@@ -23,11 +18,8 @@ import type {
 	ScrollOptions,
 	SelectTextOptions,
 } from "../types/index.js";
-import { type RunningAppInfo, collectAppUsage, getRunningMacOSApps } from "./app-list.js";
-import { execFileStdout } from "./exec-util.js";
+import { getRunningMacOSApps } from "./app-list.js";
 import { HostComputer, type HostComputerOptions } from "./host.js";
-import { parseImageDimensions, sniffImageMimeType } from "./image-format.js";
-import type { MacOSAppStateTargetWindow } from "./macos-desktop-session-types.js";
 import { MacOSDesktopSession } from "./macos-desktop-session.js";
 import {
 	extractAccessibilityTree,
@@ -38,24 +30,25 @@ import {
 } from "./macos-ffi/accessibility.js";
 import { type PointerOverlay, createCursorOverlay } from "./macos-ffi/cursor-overlay.js";
 import { createDisplaySleepAssertion } from "./macos-ffi/power.js";
-import { getMainDisplayLogicalSize, getMainDisplayNativePixelSize } from "./macos-ffi/screenshot.js";
+import { getMainDisplayLogicalSize } from "./macos-ffi/screenshot.js";
 import { selectTextByIndex } from "./macos-ffi/select-text.js";
+import {
+	activateApp,
+	assertAppApproved,
+	assertBrowserUrlAllowed,
+	captureMacOSScreenshotResult,
+	listMacOSAppInfo,
+	resolveAppStateTargetWindow,
+	resolveDisplayInfo,
+	resolveTargetAppByName,
+} from "./macos-host-helpers.js";
 import { MacOSInputController } from "./macos-input.js";
-import { captureMacOSScreenshot, getMacOSLogicalScreenSize, targetSizeFromRegion } from "./macos-screenshot.js";
-import { systemEventsTargetWindowBounds } from "./macos-window-target-fallback.js";
+import { getMacOSLogicalScreenSize } from "./macos-screen.js";
 
-export {
-	captureMacOSScreenshot,
-	getMacOSLogicalScreenSize,
-	parseFinderDesktopBounds,
-	parseSystemProfilerLogicalScreenSize,
-} from "./macos-screenshot.js";
+export { captureMacOSScreenshot, getMacOSLogicalScreenSize } from "./macos-screen.js";
+export { parseFinderDesktopBounds, parseSystemProfilerLogicalScreenSize } from "./macos-screen.js";
 
-const execFileAsync = promisify(execFile);
-
-const FINDER_DESKTOP_BOUNDS_TIMEOUT_MILLISECONDS = 2_000;
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
-const APP_ACTIVATION_TIMEOUT_MILLISECONDS = 3_000;
 
 export interface MacOSHostComputerOptions extends HostComputerOptions {
 	defaultTargetPid?: number;
@@ -76,12 +69,12 @@ export class MacOSHostComputer extends HostComputer {
 		supportsClipboard: true,
 	};
 
+	private readonly actionGate: ComputerUseActionGate;
 	private readonly appApproval: AppApprovalStore | undefined;
 	private readonly input: MacOSInputController;
 	private readonly overlay: PointerOverlay;
 	private readonly session: MacOSDesktopSession;
 	private readonly urlBlocklist: readonly string[];
-	private readonly actionGate: ComputerUseActionGate;
 
 	constructor(options: MacOSHostComputerOptions = {}) {
 		super();
@@ -104,8 +97,8 @@ export class MacOSHostComputer extends HostComputer {
 		);
 		this.session = new MacOSDesktopSession({
 			activateApp,
-			assertAppApproved: (app) => this.assertAppApproved(app),
-			assertBrowserUrlAllowed: (app) => this.assertBrowserUrlAllowed(app),
+			assertAppApproved: (app) => assertAppApproved(app, this.appApproval),
+			assertBrowserUrlAllowed: (app) => assertBrowserUrlAllowed(app, this.urlBlocklist),
 			captureWindowScreenshot: (targetWindow, size) =>
 				targetWindow.id === undefined
 					? this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds })
@@ -138,77 +131,43 @@ export class MacOSHostComputer extends HostComputer {
 	}
 
 	private async captureScreenshot(options?: ScreenshotOptions, windowId?: number): Promise<ScreenshotResult> {
-		const size =
-			options?.targetSize ??
-			(options?.region === undefined ? await this.getScreenSize() : targetSizeFromRegion(options.region));
-		const data = await captureMacOSScreenshot(
-			size,
-			windowId,
-			options?.format ?? "png",
-			options?.quality ?? 72,
-			options?.region,
-		);
-		const dimensions = parseImageDimensions(data);
-		return {
-			data,
-			mimeType: sniffImageMimeType(data),
-			width: dimensions.width,
-			height: dimensions.height,
-		};
+		return await captureMacOSScreenshotResult(options, windowId, () => this.getScreenSize());
 	}
 
 	async move(position: Point): Promise<void> {
-		await this.session.runExclusive("move", async () => {
-			await this.input.move(position);
-		});
+		await this.session.runExclusive("move", () => this.input.move(position));
 	}
 
 	async click(position: Point): Promise<void> {
-		await this.session.runExclusive("click", async () => {
-			await this.input.click(position);
-		});
+		await this.session.runExclusive("click", () => this.input.click(position));
 	}
 
 	async rightClick(position: Point): Promise<void> {
-		await this.session.runExclusive("rightClick", async () => {
-			await this.input.click(position, "right");
-		});
+		await this.session.runExclusive("rightClick", () => this.input.click(position, "right"));
 	}
 
 	async middleClick(position: Point): Promise<void> {
-		await this.session.runExclusive("middleClick", async () => {
-			await this.input.click(position, "middle");
-		});
+		await this.session.runExclusive("middleClick", () => this.input.click(position, "middle"));
 	}
 
 	async doubleClick(position: Point): Promise<void> {
-		await this.session.runExclusive("doubleClick", async () => {
-			await this.input.doubleClick(position);
-		});
+		await this.session.runExclusive("doubleClick", () => this.input.doubleClick(position));
 	}
 
 	async type(text: string): Promise<void> {
-		await this.session.runExclusive("type", async () => {
-			await this.input.typeText(text);
-		});
+		await this.session.runExclusive("type", () => this.input.typeText(text));
 	}
 
 	async key(key: string, options?: KeyOptions): Promise<void> {
-		await this.session.runExclusive("key", async () => {
-			await this.input.pressKey(key, options);
-		});
+		await this.session.runExclusive("key", () => this.input.pressKey(key, options));
 	}
 
 	async scroll(options: ScrollOptions): Promise<void> {
-		await this.session.runExclusive("scroll", async () => {
-			await this.input.scroll(options);
-		});
+		await this.session.runExclusive("scroll", () => this.input.scroll(options));
 	}
 
 	async drag(options: DragOptions): Promise<void> {
-		await this.session.runExclusive("drag", async () => {
-			await this.input.drag(options);
-		});
+		await this.session.runExclusive("drag", () => this.input.drag(options));
 	}
 
 	async getCursorPosition(): Promise<Point> {
@@ -232,63 +191,8 @@ export class MacOSHostComputer extends HostComputer {
 		return await this.session.getAppState(app.pid, this.withDefaultSettle(options));
 	}
 
-	private async resolveAppStateTargetWindow(pid: number): Promise<MacOSAppStateTargetWindow | undefined> {
-		try {
-			return await this.input.rememberTargetWindow(pid);
-		} catch (error) {
-			if (!(error instanceof Error)) {
-				throw error;
-			}
-			const bounds = await systemEventsTargetWindowBounds(pid);
-			return bounds === undefined ? undefined : { bounds };
-		}
-	}
-
-	private async assertBrowserUrlAllowed(app: RunningAppInfo): Promise<void> {
-		if (this.urlBlocklist.length === 0 || !isBrowserBundle(app.bundleId)) {
-			return;
-		}
-		const script = browserUrlScript(app.bundleId);
-		if (script === undefined) {
-			return;
-		}
-		let url: string;
-		try {
-			const result = await execFileAsync("osascript", ["-e", script], {
-				encoding: "utf8",
-				timeout: FINDER_DESKTOP_BOUNDS_TIMEOUT_MILLISECONDS,
-			});
-			url = execFileStdout(result).trim();
-		} catch (error) {
-			if (!(error instanceof Error)) {
-				throw error;
-			}
-			return;
-		}
-		if (url.length > 0 && blockedUrl(url, this.urlBlocklist)) {
-			throw new ComputerUseError("BLOCKED_URL", `Computer Use is not allowed on the current browser URL: ${url}`, {
-				details: { bundleId: app.bundleId, pid: app.pid, url },
-			});
-		}
-	}
-
-	private assertAppApproved(app: RunningAppInfo): void {
-		if (this.appApproval === undefined) {
-			return;
-		}
-		const decision = this.appApproval.decide(app.bundleId);
-		if (decision === "denied") {
-			throw new ComputerUseError("UNAPPROVED_APP", `Computer Use is not allowed to use the app '${app.name}'.`, {
-				details: { appName: app.name, bundleId: app.bundleId, pid: app.pid },
-			});
-		}
-		if (decision === "needs-approval") {
-			throw new ComputerUseError(
-				"UNAPPROVED_APP",
-				`Computer Use needs your approval to use '${app.name}'. Approve the app and try again.`,
-				{ details: { appName: app.name, bundleId: app.bundleId, pid: app.pid } },
-			);
-		}
+	private async resolveAppStateTargetWindow(pid: number) {
+		return await resolveAppStateTargetWindow((targetPid) => this.input.rememberTargetWindow(targetPid), pid);
 	}
 
 	private withDefaultSettle(options?: AppStateOptions): AppStateOptions {
@@ -303,20 +207,7 @@ export class MacOSHostComputer extends HostComputer {
 	}
 
 	async listApps(): Promise<AppInfo[]> {
-		const running = await getRunningMacOSApps();
-		const usage = await collectAppUsage(running.map((app) => app.path).filter((path) => path.length > 0));
-		return running.map((app) => {
-			const appUsage = usage.get(app.path) ?? {};
-			return {
-				bundleId: app.bundleId,
-				name: app.name,
-				pid: app.pid,
-				isRunning: true,
-				isFrontmost: app.isActive,
-				...(appUsage.lastUsedDate !== undefined ? { lastUsedDate: appUsage.lastUsedDate } : {}),
-				...(appUsage.useCount !== undefined ? { useCount: appUsage.useCount } : {}),
-			};
-		});
+		return await listMacOSAppInfo();
 	}
 
 	async setValue(targetPid: number, elementIndex: number, value: string): Promise<void> {
@@ -390,57 +281,4 @@ export class MacOSHostComputer extends HostComputer {
 	): Promise<T> {
 		return await this.actionGate.run(action, details, body);
 	}
-}
-
-function resolveDisplayInfo(): DisplayInfo {
-	const logical = getMainDisplayLogicalSize();
-	let nativePixel: { width: number; height: number } | undefined;
-	try {
-		nativePixel = getMainDisplayNativePixelSize();
-	} catch {
-		nativePixel = undefined;
-	}
-	return resolveDisplayMetadata(nativePixel === undefined ? { logical } : { logical, nativePixel });
-}
-
-async function activateApp(app: RunningAppInfo): Promise<void> {
-	await execFileAsync("open", ["-b", app.bundleId], {
-		timeout: APP_ACTIVATION_TIMEOUT_MILLISECONDS,
-	});
-}
-
-function resolveTargetApp(apps: readonly RunningAppInfo[], targetPid: number): RunningAppInfo {
-	const app = apps.find((candidate) => candidate.pid === targetPid);
-	if (app === undefined) {
-		throw new Error(`No running app matched pid ${targetPid}`);
-	}
-	return app;
-}
-
-function resolveTargetAppByName(apps: readonly RunningAppInfo[], appName: string): RunningAppInfo {
-	const normalizedApp = appName.trim().toLowerCase();
-	if (normalizedApp.length === 0) {
-		throw new Error("app must be a non-empty app name, bundle id, or pid");
-	}
-
-	const numericPid = Number(normalizedApp);
-	if (Number.isSafeInteger(numericPid) && numericPid > 0) {
-		return resolveTargetApp(apps, numericPid);
-	}
-
-	const exactMatch = apps.find((candidate) => {
-		const normalizedName = candidate.name.toLowerCase();
-		const normalizedBundleId = candidate.bundleId.toLowerCase();
-		return normalizedName === normalizedApp || normalizedBundleId === normalizedApp;
-	});
-	if (exactMatch !== undefined) {
-		return exactMatch;
-	}
-
-	const partialMatch = apps.find((candidate) => candidate.name.toLowerCase().includes(normalizedApp));
-	if (partialMatch !== undefined) {
-		return partialMatch;
-	}
-
-	throw new Error(`No running app matched '${appName}'`);
 }

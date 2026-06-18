@@ -432,7 +432,7 @@ describe("#given fallback computer tool #when model changes display profile befo
 });
 
 describe("#given resources_discover #when invoked #then macOS skill path is returned", () => {
-	it("returns the macos-cua skill path", async () => {
+	it("does not advertise a missing macos-cua skill path", async () => {
 		const pi = createMockPi();
 		macosCuaExtension(pi);
 		const resourcesDiscover = pi.handlers.get("resources_discover");
@@ -441,7 +441,7 @@ describe("#given resources_discover #when invoked #then macOS skill path is retu
 		const result = await resourcesDiscover?.();
 
 		expect(result).toEqual({
-			skillPaths: [expect.stringContaining("skills/macos-cua/SKILL.md")],
+			skillPaths: [],
 		});
 	});
 });

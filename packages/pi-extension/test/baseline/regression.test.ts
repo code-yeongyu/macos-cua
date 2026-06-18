@@ -1,4 +1,4 @@
-import type { ComputerInterface } from "@macos-cua/core";
+import type { CaptureFrame, ComputerInterface, Rect } from "@macos-cua/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionContext } from "../../src/pi/index.js";
 import { createClickTool } from "../../src/tools/click.js";
@@ -6,6 +6,21 @@ import { createGetAppStateTool } from "../../src/tools/get-app-state.js";
 import { createPressKeysTool } from "../../src/tools/press-key.js";
 import { createScrollTool } from "../../src/tools/scroll.js";
 import { createTypeTextTool } from "../../src/tools/type-text.js";
+
+function createCaptureFrame(windowBounds: Rect, model: { width: number; height: number }): CaptureFrame {
+	return {
+		captureId: "capture-test-1",
+		capturedAt: "2026-06-18T00:00:00.000Z",
+		displayEpoch: "test-display-1",
+		target: { pid: 1234, bundleId: "com.test.app", appName: "TestApp" },
+		windowBounds,
+		screenshot: model,
+		model,
+		display: { logical: windowBounds, native: model, scaleFactor: 1 },
+		screenshotWidth: model.width,
+		screenshotHeight: model.height,
+	};
+}
 
 function createFakeComputer(): ComputerInterface {
 	return {
@@ -33,7 +48,9 @@ function createFakeComputer(): ComputerInterface {
 		drag: vi.fn<ComputerInterface["drag"]>().mockResolvedValue(undefined),
 		getCursorPosition: vi.fn<ComputerInterface["getCursorPosition"]>().mockResolvedValue({ x: 0, y: 0 }),
 		getScreenSize: vi.fn<ComputerInterface["getScreenSize"]>().mockResolvedValue({ width: 100, height: 80 }),
-		getScreenshotViewport: vi.fn<ComputerInterface["getScreenshotViewport"]>().mockResolvedValue(undefined),
+		getScreenshotViewport: vi
+			.fn<ComputerInterface["getScreenshotViewport"]>()
+			.mockResolvedValue(createCaptureFrame({ x: 0, y: 0, width: 300, height: 300 }, { width: 300, height: 300 })),
 		getAppState: vi.fn<ComputerInterface["getAppState"]>().mockResolvedValue({
 			app: "TestApp",
 			bundleId: "com.test.app",

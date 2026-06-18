@@ -1,8 +1,23 @@
-import type { ComputerInterface } from "@macos-cua/core";
+import type { CaptureFrame, ComputerInterface, Rect } from "@macos-cua/core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionContext } from "../pi/index.js";
 import { createDragTool } from "./drag.js";
+
+function createCaptureFrame(windowBounds: Rect, model: { width: number; height: number }): CaptureFrame {
+	return {
+		captureId: "capture-test-1",
+		capturedAt: "2026-06-18T00:00:00.000Z",
+		displayEpoch: "test-display-1",
+		target: { pid: 1234, bundleId: "com.apple.finder", appName: "Finder" },
+		windowBounds,
+		screenshot: model,
+		model,
+		display: { logical: windowBounds, native: model, scaleFactor: 1 },
+		screenshotWidth: model.width,
+		screenshotHeight: model.height,
+	};
+}
 
 function createComputer(): ComputerInterface {
 	return {
@@ -26,11 +41,9 @@ function createComputer(): ComputerInterface {
 		getCursorPosition: vi.fn<ComputerInterface["getCursorPosition"]>(),
 		getScreenSize: vi.fn<ComputerInterface["getScreenSize"]>(),
 		getAppState: vi.fn<ComputerInterface["getAppState"]>(),
-		getScreenshotViewport: vi.fn<ComputerInterface["getScreenshotViewport"]>().mockResolvedValue({
-			windowBounds: { x: 0, y: 0, width: 100, height: 80 },
-			screenshotWidth: 100,
-			screenshotHeight: 80,
-		}),
+		getScreenshotViewport: vi
+			.fn<ComputerInterface["getScreenshotViewport"]>()
+			.mockResolvedValue(createCaptureFrame({ x: 0, y: 0, width: 100, height: 80 }, { width: 100, height: 80 })),
 		listApps: vi
 			.fn<ComputerInterface["listApps"]>()
 			.mockResolvedValue([{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true }]),
@@ -71,11 +84,9 @@ describe("#given drag tool #when executed #then computer drag receives endpoints
 
 	it("maps both endpoints from screenshot pixels onto the window's screen position", async () => {
 		const computer = createComputer();
-		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue({
-			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		});
+		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue(
+			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+		);
 		const tool = createDragTool(computer);
 
 		await tool.execute(
@@ -89,19 +100,21 @@ describe("#given drag tool #when executed #then computer drag receives endpoints
 		expect(computer.drag).toHaveBeenCalledWith({ from: { x: 300, y: 150 }, to: { x: 800, y: 550 } });
 	});
 
-	it("passes both endpoints through unchanged when no screenshot viewport is known", async () => {
+	it("rejects coordinate drags when no fresh capture frame is known", async () => {
 		const computer = createComputer();
 		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue(undefined);
 		const tool = createDragTool(computer);
 
-		await tool.execute(
-			"tool-call",
-			{ app: "Finder", from_x: 11, from_y: 22, to_x: 33, to_y: 44 },
-			undefined,
-			undefined,
-			{} as ExtensionContext,
-		);
+		await expect(
+			tool.execute(
+				"tool-call",
+				{ app: "Finder", from_x: 11, from_y: 22, to_x: 33, to_y: 44 },
+				undefined,
+				undefined,
+				{} as ExtensionContext,
+			),
+		).rejects.toMatchObject({ code: "MISSING_TARGET_WINDOW" });
 
-		expect(computer.drag).toHaveBeenCalledWith({ from: { x: 11, y: 22 }, to: { x: 33, y: 44 } });
+		expect(computer.drag).not.toHaveBeenCalled();
 	});
 });

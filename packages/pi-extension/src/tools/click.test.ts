@@ -1,8 +1,23 @@
-import type { ComputerInterface } from "@macos-cua/core";
+import type { CaptureFrame, ComputerInterface, Rect } from "@macos-cua/core";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionContext } from "../pi/index.js";
 import { createClickTool } from "./click.js";
+
+function createCaptureFrame(windowBounds: Rect, model: { width: number; height: number }): CaptureFrame {
+	return {
+		captureId: "capture-test-1",
+		capturedAt: "2026-06-18T00:00:00.000Z",
+		displayEpoch: "test-display-1",
+		target: { pid: 1234, bundleId: "com.apple.finder", appName: "Finder" },
+		windowBounds,
+		screenshot: model,
+		model,
+		display: { logical: windowBounds, native: model, scaleFactor: 1 },
+		screenshotWidth: model.width,
+		screenshotHeight: model.height,
+	};
+}
 
 function createComputer(): ComputerInterface {
 	return {
@@ -51,11 +66,7 @@ function createComputer(): ComputerInterface {
 		getScreenshotViewport: vi
 			.fn<ComputerInterface["getScreenshotViewport"]>()
 			// Identity viewport: a 100x80 screenshot of a window at the screen origin.
-			.mockResolvedValue({
-				windowBounds: { x: 0, y: 0, width: 100, height: 80 },
-				screenshotWidth: 100,
-				screenshotHeight: 80,
-			}),
+			.mockResolvedValue(createCaptureFrame({ x: 0, y: 0, width: 100, height: 80 }, { width: 100, height: 80 })),
 		listApps: vi
 			.fn<ComputerInterface["listApps"]>()
 			.mockResolvedValue([{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true }]),
@@ -122,11 +133,9 @@ describe("#given click tool #when executed #then target app receives coordinates
 
 	it("maps screenshot pixel coordinates onto the window's screen position before dispatch", async () => {
 		const computer = createComputer();
-		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue({
-			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		});
+		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue(
+			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+		);
 		const getScreenshotViewport = vi.spyOn(computer, "getScreenshotViewport");
 		const pressAtPosition = vi.spyOn(computer, "pressAtPosition").mockResolvedValue(false);
 		const tool = createClickTool(computer);
@@ -138,16 +147,18 @@ describe("#given click tool #when executed #then target app receives coordinates
 		expect(computer.click).toHaveBeenCalledWith({ x: 800, y: 550 });
 	});
 
-	it("passes raw coordinates through every dispatch path when no screenshot viewport is known", async () => {
+	it("rejects coordinate clicks when no fresh capture frame is known", async () => {
 		const computer = createComputer();
 		vi.spyOn(computer, "getScreenshotViewport").mockResolvedValue(undefined);
 		const pressAtPosition = vi.spyOn(computer, "pressAtPosition").mockResolvedValue(false);
 		const tool = createClickTool(computer);
 
-		await tool.execute("tool-call", { app: "Finder", x: 42, y: 17 }, undefined, undefined, {} as ExtensionContext);
+		await expect(
+			tool.execute("tool-call", { app: "Finder", x: 42, y: 17 }, undefined, undefined, {} as ExtensionContext),
+		).rejects.toMatchObject({ code: "MISSING_TARGET_WINDOW" });
 
-		expect(pressAtPosition).toHaveBeenCalledWith(1234, { x: 42, y: 17 });
-		expect(computer.click).toHaveBeenCalledWith({ x: 42, y: 17 });
+		expect(pressAtPosition).not.toHaveBeenCalled();
+		expect(computer.click).not.toHaveBeenCalled();
 	});
 
 	it("reports the virtual pointer position before and after the click", async () => {

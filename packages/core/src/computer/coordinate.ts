@@ -8,9 +8,8 @@ export type CaptureFramePoint = Point & Partial<CaptureFreshnessMarker>;
 
 /**
  * Map a model-supplied window-screenshot pixel coordinate to a global logical
- * screen point via the target app's viewport, or pass it through when no
- * viewport is known. Input dispatch expects global points; the model sees window
- * pixels.
+ * screen point via the target app's fresh capture frame. Input dispatch expects
+ * global points; the model sees window pixels.
  */
 export async function resolveScreenPoint(
 	computer: ComputerInterface,

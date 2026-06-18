@@ -1,3 +1,4 @@
+import type { CaptureFrame, Rect } from "@macos-cua/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
@@ -34,6 +35,21 @@ const mockedComputer = vi.hoisted(() => ({
 	typeIntoFocused: vi.fn(),
 	close: vi.fn(),
 }));
+
+function createCaptureFrame(windowBounds: Rect, model: { width: number; height: number }): CaptureFrame {
+	return {
+		captureId: "capture-test-1",
+		capturedAt: "2026-06-18T00:00:00.000Z",
+		displayEpoch: "test-display-1",
+		target: { pid: 1234, bundleId: "com.apple.finder", appName: "Finder" },
+		windowBounds,
+		screenshot: model,
+		model,
+		display: { logical: windowBounds, native: model, scaleFactor: 1 },
+		screenshotWidth: model.width,
+		screenshotHeight: model.height,
+	};
+}
 
 vi.mock("@macos-cua/core", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@macos-cua/core")>();
@@ -138,7 +154,9 @@ beforeEach(() => {
 	mockedComputer.performAction.mockResolvedValue(undefined);
 	mockedComputer.pressAtPosition.mockResolvedValue(false);
 	mockedComputer.typeIntoFocused.mockResolvedValue(false);
-	mockedComputer.getScreenshotViewport.mockResolvedValue(undefined);
+	mockedComputer.getScreenshotViewport.mockResolvedValue(
+		createCaptureFrame({ x: 0, y: 0, width: 1920, height: 1080 }, { width: 1920, height: 1080 }),
+	);
 });
 
 afterEach(async () => {
@@ -205,11 +223,9 @@ describe("MCP server tools #given #when #then", () => {
 
 	it("maps screenshot pixel coordinates onto the window before clicking", async () => {
 		// given
-		mockedComputer.getScreenshotViewport.mockResolvedValue({
-			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		});
+		mockedComputer.getScreenshotViewport.mockResolvedValue(
+			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+		);
 		const { client, close } = await createHarness();
 		closeHarness = close;
 
@@ -223,11 +239,9 @@ describe("MCP server tools #given #when #then", () => {
 
 	it("maps both drag endpoints onto the window before dragging", async () => {
 		// given
-		mockedComputer.getScreenshotViewport.mockResolvedValue({
-			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		});
+		mockedComputer.getScreenshotViewport.mockResolvedValue(
+			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+		);
 		const { client, close } = await createHarness();
 		closeHarness = close;
 
