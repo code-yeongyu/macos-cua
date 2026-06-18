@@ -108,6 +108,18 @@ describe("#given a target window #when get_app_state captures it #then the scree
 	});
 });
 
+describe("#given an app name #when get_app_state captures it #then app lookup is not repeated", () => {
+	it("lists apps once and reuses the resolved app for capture", async () => {
+		const computer = new MacOSHostComputer();
+
+		const state = await computer.getAppStateForApp("Finder", { settleMs: 0 });
+
+		expect(state.pid).toBe(TARGET_PID);
+		expect(childProcessMock.execFile).toHaveBeenCalledTimes(2);
+		expect(childProcessMock.execFile.mock.calls[0]?.[0]).toBe("osascript");
+	});
+});
+
 describe("#given two get_app_state calls #when the second runs #then it reports an AX change summary", () => {
 	it("omits the summary on the first call and includes it on the second", async () => {
 		childProcessMock.execFile.mockReset();

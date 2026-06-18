@@ -179,19 +179,26 @@ export class MacOSHostComputer extends HostComputer {
 	}
 
 	async getAppState(targetPid?: number, options?: AppStateOptions): Promise<AppState> {
-		const settleMs = options?.settleMs ?? DEFAULT_APP_STATE_SETTLE_MILLISECONDS;
-		if (settleMs > 0) {
-			await sleep(settleMs);
-		}
-		let apps = await getRunningMacOSApps();
-		let app = resolveTargetApp(apps, targetPid);
+		await settleAppState(options);
+		const apps = await getRunningMacOSApps();
+		return await this.getAppStateForResolvedApp(resolveTargetApp(apps, targetPid), options);
+	}
+
+	async getAppStateForApp(appName: string, options?: AppStateOptions): Promise<AppState> {
+		await settleAppState(options);
+		const apps = await getRunningMacOSApps();
+		return await this.getAppStateForResolvedApp(resolveTargetAppByName(apps, appName), options);
+	}
+
+	private async getAppStateForResolvedApp(initialApp: RunningAppInfo, options?: AppStateOptions): Promise<AppState> {
+		let app = initialApp;
 		this.assertAppApproved(app);
 		await this.assertBrowserUrlAllowed(app);
 		let targetWindow = await this.resolveAppStateTargetWindow(app.pid);
 		if (targetWindow === undefined) {
 			await activateMacOSApp(app);
 			await sleep(APP_ACTIVATION_SETTLE_MILLISECONDS);
-			apps = await getRunningMacOSApps();
+			const apps = await getRunningMacOSApps();
 			app = resolveTargetApp(apps, app.pid);
 			await this.assertBrowserUrlAllowed(app);
 			targetWindow = await this.resolveAppStateTargetWindow(app.pid);
@@ -607,6 +614,13 @@ function resolveDisplayInfo(): DisplayInfo {
 	return resolveDisplayMetadata(nativePixel === undefined ? { logical } : { logical, nativePixel });
 }
 
+async function settleAppState(options?: AppStateOptions): Promise<void> {
+	const settleMs = options?.settleMs ?? DEFAULT_APP_STATE_SETTLE_MILLISECONDS;
+	if (settleMs > 0) {
+		await sleep(settleMs);
+	}
+}
+
 function resolveTargetApp(apps: readonly RunningAppInfo[], targetPid: number | undefined): RunningAppInfo {
 	if (targetPid !== undefined) {
 		const app = apps.find((candidate) => candidate.pid === targetPid);
@@ -620,6 +634,38 @@ function resolveTargetApp(apps: readonly RunningAppInfo[], targetPid: number | u
 		throw new Error("No frontmost application available");
 	}
 	return frontmost;
+}
+
+function resolveTargetAppByName(apps: readonly RunningAppInfo[], appName: string): RunningAppInfo {
+	const normalizedApp = appName.trim().toLowerCase();
+	if (normalizedApp.length === 0) {
+		throw new Error("app must be a non-empty app name, bundle id, or pid");
+	}
+
+	const numericPid = Number(normalizedApp);
+	if (Number.isSafeInteger(numericPid) && numericPid > 0) {
+		return resolveTargetApp(apps, numericPid);
+	}
+
+	const exactMatch = apps.find((candidate) => {
+		const name = candidate.name.toLowerCase();
+		const bundleId = candidate.bundleId.toLowerCase();
+		return name === normalizedApp || bundleId === normalizedApp;
+	});
+	if (exactMatch !== undefined) {
+		return exactMatch;
+	}
+
+	const fuzzyMatch = apps.find((candidate) => {
+		const name = candidate.name.toLowerCase();
+		const bundleId = candidate.bundleId.toLowerCase();
+		return name.includes(normalizedApp) || bundleId.includes(normalizedApp);
+	});
+	if (fuzzyMatch !== undefined) {
+		return fuzzyMatch;
+	}
+
+	throw new Error(`No running app matched "${appName}"`);
 }
 
 async function activateMacOSApp(app: RunningAppInfo): Promise<void> {
