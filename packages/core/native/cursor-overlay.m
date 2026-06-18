@@ -20,6 +20,21 @@ static const CGFloat kRingRadius = 9.0;
 static const CGFloat kCoreRadius = 6.0;
 static const CGFloat kMaxStretch = 0.38;
 
+@interface NonActivatingOverlayWindow : NSPanel
+@end
+
+@implementation NonActivatingOverlayWindow
+- (BOOL)canBecomeKeyWindow {
+	return NO;
+}
+- (BOOL)canBecomeMainWindow {
+	return NO;
+}
+- (BOOL)acceptsFirstResponder {
+	return NO;
+}
+@end
+
 @interface OverlayPointerView : NSView
 @end
 
@@ -83,7 +98,7 @@ static void apply_set(double x, double y) {
 		gShown = YES;
 		[gWindow setAlphaValue:0.0];
 		[gWindow setFrameOrigin:target];
-		[gWindow orderFrontRegardless];
+		[gWindow orderFront:nil];
 		[NSAnimationContext runAnimationGroup:^(NSAnimationContext *context) {
 			context.duration = kFadeInDuration;
 			[[gWindow animator] setAlphaValue:1.0];
@@ -91,7 +106,7 @@ static void apply_set(double x, double y) {
 							completionHandler:nil];
 		return;
 	}
-	[gWindow orderFrontRegardless];
+	[gWindow orderFront:nil];
 	if (gScootTimer != nil) {
 		[gScootTimer invalidate];
 		gScootTimer = nil;
@@ -136,7 +151,7 @@ static void apply_highlight(double x, double y, double w, double h) {
 	[gHighlightWindow setFrame:NSMakeRect(x, screenHeight - y - h, w, h) display:YES];
 	[gHighlightWindow.contentView setNeedsDisplay:YES];
 	[gHighlightWindow setAlphaValue:1.0];
-	[gHighlightWindow orderFrontRegardless];
+	[gHighlightWindow orderFront:nil];
 	if (gHighlightTimer != nil) {
 		[gHighlightTimer invalidate];
 		gHighlightTimer = nil;
@@ -209,14 +224,16 @@ int main(int argc, const char *argv[]) {
 		[NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
 
 		NSRect frame = NSMakeRect(0, 0, kOverlaySize, kOverlaySize);
-		gWindow = [[NSWindow alloc] initWithContentRect:frame
-											  styleMask:NSWindowStyleMaskBorderless
-												backing:NSBackingStoreBuffered
-												  defer:NO];
+		gWindow = [[NonActivatingOverlayWindow alloc] initWithContentRect:frame
+																styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+																  backing:NSBackingStoreBuffered
+																	defer:NO];
 		[gWindow setOpaque:NO];
 		[gWindow setBackgroundColor:[NSColor clearColor]];
 		[gWindow setHasShadow:NO];
 		[gWindow setIgnoresMouseEvents:YES];
+		[(NSPanel *)gWindow setBecomesKeyOnlyIfNeeded:NO];
+		[(NSPanel *)gWindow setWorksWhenModal:YES];
 		[gWindow setLevel:NSFloatingWindowLevel];
 		[gWindow setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
 									   NSWindowCollectionBehaviorStationary | NSWindowCollectionBehaviorIgnoresCycle |
@@ -224,14 +241,16 @@ int main(int argc, const char *argv[]) {
 		gPointerView = [[OverlayPointerView alloc] initWithFrame:frame];
 		[gWindow setContentView:gPointerView];
 
-		gHighlightWindow = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 100, 100)
-													   styleMask:NSWindowStyleMaskBorderless
-														 backing:NSBackingStoreBuffered
-														   defer:NO];
+		gHighlightWindow = [[NonActivatingOverlayWindow alloc] initWithContentRect:NSMakeRect(0, 0, 100, 100)
+																		 styleMask:NSWindowStyleMaskBorderless | NSWindowStyleMaskNonactivatingPanel
+																		   backing:NSBackingStoreBuffered
+																			 defer:NO];
 		[gHighlightWindow setOpaque:NO];
 		[gHighlightWindow setBackgroundColor:[NSColor clearColor]];
 		[gHighlightWindow setHasShadow:NO];
 		[gHighlightWindow setIgnoresMouseEvents:YES];
+		[(NSPanel *)gHighlightWindow setBecomesKeyOnlyIfNeeded:NO];
+		[(NSPanel *)gHighlightWindow setWorksWhenModal:YES];
 		[gHighlightWindow setLevel:NSFloatingWindowLevel];
 		[gHighlightWindow setCollectionBehavior:NSWindowCollectionBehaviorCanJoinAllSpaces |
 											  NSWindowCollectionBehaviorStationary | NSWindowCollectionBehaviorIgnoresCycle |
