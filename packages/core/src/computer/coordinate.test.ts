@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AppInfo, AppState } from "../accessibility/types.js";
 import type {
+	AppOpenOptions,
 	AppStateOptions,
 	DragOptions,
 	KeyOptions,
@@ -54,6 +55,9 @@ class CoordinateComputer implements ComputerInterface {
 	}
 	async listApps(): Promise<AppInfo[]> {
 		return [];
+	}
+	async openApp(_appName: string, _options?: AppOpenOptions): Promise<AppInfo> {
+		throw new Error("Not implemented");
 	}
 	async setValue(_targetPid: number, _elementIndex: number, _value: string): Promise<void> {}
 	async selectText(_targetPid: number, _elementIndex: number, _options: SelectTextOptions): Promise<void> {}

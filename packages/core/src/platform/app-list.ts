@@ -76,7 +76,7 @@ function optionalStringField(record: Record<string, unknown>, key: string): stri
 	return typeof value === "string" ? value : "";
 }
 
-async function resolveBundleIdentifier(appName: string): Promise<string> {
+export async function resolveBundleIdentifier(appName: string): Promise<string> {
 	const result = await execFileAsync("osascript", ["-e", `id of application ${appleScriptString(appName)}`], {
 		encoding: "utf8",
 		timeout: TARGET_APP_TIMEOUT_MILLISECONDS,

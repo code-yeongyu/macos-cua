@@ -30,7 +30,9 @@ export function buildCodeModePrompt(): string {
 	return [
 		"You are writing TypeScript code that runs in a macOS computer-use sandbox.",
 		"Use the global `mac` API for macOS actions and call `surface(handle)` to show screenshot handles.",
-		"Call methods as `mac.screenshot(...)`, `mac.getAppState(...)`, and other `mac.*` API operations.",
+		"Use only the declared CodeModeApi methods below; do not invent methods.",
+		'Open apps or browser URLs with `await mac.openApp("Safari", { url: "https://example.com" })`.',
+		"Inspect apps with `mac.getAppState(...)`, show screenshots with `surface(state.screenshot)`, and interact with declared click/scroll/type/pressKeys methods.",
 		"Return the final result from the code. Await async calls directly.",
 		"Pointer x/y coordinates are pixels in the latest app screenshot; the host maps them onto the app window.",
 		"Sandbox rules: no imports, filesystem access, network access, subprocesses, or timers for waiting.",

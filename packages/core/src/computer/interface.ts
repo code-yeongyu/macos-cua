@@ -1,5 +1,6 @@
 import type { AppInfo, AppState } from "../accessibility/types.js";
 import type {
+	AppOpenOptions,
 	AppStateOptions,
 	ComputerCapabilities,
 	DragOptions,
@@ -42,6 +43,7 @@ export interface ComputerInterface {
 	 */
 	getScreenshotViewport(targetPid: number): Promise<ScreenshotViewport | undefined>;
 	listApps(): Promise<AppInfo[]>;
+	openApp(appName: string, options?: AppOpenOptions): Promise<AppInfo>;
 	setValue(targetPid: number, elementIndex: number, value: string): Promise<void>;
 	selectText(targetPid: number, elementIndex: number, options: SelectTextOptions): Promise<void>;
 	performAction(targetPid: number, elementIndex: number, action: string): Promise<void>;

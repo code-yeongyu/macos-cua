@@ -125,6 +125,10 @@ interface CodeModeAppStateOptions {
 	readonly settleMs?: number;
 }
 
+interface CodeModeOpenAppOptions {
+	readonly url?: string;
+}
+
 interface CodeModePointerTarget {
 	readonly x?: number;
 	readonly y?: number;
@@ -193,6 +197,7 @@ interface CodeModeSelectTextOptions {
 
 interface CodeModeApi {
 	screenshot(options?: CodeModeScreenshotOptions): ScreenshotHandle;
+	openApp(appName: string, options?: CodeModeOpenAppOptions): AppInfo;
 	getAppState(app?: CodeModeAppTarget, options?: CodeModeAppStateOptions): CodeModeAppState;
 	listApps(): readonly AppInfo[];
 	click(app: CodeModeAppTarget, target: CodeModeClickTarget): CodeModeActionResult;

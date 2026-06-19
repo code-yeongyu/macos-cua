@@ -9,6 +9,7 @@ const API_SURFACE_SOURCE = readFileSync(new URL("./api-surface.ts", import.meta.
 
 const CURATED_METHOD_NAMES = [
 	"screenshot",
+	"openApp",
 	"getAppState",
 	"listApps",
 	"click",
@@ -62,6 +63,7 @@ describe("#given CodeModeApi DTS #when declaring capture and action APIs #then a
 		// then
 		expect(CODE_MODE_API_DTS).toContain("interface CodeModeCaptureFrame");
 		expect(CODE_MODE_API_DTS).toContain("readonly screenshot: ScreenshotHandle;");
+		expect(CODE_MODE_API_DTS).toContain("openApp(appName: string, options?: CodeModeOpenAppOptions): AppInfo;");
 		expect(CODE_MODE_API_DTS).toContain(
 			"click(app: CodeModeAppTarget, target: CodeModeClickTarget): CodeModeActionResult;",
 		);

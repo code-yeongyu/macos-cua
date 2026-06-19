@@ -29,6 +29,10 @@ export interface AppStateOptions {
 	refresh?: boolean;
 }
 
+export interface AppOpenOptions {
+	readonly url?: string;
+}
+
 export interface KeyOptions {
 	readonly modifiers?: ReadonlyArray<"command" | "option" | "control" | "shift" | "cmd" | "alt" | "ctrl">;
 	readonly holdMilliseconds?: number;

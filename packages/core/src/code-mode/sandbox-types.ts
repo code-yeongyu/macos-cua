@@ -1,5 +1,6 @@
 import type { AppInfo } from "../accessibility/types.js";
 import type {
+	AppOpenOptions,
 	AppStateOptions,
 	DragOptions,
 	KeyOptions,
@@ -16,6 +17,7 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
 
 export type CodeModeMethodName =
 	| "screenshot"
+	| "openApp"
 	| "getAppState"
 	| "listApps"
 	| "click"
@@ -117,6 +119,7 @@ export type ParsedKeyChord = {
 
 export type ParsedHostCall =
 	| { readonly method: "screenshot"; readonly options?: ScreenshotOptions }
+	| { readonly method: "openApp"; readonly appName: string; readonly options?: AppOpenOptions }
 	| { readonly method: "getAppState"; readonly app?: CodeModeAppTarget; readonly options?: AppStateOptions }
 	| { readonly method: "listApps" }
 	| { readonly method: "click"; readonly app: CodeModeAppTarget; readonly target: CodeModeClickTarget }
@@ -152,4 +155,4 @@ export type ParsedHostCall =
 	  }
 	| { readonly method: "getCursorPosition" };
 
-export type HostDispatchResult = ScreenshotHandle | CodeModeAppState | readonly AppInfo[] | Point | undefined;
+export type HostDispatchResult = ScreenshotHandle | CodeModeAppState | AppInfo | readonly AppInfo[] | Point | undefined;

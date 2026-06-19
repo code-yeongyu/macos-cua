@@ -191,7 +191,7 @@ async function registerCodeModeRunTool(pi: ExtensionAPI, computer: MacOSHostComp
 			name: "run",
 			label: "Code Mode: run",
 			description:
-				"Run TypeScript that drives the desktop via mac.*. Call surface(handle) to show screenshots; return a value or console.log text.",
+				"Run TypeScript with the declared mac CodeModeApi only. Use mac.openApp(app, { url }) to launch apps or browser URLs, surface(handle) for screenshots, and return a value or console.log text.",
 			parameters: Type.Object({ code: Type.String() }, { additionalProperties: false }),
 			async execute(_toolCallId, params) {
 				try {

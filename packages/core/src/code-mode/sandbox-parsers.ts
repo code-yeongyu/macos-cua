@@ -1,5 +1,5 @@
 import type { AppInfo } from "../accessibility/types.js";
-import type { AppStateOptions, KeyOptions, ScreenshotOptions } from "../types/index.js";
+import type { AppOpenOptions, AppStateOptions, KeyOptions, ScreenshotOptions } from "../types/index.js";
 import { CODE_MODE_METHOD_NAMES } from "./api-surface.js";
 import { CodeModeError } from "./errors.js";
 import {
@@ -51,6 +51,8 @@ export function parseHostCall(methodInput: unknown, argsInput: unknown): ParsedH
 	switch (method) {
 		case "screenshot":
 			return { method, ...optionalScreenshotCall(parseScreenshotOptions(args[0])) };
+		case "openApp":
+			return openAppCall(method, parseString(args[0], "appName"), parseOpenAppOptions(args[1]));
 		case "getAppState":
 			return { method, ...optionalAppStateCall(parseOptionalAppTarget(args[0]), parseAppStateOptions(args[1])) };
 		case "listApps":
@@ -134,7 +136,10 @@ function parseMethodName(value: unknown): CodeModeMethodName {
 			}
 		}
 	}
-	throw new CodeModeError("COMPILE_ERROR", `Unknown code-mode method: ${String(value)}`);
+	throw new CodeModeError(
+		"COMPILE_ERROR",
+		`Unknown code-mode method: ${String(value)}. Available mac methods: ${CODE_MODE_METHOD_NAMES.join(", ")}`,
+	);
 }
 
 function parseScreenshotOptions(value: unknown): ScreenshotOptions | undefined {
@@ -160,6 +165,20 @@ function parseAppStateOptions(value: unknown): AppStateOptions | undefined {
 	assignOptional(options, "timeoutMs", optionalNumber(record["timeoutMs"], "timeoutMs"));
 	assignOptional(options, "settleMs", optionalNumber(record["settleMs"], "settleMs"));
 	return options;
+}
+
+function parseOpenAppOptions(value: unknown): AppOpenOptions | undefined {
+	const record = optionalRecord(value, "open app options");
+	if (record === undefined) {
+		return undefined;
+	}
+	const options: AppOpenOptions = {};
+	assignOptional(options, "url", optionalString(record["url"], "url"));
+	return options;
+}
+
+function openAppCall(method: "openApp", appName: string, options: AppOpenOptions | undefined): ParsedHostCall {
+	return options === undefined ? { method, appName } : { method, appName, options };
 }
 
 function parseOptionalAppTarget(value: unknown): string | number | undefined {

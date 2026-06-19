@@ -1,6 +1,6 @@
 import type { AppInfo, AppState, AxTreeChangeSummary } from "../accessibility/types.js";
 import type { CaptureFrame } from "../computer/capture-frame.js";
-import type { AppStateOptions, Point, Rect, SelectTextOptions, Size } from "../types/index.js";
+import type { AppOpenOptions, AppStateOptions, Point, Rect, SelectTextOptions, Size } from "../types/index.js";
 import type { ScreenshotHandle } from "./screenshot-store.js";
 
 export { CODE_MODE_API_DTS } from "./api-dts.js";
@@ -87,6 +87,7 @@ export type CodeModeActionResult = {
 
 export interface CodeModeApi {
 	screenshot(options?: CodeModeScreenshotOptions): ScreenshotHandle;
+	openApp(appName: string, options?: AppOpenOptions): AppInfo;
 	getAppState(app?: CodeModeAppTarget, options?: AppStateOptions): CodeModeAppState;
 	listApps(): readonly AppInfo[];
 	click(app: CodeModeAppTarget, target: CodeModeClickTarget): CodeModeActionResult;
@@ -109,6 +110,7 @@ export interface CodeModeApi {
 
 export const CODE_MODE_METHOD_NAMES = [
 	"screenshot",
+	"openApp",
 	"getAppState",
 	"listApps",
 	"click",

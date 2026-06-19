@@ -6,6 +6,7 @@ import type { AppInfo, AppState } from "../accessibility/types.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
 import type { ScreenshotViewport } from "../computer/viewport.js";
 import type {
+	AppOpenOptions,
 	AppStateOptions,
 	ComputerCapabilities,
 	DragOptions,
@@ -131,6 +132,7 @@ export class FakeComputer implements ComputerInterface {
 	readonly rightClickCalls: Point[] = [];
 	readonly dragCalls: DragOptions[] = [];
 	readonly scrollCalls: ScrollOptions[] = [];
+	readonly openAppCalls: { readonly appName: string; readonly options: AppOpenOptions | undefined }[] = [];
 	listAppsCallCount = 0;
 	readonly performActionCalls: {
 		readonly targetPid: number;
@@ -187,6 +189,10 @@ export class FakeComputer implements ComputerInterface {
 	async listApps(): Promise<AppInfo[]> {
 		this.listAppsCallCount += 1;
 		return [{ name: "Finder", bundleId: "com.apple.finder", pid: 321, isRunning: true }];
+	}
+	async openApp(appName: string, options?: AppOpenOptions): Promise<AppInfo> {
+		this.openAppCalls.push({ appName, options });
+		return { name: appName, bundleId: "com.apple.Safari", pid: 777, isRunning: true, isFrontmost: true };
 	}
 	async setValue(_targetPid: number, _elementIndex: number, _value: string): Promise<void> {}
 	async selectText(_targetPid: number, _elementIndex: number, _options: SelectTextOptions): Promise<void> {}

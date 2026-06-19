@@ -31,6 +31,10 @@ export abstract class CloudComputer implements ComputerInterface {
 		targetPid: number,
 	): Promise<import("../computer/viewport.js").ScreenshotViewport | undefined>;
 	abstract listApps(): Promise<import("../accessibility/types.js").AppInfo[]>;
+	abstract openApp(
+		appName: string,
+		options?: import("../types/index.js").AppOpenOptions,
+	): Promise<import("../accessibility/types.js").AppInfo>;
 	abstract setValue(targetPid: number, elementIndex: number, value: string): Promise<void>;
 	abstract selectText(
 		targetPid: number,

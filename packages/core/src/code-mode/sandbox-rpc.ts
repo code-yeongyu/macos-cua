@@ -2,7 +2,7 @@ import type { AppInfo } from "../accessibility/types.js";
 import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
 import { executePointerClick } from "../computer/pointer-action.js";
-import type { AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
+import type { AppOpenOptions, AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
 import type { CodeModeActionMethod, CodeModeActionResult, CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
 import { capturePostActionObservation, toCodeModeAppState } from "./capture-metadata.js";
 import { CodeModeError } from "./errors.js";
@@ -49,6 +49,8 @@ export class SandboxRpcHost {
 		switch (call.method) {
 			case "screenshot":
 				return await this.captureScreenshot(call.options);
+			case "openApp":
+				return await this.openApp(call.appName, call.options);
 			case "getAppState":
 				return await this.getAppState(call.app, call.options);
 			case "listApps":
@@ -85,6 +87,12 @@ export class SandboxRpcHost {
 
 	private async captureScreenshot(options?: ScreenshotOptions): Promise<ScreenshotHandle> {
 		return this.store.put(await this.computer.screenshot(options));
+	}
+
+	private async openApp(appName: string, options?: AppOpenOptions): Promise<AppInfo> {
+		const app = await this.computer.openApp(appName, options);
+		this.rememberApp(app);
+		return app;
 	}
 
 	private async getAppState(app?: CodeModeAppTarget, options?: AppStateOptions): Promise<CodeModeAppState> {
@@ -232,6 +240,11 @@ export class SandboxRpcHost {
 	private async refreshApps(): Promise<readonly AppInfo[]> {
 		this.appCache = await this.computer.listApps();
 		return this.appCache;
+	}
+
+	private rememberApp(app: AppInfo): void {
+		const apps = this.appCache ?? [];
+		this.appCache = [...apps.filter((candidate) => candidate.pid !== app.pid), app];
 	}
 
 	private keyOptions(modifiers: NonNullable<KeyOptions["modifiers"]>, holdMilliseconds?: number): KeyOptions {

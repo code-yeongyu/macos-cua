@@ -8,8 +8,8 @@ import {
 } from "../computer/action-gate.js";
 import type { ComputerInterface, ScreenshotResult } from "../computer/interface.js";
 import type { ScreenshotViewport } from "../computer/viewport.js";
-import type { AppApprovalStore } from "../permission/app-approval.js";
 import type {
+	AppOpenOptions,
 	AppStateOptions,
 	DragOptions,
 	KeyOptions,
@@ -19,7 +19,8 @@ import type {
 	SelectTextOptions,
 } from "../types/index.js";
 import { getRunningMacOSApps, resolveRunningMacOSAppByName } from "./app-list.js";
-import { HostComputer, type HostComputerOptions } from "./host.js";
+import { openMacOSApp } from "./app-open.js";
+import { HostComputer } from "./host.js";
 import { MacOSDesktopSession } from "./macos-desktop-session.js";
 import {
 	extractAccessibilityTree,
@@ -41,23 +42,14 @@ import {
 	resolveDisplayInfo,
 } from "./macos-host-helpers.js";
 import { MacOSInputController } from "./macos-input.js";
+import type { MacOSHostComputerOptions } from "./macos-options.js";
 import { getMacOSLogicalScreenSize } from "./macos-screen.js";
 
 export { captureMacOSScreenshot, getMacOSLogicalScreenSize } from "./macos-screen.js";
+export type { MacOSHostComputerOptions } from "./macos-options.js";
 export { parseFinderDesktopBounds, parseSystemProfilerLogicalScreenSize } from "./macos-screen.js";
 
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
-
-export interface MacOSHostComputerOptions extends HostComputerOptions {
-	defaultTargetPid?: number;
-	overlay?: PointerOverlay;
-	appApproval?: AppApprovalStore;
-	urlBlocklist?: readonly string[];
-	supervisor?: ComputerUseActionGateOptions["supervisor"];
-	auditSink?: ComputerUseActionGateOptions["auditSink"];
-	now?: ComputerUseActionGateOptions["now"];
-	nextActionId?: ComputerUseActionGateOptions["nextActionId"];
-}
 
 export class MacOSHostComputer extends HostComputer {
 	readonly capabilities: ComputerInterface["capabilities"] = {
@@ -68,7 +60,7 @@ export class MacOSHostComputer extends HostComputer {
 	};
 
 	private readonly actionGate: ComputerUseActionGate;
-	private readonly appApproval: AppApprovalStore | undefined;
+	private readonly appApproval: MacOSHostComputerOptions["appApproval"];
 	private readonly input: MacOSInputController;
 	private readonly overlay: PointerOverlay;
 	private readonly session: MacOSDesktopSession;
@@ -205,6 +197,11 @@ export class MacOSHostComputer extends HostComputer {
 
 	async listApps(): Promise<AppInfo[]> {
 		return await listMacOSAppInfo();
+	}
+
+	async openApp(appName: string, options?: AppOpenOptions): Promise<AppInfo> {
+		this.session.refresh();
+		return await openMacOSApp(appName, options, this.urlBlocklist);
 	}
 
 	async setValue(targetPid: number, elementIndex: number, value: string): Promise<void> {
