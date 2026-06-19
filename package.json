@@ -23,15 +23,5 @@
 	"engines": {
 		"node": ">=24.0.0 <25.0.0"
 	},
-	"packageManager": "pnpm@10.30.2",
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"@biomejs/biome",
-			"esbuild",
-			"get-windows",
-			"isolated-vm",
-			"koffi",
-			"node-mac-permissions"
-		]
-	}
+	"packageManager": "pnpm@10.30.2"
 }

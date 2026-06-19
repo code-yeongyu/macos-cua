@@ -1,2 +1,9 @@
 packages:
   - packages/*
+onlyBuiltDependencies:
+  - "@biomejs/biome"
+  - esbuild
+  - get-windows
+  - isolated-vm
+  - koffi
+  - node-mac-permissions
