@@ -96,11 +96,13 @@ const VIRTUAL_KEY_CODES = new Map<string, number>([
 	["help", 114],
 	["home", 115],
 	["pageup", 116],
+	["pgup", 116],
 	["forwarddelete", 117],
 	["f4", 118],
 	["end", 119],
 	["f2", 120],
 	["pagedown", 121],
+	["pgdn", 121],
 	["f1", 122],
 	["left", 123],
 	["arrowleft", 123],
@@ -147,5 +149,5 @@ export function modifierFlags(modifiers: NonNullable<KeyOptions["modifiers"]>): 
 
 function normalizeKey(key: string): string {
 	const trimmed = key.trim();
-	return trimmed.length === 1 ? trimmed.toLowerCase() : trimmed.toLowerCase().replaceAll(" ", "");
+	return trimmed.length === 1 ? trimmed.toLowerCase() : trimmed.toLowerCase().replaceAll(" ", "").replaceAll("_", "");
 }

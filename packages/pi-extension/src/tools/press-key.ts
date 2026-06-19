@@ -44,7 +44,8 @@ export function createPressKeysTool(computer: ComputerInterface): ToolDefinition
 	return defineTool({
 		name: "press_keys",
 		label: "Computer Use: press keys",
-		description: "Press keys or key-combinations in order, optionally holding each key and waiting between keys.",
+		description:
+			"Press keys or key-combinations in order, optionally holding each key and waiting between keys. Supported navigation keys include page_down/page_up (also pagedown/pageup, pgdn/pgup), space, shift+space, home, end, arrows, return, tab, escape, delete, and cmd/option/control/shift chords.",
 		parameters: PressKeysParams,
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);

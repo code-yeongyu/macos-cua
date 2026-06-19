@@ -42,7 +42,6 @@ export class MacOSAppStateController {
 	private readonly lastViewportByPid = new Map<number, ScreenshotViewport>();
 	private readonly overlay: PointerOverlay;
 	private readonly resolveTargetWindow: (pid: number) => Promise<AppStateTargetWindow | undefined>;
-	private readonly highlightedApps = new Set<number>();
 	private readonly urlBlocklist: readonly string[];
 
 	constructor(options: MacOSAppStateControllerOptions) {
@@ -109,10 +108,7 @@ export class MacOSAppStateController {
 		this.lastViewportByPid.set(app.pid, viewport);
 		const windowBounds = viewport.windowBounds;
 		const elements = normalizeAxTree(remapElementFramesToScreenshot(tree.elements, viewport));
-		if (!this.highlightedApps.has(app.pid)) {
-			this.highlightedApps.add(app.pid);
-			this.overlay.highlight(viewport.windowBounds);
-		}
+		this.overlay.highlight(viewport.windowBounds);
 		const previousTree = this.lastAxTreeByPid.get(app.pid);
 		const axChangeSummary = previousTree === undefined ? undefined : diffAxTreesByKey(previousTree, elements);
 		this.lastAxTreeByPid.set(app.pid, elements);

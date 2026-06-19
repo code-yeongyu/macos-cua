@@ -23,7 +23,6 @@ export class MacOSDesktopSession {
 	private readonly signatureByPid = new Map<number, string>();
 	private readonly windowByPid = new Map<number, MacOSAppStateTargetWindow>();
 	private readonly captureFrameByPid = new Map<number, CaptureFrame>();
-	private readonly highlightedPids = new Set<number>();
 	private queue: Promise<void> = Promise.resolve();
 	private captureSequence = 0;
 
@@ -69,7 +68,6 @@ export class MacOSDesktopSession {
 			this.signatureByPid.clear();
 			this.windowByPid.clear();
 			this.captureFrameByPid.clear();
-			this.highlightedPids.clear();
 			return;
 		}
 		this.invalidatePid(targetPid);
@@ -151,14 +149,10 @@ export class MacOSDesktopSession {
 			this.previousAxByPid.delete(app.pid);
 			this.viewportByPid.delete(app.pid);
 			this.captureFrameByPid.delete(app.pid);
-			this.highlightedPids.delete(app.pid);
 			this.signatureByPid.set(app.pid, signature);
 		}
 		this.viewportByPid.set(app.pid, viewport);
-		if (!this.highlightedPids.has(app.pid)) {
-			this.highlightedPids.add(app.pid);
-			this.backend.highlightWindow(viewport.windowBounds);
-		}
+		this.backend.highlightWindow(viewport.windowBounds);
 		const elements = normalizeAxTree(remapElementFramesToScreenshot(tree.elements, viewport));
 		const previousTree = this.previousAxByPid.get(app.pid);
 		const axChangeSummary = previousTree === undefined ? undefined : diffAxTreesByKey(previousTree, elements);
@@ -228,7 +222,6 @@ export class MacOSDesktopSession {
 		this.signatureByPid.delete(pid);
 		this.windowByPid.delete(pid);
 		this.captureFrameByPid.delete(pid);
-		this.highlightedPids.delete(pid);
 	}
 }
 

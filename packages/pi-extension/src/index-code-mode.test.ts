@@ -7,7 +7,6 @@ const macOSHostComputerMock = vi.hoisted(() => {
 	};
 	return { constructor: vi.fn(() => instance), instance };
 });
-const snapshotFlagPresentMock = vi.hoisted(() => vi.fn());
 const sandboxRunMock = vi.hoisted(() => vi.fn());
 const fsMock = vi.hoisted(() => ({
 	existsSync: vi.fn(() => false),
@@ -21,7 +20,6 @@ vi.mock("node:fs", () => ({
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
 	createDebugLog: vi.fn(() => vi.fn()),
-	isNodeSnapshotFlagPresent: snapshotFlagPresentMock,
 	ScreenshotStore: vi.fn(),
 	CodeModeSandbox: vi.fn(() => ({ run: sandboxRunMock })),
 	assembleRunResult: (raw: {
@@ -102,7 +100,6 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	fsMock.existsSync.mockReturnValue(false);
 	fsMock.readFileSync.mockReturnValue("{}");
-	snapshotFlagPresentMock.mockReturnValue(true);
 	sandboxRunMock.mockResolvedValue({ logs: ["ok"], result: { done: true }, surfaced: ["shot_1"] });
 });
 
@@ -166,24 +163,15 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 		expect(await runBeforeAgentStart(pi)).toBeUndefined();
 	});
 
-	it("returns launch instructions when the node snapshot flag is absent", async () => {
+	it("still registers a live run tool when node snapshot flags are managed by the host app", async () => {
 		process.env["MACOS_CUA_CODE_MODE"] = "1";
-		snapshotFlagPresentMock.mockReturnValue(false);
 		const pi = createMockPi();
 		macosCuaExtension(pi);
 
 		await runSessionStart(pi);
-		const result = await pi.registeredTools[0]?.execute({ code: "return 1" });
+		await pi.registeredTools[0]?.execute({ code: "return 1" });
 
-		expect(result).toEqual({
-			content: [
-				{
-					type: "text",
-					text: "CODE_MODE_UNAVAILABLE: launch Pi with --no-node-snapshot to use MACOS_CUA_CODE_MODE=1",
-				},
-			],
-			details: undefined,
-		});
+		expect(sandboxRunMock).toHaveBeenCalledWith("return 1");
 	});
 
 	it("maps run results to ordered images and text", async () => {

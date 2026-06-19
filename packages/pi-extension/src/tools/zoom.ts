@@ -16,6 +16,7 @@ import { type Static, Type } from "typebox";
 import { computeSomMarks } from "../computer-use/som-layout.js";
 import { renderSomOverlay } from "../computer-use/som-render.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
+import type { AppStateCache } from "./app-state-cache.js";
 
 const logZoom = createDebugLog("zoom");
 
@@ -75,7 +76,7 @@ export function remapFrameToCrop(
 	);
 }
 
-export function createZoomTool(computer: ComputerInterface): ToolDefinition {
+export function createZoomTool(computer: ComputerInterface, cache?: AppStateCache): ToolDefinition {
 	return defineTool({
 		name: "zoom",
 		label: "Computer Use: zoom",
@@ -84,7 +85,7 @@ export function createZoomTool(computer: ComputerInterface): ToolDefinition {
 		parameters: ZoomParams,
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);
-			const state = await computer.getAppState(targetPid);
+			const state = cache?.get(targetPid) ?? (await computer.getAppState(targetPid));
 			const sourceViewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
 			if (sourceViewport === undefined) {
 				throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");

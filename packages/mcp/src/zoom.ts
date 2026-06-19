@@ -11,6 +11,7 @@ import {
 } from "@macos-cua/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
+import type { AppStateCache } from "./app-state-cache.js";
 import type { ToolResult } from "./tool-result.js";
 
 const zoomSchema = z.object({
@@ -19,7 +20,7 @@ const zoomSchema = z.object({
 	region: z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).optional(),
 });
 
-export function registerZoomTool(server: McpServer, computer: ComputerInterface): void {
+export function registerZoomTool(server: McpServer, computer: ComputerInterface, cache?: AppStateCache): void {
 	server.registerTool(
 		"zoom",
 		{
@@ -28,7 +29,7 @@ export function registerZoomTool(server: McpServer, computer: ComputerInterface)
 		},
 		async ({ app, element_index, region }): Promise<ToolResult> => {
 			const targetPid = await resolveAppPid(computer, app);
-			const state = await computer.getAppState(targetPid);
+			const state = cache?.get(targetPid) ?? (await computer.getAppState(targetPid));
 			const viewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
 			if (viewport === undefined) {
 				throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");

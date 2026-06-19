@@ -5,6 +5,7 @@ import { drawCursorOnWindowScreenshot } from "../computer-use/screenshot-result.
 import { computeSomMarks } from "../computer-use/som-layout.js";
 import { renderSomOverlay } from "../computer-use/som-render.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
+import type { AppStateCache } from "./app-state-cache.js";
 
 const logOverlay = createDebugLog("overlay");
 
@@ -17,7 +18,7 @@ export const GetAppStateParams = Type.Object(
 
 export type GetAppStateInput = Static<typeof GetAppStateParams>;
 
-export function createGetAppStateTool(computer: ComputerInterface): ToolDefinition {
+export function createGetAppStateTool(computer: ComputerInterface, cache?: AppStateCache): ToolDefinition {
 	return defineTool({
 		name: "get_app_state",
 		label: "Computer Use: get app state",
@@ -26,6 +27,7 @@ export function createGetAppStateTool(computer: ComputerInterface): ToolDefiniti
 		parameters: GetAppStateParams,
 		async execute(_toolCallId, params) {
 			const state = await getAppStateForApp(computer, params.app);
+			cache?.store(state);
 			const layout = computeSomMarks(state);
 			const baseImage = Buffer.from(state.screenshotBase64, "base64");
 			const somImage =

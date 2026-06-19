@@ -5,6 +5,7 @@ import {
 	clickPoint,
 	getAppStateForApp,
 	parseElementIndex,
+	pressKeySequence,
 	resolveAppPid,
 	resolveScreenPoint,
 	scrollElement,
@@ -12,10 +13,14 @@ import {
 } from "@macos-cua/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
+import { createAppStateCache } from "./app-state-cache.js";
 import { appStateImageContent } from "./app-state-image.js";
 import { registerPressKeysTool } from "./press-keys.js";
 import { type ToolContent, type ToolResult, actionComplete, clickComplete, textResult } from "./tool-result.js";
 import { registerZoomTool } from "./zoom.js";
+
+const SCROLL_HINT =
+	"Call get_app_state to fetch the updated UI state. For browser pages, scroll without element_index uses page_down/page_up keys. If axChangeSummary is 0/0/0, retry with a scrollable element_index from get_app_state, or use press_keys with page_down, page_up, space, or shift+space.";
 
 const appSchema = z.string().min(1);
 const emptySchema = z.object({});
@@ -54,12 +59,13 @@ const scrollSchema = z.object({
 const typeTextSchema = z.object({ app: appSchema, text: z.string() });
 
 export function registerDiscreteTools(server: McpServer, computer: ComputerInterface): void {
+	const appStateCache = createAppStateCache();
 	registerListAppsTool(server, computer);
-	registerGetAppStateTool(server, computer);
+	registerGetAppStateTool(server, computer, appStateCache);
 	registerClickTool(server, computer);
 	registerAccessibilityTools(server, computer);
 	registerDragScrollAndTypeTools(server, computer);
-	registerZoomTool(server, computer);
+	registerZoomTool(server, computer, appStateCache);
 	registerPressKeysTool(server, computer, actionComplete);
 }
 
@@ -75,7 +81,11 @@ function registerListAppsTool(server: McpServer, computer: ComputerInterface): v
 	);
 }
 
-function registerGetAppStateTool(server: McpServer, computer: ComputerInterface): void {
+function registerGetAppStateTool(
+	server: McpServer,
+	computer: ComputerInterface,
+	appStateCache: ReturnType<typeof createAppStateCache>,
+): void {
 	server.registerTool(
 		"get_app_state",
 		{
@@ -85,6 +95,7 @@ function registerGetAppStateTool(server: McpServer, computer: ComputerInterface)
 		},
 		async ({ app }): Promise<ToolResult> => {
 			const state = await getAppStateForApp(computer, app);
+			appStateCache.store(state);
 			const image = await appStateImageContent(state);
 			const content: ToolContent[] = [
 				{ type: "image", data: image.data, mimeType: image.mimeType },
@@ -180,18 +191,22 @@ function registerDragScrollAndTypeTools(server: McpServer, computer: ComputerInt
 	);
 	server.registerTool(
 		"scroll",
-		{ description: "Scroll an element in a direction by a number of pages.", inputSchema: scrollSchema },
+		{
+			description:
+				"Scroll a page or accessibility element. Without element_index, vertical browser scrolling uses page_down/page_up keys; with element_index, it invokes AX page-scroll on that element.",
+			inputSchema: scrollSchema,
+		},
 		async ({ app, direction, element_index, pages }): Promise<ToolResult> => {
-			if (element_index === undefined)
-				throw new Error("scroll requires element_index of a scrollable accessibility element");
-			await scrollElement(
-				computer,
-				await resolveAppPid(computer, app),
-				parseElementIndex(element_index),
-				direction,
-				pages ?? 1,
-			);
-			return actionComplete();
+			const pageCount = Math.max(1, Math.trunc(pages ?? 1));
+			const targetPid = await resolveAppPid(computer, app);
+			if (element_index !== undefined) {
+				await scrollElement(computer, targetPid, parseElementIndex(element_index), direction, pageCount);
+				return actionCompleteWithHint(SCROLL_HINT);
+			}
+			await withTargetedApp(computer, targetPid, async () => {
+				await scrollWithoutElement(computer, direction, pageCount);
+			});
+			return actionCompleteWithHint(SCROLL_HINT);
 		},
 	);
 	server.registerTool(
@@ -204,6 +219,33 @@ function registerDragScrollAndTypeTools(server: McpServer, computer: ComputerInt
 			return actionComplete();
 		},
 	);
+}
+
+async function scrollWithoutElement(
+	computer: ComputerInterface,
+	direction: z.infer<typeof scrollSchema>["direction"],
+	pages: number,
+): Promise<void> {
+	switch (direction) {
+		case "down":
+			await pressKeySequence(computer, repeatKey("page_down", pages));
+			return;
+		case "up":
+			await pressKeySequence(computer, repeatKey("page_up", pages));
+			return;
+		case "left":
+		case "right":
+			await computer.scroll({ direction, amount: pages * 10 });
+			return;
+	}
+}
+
+function repeatKey(key: string, count: number): readonly { readonly key: string }[] {
+	return Array.from({ length: count }, () => ({ key }));
+}
+
+function actionCompleteWithHint(recoveryHint: string): ToolResult {
+	return textResult(JSON.stringify({ ok: true, code: "ACTION_COMPLETED", recoveryHint, auditRef: null }));
 }
 
 function parseCoordinate(x: number | undefined, y: number | undefined): { x: number; y: number } {

@@ -1,6 +1,7 @@
 import {
 	type ComputerInterface,
 	parseElementIndex,
+	pressKeySequence,
 	resolveAppPid,
 	scrollElement,
 	withTargetedApp,
@@ -8,9 +9,11 @@ import {
 import { type Static, Type } from "typebox";
 
 import { type ToolDefinition, defineTool } from "../pi/index.js";
-import { actionCompleteResult } from "./result.js";
+import { actionCompleteWithHint } from "./result.js";
 
 const LINES_PER_PAGE = 10;
+const SCROLL_HINT =
+	"Call get_app_state to fetch the updated UI state. For browser pages, scroll without element_index uses page_down/page_up keys. If axChangeSummary is 0/0/0, retry with a scrollable element_index from get_app_state, or use press_keys with page_down, page_up, space, or shift+space.";
 
 export const ScrollParams = Type.Object(
 	{
@@ -42,13 +45,37 @@ export function createScrollTool(computer: ComputerInterface): ToolDefinition {
 					params.direction,
 					params.pages ?? 1,
 				);
+				return actionCompleteWithHint(SCROLL_HINT);
 			}
 			await withTargetedApp(computer, targetPid, async () => {
-				await computer.scroll({ direction: params.direction, amount: pageCount(params.pages) * LINES_PER_PAGE });
+				await scrollWithoutElement(computer, params.direction, pageCount(params.pages));
 			});
-			return actionCompleteResult();
+			return actionCompleteWithHint(SCROLL_HINT);
 		},
 	});
+}
+
+async function scrollWithoutElement(
+	computer: ComputerInterface,
+	direction: ScrollInput["direction"],
+	pages: number,
+): Promise<void> {
+	switch (direction) {
+		case "down":
+			await pressKeySequence(computer, repeatKey("page_down", pages));
+			return;
+		case "up":
+			await pressKeySequence(computer, repeatKey("page_up", pages));
+			return;
+		case "left":
+		case "right":
+			await computer.scroll({ direction, amount: pages * LINES_PER_PAGE });
+			return;
+	}
+}
+
+function repeatKey(key: string, count: number): readonly { readonly key: string }[] {
+	return Array.from({ length: count }, () => ({ key }));
 }
 
 function pageCount(pages: number | undefined): number {

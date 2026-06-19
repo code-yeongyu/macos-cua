@@ -56,6 +56,10 @@ export function actionCompleteResult(): AgentToolResult<undefined> {
 	return textResult(formatActionComplete({}));
 }
 
+export function actionCompleteWithHint(recoveryHint: string): AgentToolResult<undefined> {
+	return textResult(formatActionComplete({ recoveryHint }));
+}
+
 export function imageResult<TDetails = undefined>(
 	pngBase64: string,
 	details?: TDetails,

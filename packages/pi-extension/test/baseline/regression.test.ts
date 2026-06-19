@@ -143,7 +143,7 @@ describe("#given baseline regression suite #when exercising computer interface #
 	});
 
 	describe("scroll", () => {
-		it("performs AXScrollDownByPage on the requested element_index pages times", async () => {
+		it("performs AXScrollDownByPage on the requested element_index pages times without wheel fallback", async () => {
 			const tool = createScrollTool(computer);
 			await tool.execute(
 				"tc",
@@ -153,7 +153,7 @@ describe("#given baseline regression suite #when exercising computer interface #
 				context,
 			);
 
-			expect(computer.scroll).toHaveBeenCalledWith({ direction: "down", amount: 50 });
+			expect(computer.scroll).not.toHaveBeenCalled();
 			expect(computer.performAction).toHaveBeenCalledTimes(5);
 			expect(computer.performAction).toHaveBeenNthCalledWith(1, 1234, 3, "AXScrollDownByPage");
 		});

@@ -48,8 +48,8 @@ describe("#given scroll tool factory #when built #then tool name is Codex-compat
 	});
 });
 
-describe("#given scroll tool #when executed #then it performs AX and targeted wheel scroll", () => {
-	it("performs AXScrollDownByPage on the element_index pages and sends targeted wheel fallback", async () => {
+describe("#given scroll tool #when executed #then it chooses one reliable scroll path", () => {
+	it("performs AXScrollDownByPage on the element_index pages without sending wheel fallback", async () => {
 		const computer = createComputer();
 		const performAction = vi.spyOn(computer, "performAction").mockResolvedValue(undefined);
 		const setTarget = vi.spyOn(computer, "setTarget");
@@ -68,16 +68,16 @@ describe("#given scroll tool #when executed #then it performs AX and targeted wh
 		expect(performAction).toHaveBeenNthCalledWith(1, 1234, 7, "AXScrollDownByPage");
 		expect(performAction).toHaveBeenNthCalledWith(2, 1234, 7, "AXScrollDownByPage");
 		expect(performAction).toHaveBeenNthCalledWith(3, 1234, 7, "AXScrollDownByPage");
-		expect(setTarget).toHaveBeenNthCalledWith(1, 1234);
-		expect(scroll).toHaveBeenCalledWith({ direction: "down", amount: 30 });
-		expect(setTarget).toHaveBeenLastCalledWith(undefined);
+		expect(setTarget).not.toHaveBeenCalled();
+		expect(scroll).not.toHaveBeenCalled();
 	});
 
-	it("falls back to targeted wheel scrolling when element_index is missing", async () => {
+	it("uses page navigation keys for vertical scrolling when element_index is missing", async () => {
 		const computer = createComputer();
 		const setTarget = vi.spyOn(computer, "setTarget");
 		const performAction = vi.spyOn(computer, "performAction").mockResolvedValue(undefined);
 		const scroll = vi.spyOn(computer, "scroll").mockResolvedValue(undefined);
+		const key = vi.spyOn(computer, "key").mockResolvedValue(undefined);
 		const tool = createScrollTool(computer);
 
 		await tool.execute(
@@ -90,7 +90,28 @@ describe("#given scroll tool #when executed #then it performs AX and targeted wh
 
 		expect(performAction).not.toHaveBeenCalled();
 		expect(setTarget).toHaveBeenNthCalledWith(1, 1234);
-		expect(scroll).toHaveBeenCalledWith({ direction: "down", amount: 30 });
+		expect(key).toHaveBeenNthCalledWith(1, "page_down", undefined);
+		expect(key).toHaveBeenNthCalledWith(2, "page_down", undefined);
+		expect(key).toHaveBeenNthCalledWith(3, "page_down", undefined);
+		expect(scroll).not.toHaveBeenCalled();
 		expect(setTarget).toHaveBeenLastCalledWith(undefined);
+	});
+
+	it("keeps wheel scrolling for horizontal directions", async () => {
+		const computer = createComputer();
+		const key = vi.spyOn(computer, "key").mockResolvedValue(undefined);
+		const scroll = vi.spyOn(computer, "scroll").mockResolvedValue(undefined);
+		const tool = createScrollTool(computer);
+
+		await tool.execute(
+			"tool-call",
+			{ app: "Finder", direction: "right", pages: 2 },
+			undefined,
+			undefined,
+			{} as ExtensionContext,
+		);
+
+		expect(key).not.toHaveBeenCalled();
+		expect(scroll).toHaveBeenCalledWith({ direction: "right", amount: 20 });
 	});
 });

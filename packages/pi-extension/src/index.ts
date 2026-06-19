@@ -183,12 +183,6 @@ function syncComputerToolActivation(pi: ExtensionAPI, model: ComputerUseModel | 
 }
 
 async function registerCodeModeRunTool(pi: ExtensionAPI, computer: MacOSHostComputer): Promise<void> {
-	const { isNodeSnapshotFlagPresent } = await import("@macos-cua/core");
-	if (!isNodeSnapshotFlagPresent()) {
-		process.stderr.write("MACOS_CUA_CODE_MODE requires launching Pi with --no-node-snapshot.\n");
-		registerUnavailableRunTool(pi);
-		return;
-	}
 	const { CodeModeSandbox, ScreenshotStore, assembleRunResult } = await import("@macos-cua/core");
 	const store = new ScreenshotStore();
 	const sandbox = new CodeModeSandbox(computer, store);
@@ -205,28 +199,6 @@ async function registerCodeModeRunTool(pi: ExtensionAPI, computer: MacOSHostComp
 				} catch (error) {
 					return toAgentToolErrorResult(error);
 				}
-			},
-		}),
-	);
-}
-
-function registerUnavailableRunTool(pi: ExtensionAPI): void {
-	pi.registerTool(
-		defineTool({
-			name: "run",
-			label: "Code Mode: run",
-			description: "Reports code-mode launch instructions when Pi was not started with --no-node-snapshot.",
-			parameters: Type.Object({ code: Type.String() }, { additionalProperties: false }),
-			async execute() {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "CODE_MODE_UNAVAILABLE: launch Pi with --no-node-snapshot to use MACOS_CUA_CODE_MODE=1",
-						},
-					],
-					details: undefined,
-				};
 			},
 		}),
 	);

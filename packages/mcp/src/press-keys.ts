@@ -33,7 +33,8 @@ export function registerPressKeysTool(
 	server.registerTool(
 		"press_keys",
 		{
-			description: "Press keys or key-combinations in order, optionally holding each key and waiting between keys.",
+			description:
+				"Press keys or key-combinations in order, optionally holding each key and waiting between keys. Supported navigation keys include page_down/page_up (also pagedown/pageup, pgdn/pgup), space, shift+space, home, end, arrows, return, tab, escape, delete, and cmd/option/control/shift chords.",
 			inputSchema: pressKeysSchema,
 		},
 		async ({ app, keys, hold_seconds, interval_seconds }): Promise<ToolResult> => {

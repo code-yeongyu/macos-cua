@@ -3,6 +3,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionContext } from "../pi/index.js";
+import { createAppStateCache } from "./app-state-cache.js";
 import { createZoomTool, cropScreenRect, remapFrameToCrop } from "./zoom.js";
 
 const SOURCE_VIEWPORT = {
@@ -77,6 +78,44 @@ describe("#given zoom tool with fake computer #when zooming a region #then it ca
 			},
 			marks: [{ id: 9, box: { x: 200, y: 100, width: 200, height: 100 } }],
 		});
+	});
+
+	it("uses the cached get_app_state instead of capturing a fresh app state", async () => {
+		const computer = createComputer();
+		const cachedState = await computer.getAppState(1234);
+		const cache = createAppStateCache();
+		cache.store({
+			...cachedState,
+			captureFrame: {
+				captureId: "cached-capture",
+				capturedAt: "2026-06-19T00:00:00.000Z",
+				displayEpoch: "cached-display",
+				target: { pid: 1234, bundleId: "com.apple.finder", appName: "Finder" },
+				windowBounds: { x: 10, y: 20, width: 100, height: 100 },
+				screenshot: { width: 100, height: 100 },
+				model: { width: 100, height: 100 },
+				display: {
+					logical: { x: 0, y: 0, width: 500, height: 500 },
+					native: { width: 1000, height: 1000 },
+					scaleFactor: 2,
+				},
+				screenshotWidth: 100,
+				screenshotHeight: 100,
+			},
+		});
+		vi.mocked(computer.getAppState).mockClear();
+		const tool = createZoomTool(computer, cache);
+
+		await tool.execute(
+			"call",
+			{ app: "Finder", region: { x: 10, y: 10, width: 20, height: 20 } },
+			undefined,
+			undefined,
+			TEST_CONTEXT,
+		);
+
+		expect(computer.getAppState).not.toHaveBeenCalled();
+		expect(computer.screenshot).toHaveBeenCalledWith({ region: { x: 20, y: 30, width: 20, height: 20 } });
 	});
 
 	it("skips source AX elements with zero-size frames", async () => {

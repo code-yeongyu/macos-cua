@@ -72,4 +72,32 @@ describe("#given MacOSInputController keyboard input", () => {
 		controller.close();
 		vi.useRealTimers();
 	});
+
+	it("#when pressing page_down with underscore alias #then posts the Page Down key code", async () => {
+		// given
+		const { MacOSInputController } = await import("./macos-input.js");
+		const controller = new MacOSInputController();
+
+		// when
+		await controller.pressKey("page_down");
+
+		// then
+		expect(coreGraphicsMock.postKeyboardEvent).toHaveBeenNthCalledWith(1, {
+			keyCode: 121,
+			keyDown: true,
+			flags: 0,
+			text: undefined,
+			targetPid: undefined,
+			targetWindow: undefined,
+		});
+		expect(coreGraphicsMock.postKeyboardEvent).toHaveBeenNthCalledWith(2, {
+			keyCode: 121,
+			keyDown: false,
+			flags: 0,
+			text: undefined,
+			targetPid: undefined,
+			targetWindow: undefined,
+		});
+		controller.close();
+	});
 });

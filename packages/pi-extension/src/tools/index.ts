@@ -1,6 +1,7 @@
 import type { ComputerInterface } from "@macos-cua/core";
 import type { ExtensionAPI, ToolDefinition } from "../pi/index.js";
 
+import { createAppStateCache } from "./app-state-cache.js";
 import { createClickTool } from "./click.js";
 import { createDragTool } from "./drag.js";
 import { createGetAppStateTool } from "./get-app-state.js";
@@ -19,16 +20,17 @@ export interface ToolRegistrationOptions {
 
 export function buildAllTools(options: ToolRegistrationOptions): ReadonlyArray<ToolDefinition> {
 	const { computer } = options;
+	const appStateCache = createAppStateCache();
 	return [
 		createListAppsTool(computer),
-		createGetAppStateTool(computer),
+		createGetAppStateTool(computer, appStateCache),
 		createClickTool(computer),
 		createPerformSecondaryActionTool(computer),
 		createSetValueTool(computer),
 		createSelectTextTool(computer),
 		createDragTool(computer),
 		createScrollTool(computer),
-		createZoomTool(computer),
+		createZoomTool(computer, appStateCache),
 		createTypeTextTool(computer),
 		createPressKeysTool(computer),
 	];

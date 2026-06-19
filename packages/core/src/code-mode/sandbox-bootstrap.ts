@@ -9,12 +9,24 @@ type ExternalCopyConstructor = new (
 };
 
 export async function loadIsolatedVm(): Promise<IsolatedVmModule> {
-	const loaded = await import("isolated-vm");
+	let loaded: unknown;
+	try {
+		loaded = await import("isolated-vm");
+	} catch (error) {
+		throw new CodeModeError(
+			"CODE_MODE_UNAVAILABLE",
+			`isolated-vm failed to load under Node ${process.version} ABI ${process.versions.modules}: ${errorMessage(error)}. Use the bundled Node 24 runtime or install an isolated-vm native build matching this Node ABI.`,
+		);
+	}
 	const module = unwrapIsolatedVmModule(loaded);
 	if (module === undefined) {
 		throw new CodeModeError("CODE_MODE_UNAVAILABLE", "isolated-vm did not expose Isolate and Reference");
 	}
 	return module;
+}
+
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }
 
 export async function installSandboxGlobals(
