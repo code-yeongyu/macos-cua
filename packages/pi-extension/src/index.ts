@@ -15,6 +15,7 @@ import {
 	executeNativeComputerAction,
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-computer-use.js";
+import { CODE_MODE_RUN_TOOL_DESCRIPTION } from "./code-mode-description.js";
 import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
 import { toAgentToolErrorResult, toAgentToolResult } from "./computer-use/run-result.js";
 import { type OpenAIComputerBatchResultDetails, executeOpenAIComputerActionBatch } from "./openai-computer-batch.js";
@@ -190,8 +191,7 @@ async function registerCodeModeRunTool(pi: ExtensionAPI, computer: MacOSHostComp
 		defineTool({
 			name: "run",
 			label: "Code Mode: run",
-			description:
-				"Run TypeScript with the declared mac CodeModeApi only. Use mac.openApp(app, { url }) to launch apps or browser URLs, surface(handle) for screenshots, and return a value or console.log text.",
+			description: CODE_MODE_RUN_TOOL_DESCRIPTION,
 			parameters: Type.Object({ code: Type.String() }, { additionalProperties: false }),
 			async execute(_toolCallId, params) {
 				try {

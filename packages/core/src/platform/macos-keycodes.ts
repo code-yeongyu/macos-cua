@@ -149,5 +149,7 @@ export function modifierFlags(modifiers: NonNullable<KeyOptions["modifiers"]>): 
 
 function normalizeKey(key: string): string {
 	const trimmed = key.trim();
-	return trimmed.length === 1 ? trimmed.toLowerCase() : trimmed.toLowerCase().replaceAll(" ", "").replaceAll("_", "");
+	return trimmed.length === 1
+		? trimmed.toLowerCase()
+		: trimmed.toLowerCase().replaceAll(" ", "").replaceAll("_", "").replaceAll("-", "");
 }

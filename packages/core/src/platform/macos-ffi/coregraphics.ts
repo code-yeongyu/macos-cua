@@ -110,6 +110,11 @@ export function postUnicodeText(
 export function postScrollEvent(options: ScrollEventOptions): void {
 	const event = createScrollEvent(options.deltaX, options.deltaY);
 	try {
+		const location = scrollEventLocation(options.targetWindow);
+		if (location !== undefined) {
+			setLocation(event, location);
+		}
+		stampEvent(event);
 		postScroll(event, options.targetPid, options.targetWindow);
 	} finally {
 		cfRelease(event);
@@ -197,6 +202,16 @@ function postScroll(
 	}
 	postSkyLightEventToPid(targetPid, event);
 	postCoreGraphicsEventToWindowOwner(targetWindow, event);
+}
+
+function scrollEventLocation(targetWindow: SkyLightTargetWindow | undefined): CGPoint | undefined {
+	if (targetWindow === undefined) {
+		return undefined;
+	}
+	return {
+		x: targetWindow.bounds.x + targetWindow.bounds.width / 2,
+		y: targetWindow.bounds.y + targetWindow.bounds.height / 2,
+	};
 }
 
 function stampTargetedMouseEvent(

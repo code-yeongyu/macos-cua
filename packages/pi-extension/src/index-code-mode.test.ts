@@ -38,6 +38,7 @@ import type { ExtensionAPI } from "./pi/index.js";
 type EventHandler = (...parameters: ReadonlyArray<unknown>) => unknown;
 type RegisteredTool = {
 	readonly name: string;
+	readonly description: string;
 	readonly execute: (params: unknown) => Promise<unknown>;
 };
 
@@ -56,6 +57,7 @@ function createMockPi(): MockPi {
 		registerTool(tool) {
 			registeredTools.push({
 				name: tool.name,
+				description: tool.description,
 				execute: async (params: unknown) =>
 					await Reflect.apply(tool.execute, tool, ["tool-call", params, undefined, undefined, {}]),
 			});
@@ -172,6 +174,19 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 		await pi.registeredTools[0]?.execute({ code: "return 1" });
 
 		expect(sandboxRunMock).toHaveBeenCalledWith("return 1");
+	});
+
+	it("describes app launching, capture freshness, scrolling fallback, and key aliases", async () => {
+		process.env["MACOS_CUA_CODE_MODE"] = "1";
+		const pi = createMockPi();
+		macosCuaExtension(pi);
+
+		await runSessionStart(pi);
+
+		expect(pi.registeredTools[0]?.description).toContain("mac.openApp");
+		expect(pi.registeredTools[0]?.description).toContain("state.captureFrame");
+		expect(pi.registeredTools[0]?.description).toContain("page_down");
+		expect(pi.registeredTools[0]?.description).toContain("shift+space");
 	});
 
 	it("maps run results to ordered images and text", async () => {

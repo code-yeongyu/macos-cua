@@ -228,6 +228,29 @@ describe("#given CoreGraphics koffi bindings", () => {
 		});
 	});
 
+	describe("#when posting scroll events to a known target window", () => {
+		it("#then stamps the scroll location at the window center before targeted delivery", async () => {
+			const { postScrollEvent } = await import("./coregraphics.js");
+
+			postScrollEvent({
+				deltaX: 0,
+				deltaY: -8,
+				targetPid: 4321,
+				targetWindow: { id: 99, bounds: { x: 80, y: 170, width: 400, height: 300 } },
+			});
+
+			expect(koffiMock.coreGraphicsFunctions.CGEventSetLocation).toHaveBeenCalledWith(
+				{ type: "scroll" },
+				{ x: 280, y: 320 },
+			);
+			expect(skyLightMock.postSkyLightEventToPid).toHaveBeenCalledWith(4321, { type: "scroll" });
+			expect(skyLightMock.postCoreGraphicsEventToWindowOwner).toHaveBeenCalledWith(
+				{ id: 99, bounds: { x: 80, y: 170, width: 400, height: 300 } },
+				{ type: "scroll" },
+			);
+		});
+	});
+
 	describe("#when reading the cursor position", () => {
 		it("#then returns the location from a temporary CGEvent", async () => {
 			const { getCurrentCursorPosition } = await import("./coregraphics.js");
