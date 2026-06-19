@@ -1,4 +1,4 @@
-import type { ComputerInterface, Rect, ScreenshotViewport } from "@macos-cua/core";
+import type { ComputerInterface, ScreenshotViewport } from "@macos-cua/core";
 import { createCanvas } from "@napi-rs/canvas";
 import { describe, expect, it, vi } from "vitest";
 

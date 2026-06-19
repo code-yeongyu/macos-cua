@@ -1,6 +1,7 @@
 import {
 	type AXTreeElement,
 	type AppState,
+	type CaptureFrame,
 	type ComputerInterface,
 	type Rect,
 	type ScreenshotViewport,
@@ -84,7 +85,7 @@ export function createZoomTool(computer: ComputerInterface): ToolDefinition {
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);
 			const state = await computer.getAppState(targetPid);
-			const sourceViewport = await computer.getScreenshotViewport(targetPid);
+			const sourceViewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
 			if (sourceViewport === undefined) {
 				throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");
 			}
@@ -160,19 +161,35 @@ function cropElements(
 	cropBounds: Rect,
 ): AXTreeElement[] {
 	const cropped: AXTreeElement[] = [];
+	const captureBounds = screenshotBounds(sourceViewport);
 	for (const element of elements) {
 		if (!isPositiveRect(element.frame)) {
 			continue;
 		}
-		if (!rectsIntersect(cropScreenRect(element.frame, sourceViewport), screenRect)) {
+		const sourceFrame = clipRect(element.frame, captureBounds);
+		if (sourceFrame === undefined) {
 			continue;
 		}
-		const frame = clipRect(remapFrameToCrop(element.frame, sourceViewport, screenRect, cropDims), cropBounds);
+		if (!rectsIntersect(cropScreenRect(sourceFrame, sourceViewport), screenRect)) {
+			continue;
+		}
+		const frame = clipRect(remapFrameToCrop(sourceFrame, sourceViewport, screenRect, cropDims), cropBounds);
 		if (frame !== undefined) {
 			cropped.push({ ...element, frame });
 		}
 	}
 	return cropped;
+}
+
+function screenshotBounds(sourceViewport: ScreenshotViewport): Rect {
+	if (isCaptureFrameViewport(sourceViewport)) {
+		return { x: 0, y: 0, width: sourceViewport.model.width, height: sourceViewport.model.height };
+	}
+	return { x: 0, y: 0, width: sourceViewport.screenshotWidth, height: sourceViewport.screenshotHeight };
+}
+
+function isCaptureFrameViewport(sourceViewport: ScreenshotViewport): sourceViewport is CaptureFrame {
+	return "model" in sourceViewport;
 }
 
 function clipRect(rect: Rect, bounds: Rect): Rect | undefined {
