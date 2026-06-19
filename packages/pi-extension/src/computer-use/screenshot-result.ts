@@ -1,4 +1,5 @@
-import { type ComputerInterface, type Point, type ScreenshotResult, createDebugLog } from "@macos-cua/core";
+import { type ComputerInterface, type Point, type Rect, type ScreenshotResult, createDebugLog } from "@macos-cua/core";
+import { Image, createCanvas } from "@napi-rs/canvas";
 import { PNG } from "pngjs";
 
 import type { ComputerUseResult } from "../anthropic-computer-use.js";
@@ -70,6 +71,30 @@ export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Poi
 	return PNG.sync.write(png);
 }
 
+export function drawCursorOnWindowScreenshot(pngBytes: Buffer, cursor: Point, windowBounds: Rect): Buffer {
+	if (!containsPoint(windowBounds, cursor)) {
+		return pngBytes;
+	}
+	const image = decodeImageOrUndefined(pngBytes);
+	if (image === undefined) {
+		return pngBytes;
+	}
+	const canvas = createCanvas(image.width, image.height);
+	const context = canvas.getContext("2d");
+	context.drawImage(image, 0, 0);
+	const center = {
+		x: clamp(Math.round((cursor.x - windowBounds.x) * (image.width / windowBounds.width)), 0, image.width - 1),
+		y: clamp(Math.round((cursor.y - windowBounds.y) * (image.height / windowBounds.height)), 0, image.height - 1),
+	};
+	drawCanvasDisc(context, center, CURSOR_RING_RADIUS_PIXELS, CURSOR_RING);
+	drawCanvasDisc(context, center, CURSOR_RADIUS_PIXELS, CURSOR_FILL);
+	return canvas.toBuffer("image/png");
+}
+
+function containsPoint(rect: Rect, point: Point): boolean {
+	return point.x >= rect.x && point.y >= rect.y && point.x < rect.x + rect.width && point.y < rect.y + rect.height;
+}
+
 function imageResult(pngBase64: string): ComputerUseResult {
 	return { content: [{ type: "image", data: pngBase64, mimeType: "image/png" }], details: undefined };
 }
@@ -101,6 +126,18 @@ function drawDisc(png: PNG, center: Point, radius: number, color: Rgba): void {
 			}
 		}
 	}
+}
+
+function drawCanvasDisc(
+	context: ReturnType<ReturnType<typeof createCanvas>["getContext"]>,
+	center: Point,
+	radius: number,
+	color: Rgba,
+): void {
+	context.fillStyle = `rgba(${color.red}, ${color.green}, ${color.blue}, ${color.alpha / 255})`;
+	context.beginPath();
+	context.arc(center.x, center.y, radius, 0, Math.PI * 2);
+	context.fill();
 }
 
 function ensureModelDimensions(screenshot: ScreenshotResult, display: DisplayConfig): ScreenshotResult {
@@ -161,6 +198,19 @@ function setPixel(png: PNG, x: number, y: number, color: Rgba): void {
 function decodePngOrUndefined(data: Buffer): PNG | undefined {
 	try {
 		return PNG.sync.read(data);
+	} catch (error) {
+		if (error instanceof Error) {
+			return undefined;
+		}
+		throw error;
+	}
+}
+
+function decodeImageOrUndefined(data: Buffer): Image | undefined {
+	try {
+		const image = new Image();
+		image.src = data;
+		return image;
 	} catch (error) {
 		if (error instanceof Error) {
 			return undefined;

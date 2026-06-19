@@ -1,6 +1,7 @@
 import { type ComputerInterface, createDebugLog, getAppStateForApp } from "@macos-cua/core";
 import { type Static, Type } from "typebox";
 
+import { drawCursorOnWindowScreenshot } from "../computer-use/screenshot-result.js";
 import { computeSomMarks } from "../computer-use/som-layout.js";
 import { renderSomOverlay } from "../computer-use/som-render.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
@@ -26,10 +27,17 @@ export function createGetAppStateTool(computer: ComputerInterface): ToolDefiniti
 		async execute(_toolCallId, params) {
 			const state = await getAppStateForApp(computer, params.app);
 			const layout = computeSomMarks(state);
-			const imageBase64 =
+			const baseImage = Buffer.from(state.screenshotBase64, "base64");
+			const somImage =
 				state.windowBounds !== undefined && layout.marks.length > 0
-					? renderSomOverlay(Buffer.from(state.screenshotBase64, "base64"), layout.marks).toString("base64")
-					: state.screenshotBase64;
+					? renderSomOverlay(baseImage, layout.marks)
+					: baseImage;
+			const annotatedImage =
+				state.windowBounds !== undefined && state.observation?.cursor !== undefined
+					? drawCursorOnWindowScreenshot(somImage, state.observation.cursor, state.windowBounds)
+					: somImage;
+			const imageBase64 = annotatedImage.toString("base64");
+			const mimeType = annotatedImage.equals(baseImage) ? (state.screenshotMimeType ?? "image/png") : "image/png";
 			if (imageBase64 !== state.screenshotBase64) {
 				logOverlay("annotated", { marks: layout.marks.length, dropped: layout.dropped });
 			} else {
@@ -40,7 +48,7 @@ export function createGetAppStateTool(computer: ComputerInterface): ToolDefiniti
 				});
 			}
 			const content = [
-				{ type: "image" as const, data: imageBase64, mimeType: state.screenshotMimeType ?? "image/png" },
+				{ type: "image" as const, data: imageBase64, mimeType },
 				{ type: "text" as const, text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
 			];
 			return { content, details: state };

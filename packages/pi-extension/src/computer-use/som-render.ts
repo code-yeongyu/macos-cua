@@ -10,7 +10,6 @@ const LABEL_BACKGROUND_FILL = "rgba(15, 23, 42, 0.76)";
 const LABEL_TEXT_FILL = "#ffffff";
 const LABEL_TEXT_X_PADDING = 4;
 const LABEL_TEXT_Y_OFFSET = 1;
-const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
 const logOverlay = createDebugLog("overlay");
 
 export function renderSomOverlay(pngBytes: Buffer, marks: readonly SomMark[]): Buffer {
@@ -18,18 +17,17 @@ export function renderSomOverlay(pngBytes: Buffer, marks: readonly SomMark[]): B
 		return pngBytes;
 	}
 
-	if (!hasPngSignature(pngBytes)) {
-		logOverlay("skip", {
-			reason: "InvalidPngSignature",
-			byteLength: pngBytes.byteLength,
-			markCount: marks.length,
-		});
-		return pngBytes;
-	}
-
 	try {
 		const image = new Image();
 		image.src = pngBytes;
+		if (image.width <= 0 || image.height <= 0) {
+			logOverlay("skip", {
+				reason: "InvalidImageDimensions",
+				byteLength: pngBytes.byteLength,
+				markCount: marks.length,
+			});
+			return pngBytes;
+		}
 
 		const canvas = createCanvas(image.width, image.height);
 		const context = canvas.getContext("2d");
@@ -80,8 +78,4 @@ export function renderSomOverlay(pngBytes: Buffer, marks: readonly SomMark[]): B
 function markColor(mark: SomMark): string {
 	const normalizedIndex = ((mark.colorIndex % SOM_PALETTE.length) + SOM_PALETTE.length) % SOM_PALETTE.length;
 	return SOM_PALETTE[normalizedIndex] ?? SOM_PALETTE[0];
-}
-
-function hasPngSignature(bytes: Buffer): boolean {
-	return PNG_SIGNATURE.every((byte, index) => bytes[index] === byte);
 }
