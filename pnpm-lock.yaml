@@ -79,6 +79,9 @@ importers:
       '@macos-cua/core':
         specifier: workspace:*
         version: link:../core
+      '@napi-rs/canvas':
+        specifier: 1.0.0
+        version: 1.0.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.0
         version: 1.29.0(zod@4.4.3)

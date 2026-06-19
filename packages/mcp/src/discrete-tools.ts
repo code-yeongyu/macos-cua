@@ -12,6 +12,7 @@ import {
 } from "@macos-cua/core";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
+import { appStateImageContent } from "./app-state-image.js";
 import { registerPressKeysTool } from "./press-keys.js";
 import { type ToolContent, type ToolResult, actionComplete, clickComplete, textResult } from "./tool-result.js";
 import { registerZoomTool } from "./zoom.js";
@@ -84,8 +85,9 @@ function registerGetAppStateTool(server: McpServer, computer: ComputerInterface)
 		},
 		async ({ app }): Promise<ToolResult> => {
 			const state = await getAppStateForApp(computer, app);
+			const image = appStateImageContent(state);
 			const content: ToolContent[] = [
-				{ type: "image", data: state.screenshotBase64, mimeType: state.screenshotMimeType ?? "image/png" },
+				{ type: "image", data: image.data, mimeType: image.mimeType },
 				{ type: "text", text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
 			];
 			return { content };
