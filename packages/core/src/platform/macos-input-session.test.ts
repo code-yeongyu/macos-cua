@@ -10,14 +10,10 @@ const accessibilityMock = vi.hoisted(() => ({
 	typeIntoFocusedAXElement: vi.fn(() => false),
 }));
 
-const skyLightMock = vi.hoisted(() => {
-	const focusToken = { previousPsn: Buffer.alloc(8) };
-	return {
-		beginFocusWithoutRaise: vi.fn<() => { readonly previousPsn: Buffer } | null>(() => focusToken),
-		focusToken,
-		restoreFrontProcessNoWindows: vi.fn(() => true),
-	};
-});
+const skyLightMock = vi.hoisted(() => ({
+	beginFocusWithoutRaise: vi.fn(),
+	restoreFrontProcessNoWindows: vi.fn(),
+}));
 
 vi.mock("./macos-ffi/accessibility.js", () => ({
 	typeIntoFocusedAXElement: accessibilityMock.typeIntoFocusedAXElement,
@@ -36,31 +32,22 @@ vi.mock("./macos-ffi/skylight.js", () => ({
 	restoreFrontProcessNoWindows: skyLightMock.restoreFrontProcessNoWindows,
 }));
 
-function callOrderAt(orders: readonly number[], index: number, label: string): number {
-	const order = orders[index];
-	if (order === undefined) {
-		throw new Error(`missing ${label} call order at index ${index}`);
-	}
-	return order;
-}
-
-describe("#given targeted session input #when typing, pressing keys, or scrolling #then it leases focus", () => {
+describe("#given targeted session input #when typing, pressing keys, or scrolling #then it avoids front-process focus", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		accessibilityMock.typeIntoFocusedAXElement.mockReturnValue(false);
-		skyLightMock.beginFocusWithoutRaise.mockReturnValue(skyLightMock.focusToken);
 	});
 
-	it("wraps text input in target focus restoration", async () => {
+	it("posts text input to the target without focus restoration", async () => {
 		const { postFocusedText } = await import("./macos-input-session.js");
 		const targetWindow = { id: 77, bounds: { x: 100, y: 200, width: 300, height: 240 } };
 
 		await postFocusedText({ text: "Hi", targetPid: 9876, targetWindow });
 
-		expect(skyLightMock.beginFocusWithoutRaise).toHaveBeenCalledWith(targetWindow);
+		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(1, "H", 9876, targetWindow);
 		expect(coreGraphicsMock.postUnicodeText).toHaveBeenNthCalledWith(2, "i", 9876, targetWindow);
-		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledWith(skyLightMock.focusToken);
+		expect(skyLightMock.restoreFrontProcessNoWindows).not.toHaveBeenCalled();
 	});
 
 	it("#given Korean text and a target pid #when the focused AX element accepts text #then keyboard injection is skipped", async () => {
@@ -75,7 +62,7 @@ describe("#given targeted session input #when typing, pressing keys, or scrollin
 		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
 	});
 
-	it("keeps target focus leased until key release completes", async () => {
+	it("posts targeted key down and up without focus restoration", async () => {
 		vi.useFakeTimers();
 		const { postFocusedKey } = await import("./macos-input-session.js");
 		const targetWindow = { id: 88, bounds: { x: 20, y: 40, width: 300, height: 240 } };
@@ -106,45 +93,25 @@ describe("#given targeted session input #when typing, pressing keys, or scrollin
 			targetWindow,
 		});
 
-		const beginOrder = callOrderAt(skyLightMock.beginFocusWithoutRaise.mock.invocationCallOrder, 0, "begin focus");
-		const keyDownOrder = callOrderAt(coreGraphicsMock.postKeyboardEvent.mock.invocationCallOrder, 0, "key down");
-		const keyUpOrder = callOrderAt(coreGraphicsMock.postKeyboardEvent.mock.invocationCallOrder, 1, "key up");
-		const restoreOrder = callOrderAt(
-			skyLightMock.restoreFrontProcessNoWindows.mock.invocationCallOrder,
-			0,
-			"restore focus",
-		);
-		expect(beginOrder).toBeLessThan(keyDownOrder);
-		expect(keyDownOrder).toBeLessThan(keyUpOrder);
-		expect(keyUpOrder).toBeLessThan(restoreOrder);
+		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
+		expect(skyLightMock.restoreFrontProcessNoWindows).not.toHaveBeenCalled();
 		expect(vi.getTimerCount()).toBe(0);
 		vi.useRealTimers();
 	});
 
-	it("wraps targeted wheel scrolling in target focus restoration", async () => {
+	it("posts targeted wheel scrolling without focus restoration", async () => {
 		const { postFocusedScroll } = await import("./macos-input-session.js");
 		const targetWindow = { id: 77, bounds: { x: 100, y: 200, width: 300, height: 240 } };
 
 		await postFocusedScroll({ options: { direction: "down", amount: 30 }, targetPid: 9876, targetWindow });
 
-		expect(skyLightMock.beginFocusWithoutRaise).toHaveBeenCalledWith(targetWindow);
+		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
 		expect(coreGraphicsMock.postScrollEvent).toHaveBeenCalledWith({
 			deltaX: 0,
 			deltaY: -30,
 			targetPid: 9876,
 			targetWindow,
 		});
-		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledWith(skyLightMock.focusToken);
-	});
-
-	it("posts targeted input without restoration when a focus lease is unavailable", async () => {
-		const { postFocusedText } = await import("./macos-input-session.js");
-		const targetWindow = { id: 55, bounds: { x: 150, y: 70, width: 580, height: 480 } };
-		skyLightMock.beginFocusWithoutRaise.mockReturnValue(null);
-
-		await postFocusedText({ text: "Q", targetPid: 17264, targetWindow });
-
-		expect(coreGraphicsMock.postUnicodeText).toHaveBeenCalledWith("Q", 17264, targetWindow);
 		expect(skyLightMock.restoreFrontProcessNoWindows).not.toHaveBeenCalled();
 	});
 });

@@ -13,7 +13,6 @@ export interface MacOSDesktopSessionBackend {
 	assertAppApproved(app: RunningAppInfo): void;
 	assertBrowserUrlAllowed(app: RunningAppInfo): Promise<void>;
 	resolveTargetWindow(pid: number): Promise<MacOSAppStateTargetWindow | undefined>;
-	activateApp(app: RunningAppInfo): Promise<void>;
 	captureWindowScreenshot(window: MacOSAppStateTargetWindow, size: Size): Promise<ScreenshotResult>;
 	resolveCursorPosition?(): Point | Promise<Point | undefined> | undefined;
 	extractAccessibilityTree(pid: number): {

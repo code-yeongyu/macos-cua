@@ -30,8 +30,6 @@ class CaptureFrameBackend implements MacOSDesktopSessionBackend {
 		return WINDOW;
 	}
 
-	async activateApp(_app: RunningAppInfo): Promise<void> {}
-
 	async captureWindowScreenshot(_window: typeof WINDOW, size: Size): Promise<ScreenshotResult> {
 		return { data: Buffer.from("screen"), height: size.height, mimeType: "image/jpeg", width: size.width };
 	}

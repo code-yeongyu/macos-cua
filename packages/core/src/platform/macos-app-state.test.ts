@@ -351,10 +351,8 @@ describe("#given no prior get_app_state #when reading the screenshot viewport #t
 });
 
 describe("#given no target window #when get_app_state runs #then it refuses to return a misleading full display", () => {
-	it("activates the app and retries before giving up", async () => {
-		windowMock.openWindows
-			.mockResolvedValueOnce([])
-			.mockResolvedValueOnce([{ id: 99, owner: { processId: TARGET_PID }, bounds: WINDOW_BOUNDS }]);
+	it("throws without activating the target app", async () => {
+		windowMock.openWindows.mockResolvedValue([]);
 		childProcessMock.execFile.mockReset();
 		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
 			callback(
@@ -363,27 +361,14 @@ describe("#given no target window #when get_app_state runs #then it refuses to r
 				"",
 			);
 		});
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-			callback(null, "", "");
-		});
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-			callback(
-				null,
-				JSON.stringify([{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true }]),
-				"",
-			);
-		});
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-			callback(null, fakePng(1280, 800), "");
-		});
 		const computer = new MacOSHostComputer();
 
-		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
+		await expect(computer.getAppState(TARGET_PID, { settleMs: 0 })).rejects.toThrow(
+			"No visible target window found for 'Finder'",
+		);
 
-		expect(childProcessMock.execFile.mock.calls[1]?.[0]).toBe("open");
-		expect(childProcessMock.execFile.mock.calls[1]?.[1]).toEqual(["-b", "com.apple.finder"]);
-		expect(state.frontmost).toBe(true);
-		expect(state.windowBounds).toEqual(WINDOW_BOUNDS);
+		expect(childProcessMock.execFile).toHaveBeenCalledTimes(1);
+		expect(screenshotMock.captureMainDisplayPng).not.toHaveBeenCalled();
 	});
 
 	it("throws before returning a full-screen screenshot for the target app", async () => {
@@ -396,21 +381,12 @@ describe("#given no target window #when get_app_state runs #then it refuses to r
 				"",
 			);
 		});
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-			callback(null, "", "");
-		});
-		childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-			callback(
-				null,
-				JSON.stringify([{ name: "Finder", bundleId: "com.apple.finder", pid: TARGET_PID, isActive: true }]),
-				"",
-			);
-		});
 		const computer = new MacOSHostComputer();
 
 		await expect(computer.getAppState(TARGET_PID, { settleMs: 0 })).rejects.toThrow(
 			"No visible target window found for 'Finder'",
 		);
+		expect(childProcessMock.execFile).toHaveBeenCalledTimes(1);
 		expect(screenshotMock.captureMainDisplayPng).not.toHaveBeenCalled();
 		expect(await computer.getScreenshotViewport(TARGET_PID)).toBeUndefined();
 	});

@@ -18,7 +18,6 @@ import { systemEventsTargetWindowBounds } from "./macos-window-target-fallback.j
 const execFileAsync = promisify(execFile);
 
 const BROWSER_URL_TIMEOUT_MILLISECONDS = 2_000;
-const APP_ACTIVATION_TIMEOUT_MILLISECONDS = 3_000;
 
 export async function captureMacOSScreenshotResult(
 	options: ScreenshotOptions | undefined,
@@ -132,12 +131,6 @@ export function resolveDisplayInfo(): DisplayInfo {
 		nativePixel = undefined;
 	}
 	return resolveDisplayMetadata(nativePixel === undefined ? { logical } : { logical, nativePixel });
-}
-
-export async function activateApp(app: RunningAppInfo): Promise<void> {
-	await execFileAsync("open", ["-b", app.bundleId], {
-		timeout: APP_ACTIVATION_TIMEOUT_MILLISECONDS,
-	});
 }
 
 export function resolveTargetAppByName(apps: readonly RunningAppInfo[], appName: string): RunningAppInfo {

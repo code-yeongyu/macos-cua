@@ -15,8 +15,6 @@ import {
 import type { MacOSAppStateTargetWindow, MacOSDesktopSessionBackend } from "./macos-desktop-session-types.js";
 import { createMacOSObservationMetadata } from "./macos-observation-metadata.js";
 
-const APP_ACTIVATION_SETTLE_MILLISECONDS = 350;
-
 export class MacOSDesktopSession {
 	private readonly appByPid = new Map<number, RunningAppInfo>();
 	private readonly viewportByPid = new Map<number, ScreenshotViewport>();
@@ -97,24 +95,15 @@ export class MacOSDesktopSession {
 		if (options.settleMs !== undefined && options.settleMs > 0) {
 			await this.backend.sleep(options.settleMs);
 		}
-		let app = await this.resolveApp(targetPid, refresh);
+		const app = await this.resolveApp(targetPid, refresh);
 		this.backend.assertAppApproved(app);
 		await this.backend.assertBrowserUrlAllowed(app);
-		let targetWindow = await this.backend.resolveTargetWindow(app.pid);
-		if (targetWindow === undefined) {
-			this.invalidatePid(app.pid);
-			await this.backend.activateApp(app);
-			await this.backend.sleep(APP_ACTIVATION_SETTLE_MILLISECONDS);
-			app = await this.resolveApp(app.pid, true);
-			this.backend.assertAppApproved(app);
-			await this.backend.assertBrowserUrlAllowed(app);
-			targetWindow = await this.backend.resolveTargetWindow(app.pid);
-		}
+		const targetWindow = await this.backend.resolveTargetWindow(app.pid);
 		if (targetWindow === undefined) {
 			this.invalidatePid(app.pid);
 			throw new ComputerUseError(
 				"MISSING_TARGET_WINDOW",
-				`No visible target window found for '${app.name}' after activating it. Open a window in the app and retry.`,
+				`No visible target window found for '${app.name}'. Open a window in the app and retry.`,
 				{ details: { appName: app.name, bundleId: app.bundleId, pid: app.pid } },
 			);
 		}

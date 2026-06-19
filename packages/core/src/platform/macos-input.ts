@@ -13,15 +13,7 @@ import { NOOP_POINTER_OVERLAY, type PointerOverlay } from "./macos-ffi/cursor-ov
 import { isScreenLocked } from "./macos-ffi/lock-screen.js";
 import { type DisplaySleepAssertion, NOOP_DISPLAY_SLEEP } from "./macos-ffi/power.js";
 import type { SkyLightTargetWindow } from "./macos-ffi/skylight.js";
-import {
-	type MousePost,
-	postClick,
-	postDoubleClick,
-	postDragSequence,
-	runFocusLeasedClick,
-	runFocusLeasedDoubleClick,
-	runFocusLeasedDrag,
-} from "./macos-input-pointer.js";
+import { type MousePost, postClick, postDoubleClick, postDragSequence } from "./macos-input-pointer.js";
 import { postFocusedKey, postFocusedScroll, postFocusedText } from "./macos-input-session.js";
 import { openWindowsForTargeting } from "./macos-open-windows.js";
 import { selectSystemEventsTargetWindow } from "./macos-window-target-fallback.js";
@@ -120,7 +112,8 @@ export class MacOSInputController {
 				await postClick(this.postMouse, position, button, 1, targetWindow);
 				this.markPointer(position);
 			} else if (targetWindow !== undefined) {
-				await runFocusLeasedClick(targetWindow, position, button, this.postMouse);
+				await this.postMove(position);
+				await postClick(this.postMouse, position, button, 1, targetWindow);
 				this.markPointer(position);
 			}
 		});
@@ -137,7 +130,8 @@ export class MacOSInputController {
 				await postDoubleClick(this.postMouse, position, targetWindow);
 				this.markPointer(position);
 			} else if (targetWindow !== undefined) {
-				await runFocusLeasedDoubleClick(targetWindow, position, this.postMouse);
+				await this.postMove(position);
+				await postDoubleClick(this.postMouse, position, targetWindow);
 				this.markPointer(position);
 			}
 		});
@@ -178,7 +172,8 @@ export class MacOSInputController {
 				await postDragSequence(this.postMouse, options, targetWindow);
 				this.markPointer(options.to);
 			} else if (targetWindow !== undefined) {
-				await runFocusLeasedDrag(targetWindow, options, this.postMouse);
+				await this.postMove(options.from);
+				await postDragSequence(this.postMouse, options, targetWindow);
 				this.markPointer(options.to);
 			}
 		});

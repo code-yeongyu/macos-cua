@@ -4,7 +4,6 @@ import { typeIntoFocusedAXElement } from "./macos-ffi/accessibility.js";
 import { postKeyboardEvent, postScrollEvent, postUnicodeText } from "./macos-ffi/coregraphics.js";
 import type { SkyLightTargetWindow } from "./macos-ffi/skylight.js";
 import { modifierFlags, virtualKeyCodeFor } from "./macos-keycodes.js";
-import { runFocusLeasedInput } from "./macos-targeted-gesture.js";
 
 interface TargetedInputOptions {
 	readonly targetPid: number | undefined;
@@ -102,9 +101,6 @@ export async function postFocusedScroll(options: ScrollInputOptions): Promise<vo
 }
 
 async function withTargetFocus(options: TargetedInputOptions, action: () => Promise<void>): Promise<void> {
-	if (options.targetPid === undefined || options.targetWindow === undefined) {
-		await action();
-		return;
-	}
-	await runFocusLeasedInput(options.targetWindow, action);
+	void options;
+	await action();
 }

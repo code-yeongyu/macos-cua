@@ -72,10 +72,6 @@ class FakeSessionBackend implements MacOSDesktopSessionBackend {
 		return this.window;
 	}
 
-	async activateApp(app: RunningAppInfo): Promise<void> {
-		this.calls.push(`activate:${app.pid}`);
-	}
-
 	async captureWindowScreenshot(_window: SessionWindow, size: Size): Promise<ScreenshotResult> {
 		this.calls.push(`capture:${size.width}x${size.height}`);
 		return { data: Buffer.from("screen"), height: size.height, mimeType: "image/jpeg", width: size.width };
@@ -163,7 +159,7 @@ describe("#given app approval and URL policies #when get_app_state is refused #t
 	});
 });
 
-describe("#given no visible window #when get_app_state retries activation #then it fails without stale viewport", () => {
+describe("#given no visible window #when get_app_state runs #then it fails without stale viewport", () => {
 	it("invalidates cached viewport and returns a typed missing-window failure", async () => {
 		const session = new MacOSDesktopSession(backend);
 		await session.getAppState(TARGET_PID, { settleMs: 0 });

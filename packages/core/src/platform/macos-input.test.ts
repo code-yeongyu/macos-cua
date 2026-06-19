@@ -119,7 +119,7 @@ describe("#given MacOSInputController target routing", () => {
 		controller.close();
 	});
 
-	it("#when clicking a target pid with a known window #then leases focus, primes, clicks, and restores focus", async () => {
+	it("#when clicking a target pid with a known window #then posts targeted events without changing front-process focus", async () => {
 		// given
 		windowMock.openWindows.mockResolvedValue([
 			{
@@ -137,7 +137,7 @@ describe("#given MacOSInputController target routing", () => {
 
 		// then
 		const targetWindow = { id: 99, bounds: { x: 10, y: 20, width: 300, height: 200 } };
-		expect(skyLightMock.beginFocusWithoutRaise).toHaveBeenCalledWith(targetWindow);
+		expect(skyLightMock.beginFocusWithoutRaise).not.toHaveBeenCalled();
 		expect(coreGraphicsMock.postMouseEvent).toHaveBeenNthCalledWith(1, {
 			kind: "move",
 			position: { x: 50, y: 70 },
@@ -148,7 +148,7 @@ describe("#given MacOSInputController target routing", () => {
 		});
 		expect(coreGraphicsMock.postMouseEvent).toHaveBeenNthCalledWith(2, {
 			kind: "down",
-			position: { x: -1, y: -1 },
+			position: { x: 50, y: 70 },
 			button: "left",
 			clickState: 1,
 			targetPid: 1234,
@@ -156,44 +156,17 @@ describe("#given MacOSInputController target routing", () => {
 		});
 		expect(coreGraphicsMock.postMouseEvent).toHaveBeenNthCalledWith(3, {
 			kind: "up",
-			position: { x: -1, y: -1 },
-			button: "left",
-			clickState: 1,
-			targetPid: 1234,
-			targetWindow,
-		});
-		expect(coreGraphicsMock.postMouseEvent).toHaveBeenNthCalledWith(4, {
-			kind: "down",
 			position: { x: 50, y: 70 },
 			button: "left",
 			clickState: 1,
 			targetPid: 1234,
 			targetWindow,
 		});
-		expect(coreGraphicsMock.postMouseEvent).toHaveBeenNthCalledWith(5, {
-			kind: "up",
-			position: { x: 50, y: 70 },
-			button: "left",
-			clickState: 1,
-			targetPid: 1234,
-			targetWindow,
-		});
-		expect(coreGraphicsMock.warpCursorPosition).toHaveBeenCalledOnce();
-		expect(coreGraphicsMock.warpCursorPosition).toHaveBeenCalledWith({ x: 1, y: 2 });
-		expect(skyLightMock.restoreFrontProcessNoWindows).toHaveBeenCalledWith(skyLightMock.focusToken);
-
-		const beginOrder = callOrderAt(skyLightMock.beginFocusWithoutRaise.mock.invocationCallOrder, 0, "begin focus");
 		const firstMoveOrder = callOrderAt(coreGraphicsMock.postMouseEvent.mock.invocationCallOrder, 0, "first move");
-		const realUpOrder = callOrderAt(coreGraphicsMock.postMouseEvent.mock.invocationCallOrder, 4, "real up");
-		const warpOrder = callOrderAt(coreGraphicsMock.warpCursorPosition.mock.invocationCallOrder, 0, "cursor warp");
-		const restoreOrder = callOrderAt(
-			skyLightMock.restoreFrontProcessNoWindows.mock.invocationCallOrder,
-			0,
-			"front-process restore",
-		);
-		expect(beginOrder).toBeLessThan(firstMoveOrder);
-		expect(realUpOrder).toBeLessThan(warpOrder);
-		expect(warpOrder).toBeLessThan(restoreOrder);
+		const realUpOrder = callOrderAt(coreGraphicsMock.postMouseEvent.mock.invocationCallOrder, 2, "real up");
+		expect(firstMoveOrder).toBeLessThan(realUpOrder);
+		expect(coreGraphicsMock.warpCursorPosition).not.toHaveBeenCalled();
+		expect(skyLightMock.restoreFrontProcessNoWindows).not.toHaveBeenCalled();
 
 		expect(coreGraphicsMock.postKeyboardEvent).toHaveBeenCalledWith({
 			keyCode: 17,

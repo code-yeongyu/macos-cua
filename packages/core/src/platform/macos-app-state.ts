@@ -21,8 +21,6 @@ const execFileAsync = promisify(execFile);
 
 const FINDER_DESKTOP_BOUNDS_TIMEOUT_MILLISECONDS = 2_000;
 const DEFAULT_APP_STATE_SETTLE_MILLISECONDS = 300;
-const APP_ACTIVATION_SETTLE_MILLISECONDS = 350;
-const APP_ACTIVATION_TIMEOUT_MILLISECONDS = 3_000;
 
 export type AppStateTargetWindow = {
 	readonly id?: number;
@@ -85,23 +83,13 @@ export class MacOSAppStateController {
 	}
 
 	private async getAppStateForResolvedApp(initialApp: RunningAppInfo, options?: AppStateOptions): Promise<AppState> {
-		let app = initialApp;
+		const app = initialApp;
 		this.assertAppApproved(app);
 		await this.assertBrowserUrlAllowed(app);
-		let targetWindow = await this.resolveTargetWindow(app.pid);
-		if (targetWindow === undefined) {
-			await activateMacOSApp(app);
-			await sleep(APP_ACTIVATION_SETTLE_MILLISECONDS);
-			const apps = await getRunningMacOSApps();
-			app = resolveTargetApp(apps, app.pid);
-			await this.assertBrowserUrlAllowed(app);
-			targetWindow = await this.resolveTargetWindow(app.pid);
-		}
+		const targetWindow = await this.resolveTargetWindow(app.pid);
 		if (targetWindow === undefined) {
 			this.lastViewportByPid.delete(app.pid);
-			throw new Error(
-				`No visible target window found for '${app.name}' after activating it. Open a window in the app and retry.`,
-			);
+			throw new Error(`No visible target window found for '${app.name}'. Open a window in the app and retry.`);
 		}
 
 		const size = options?.screenshotSize ?? resolveWindowScreenshotSize(targetWindow.bounds);
@@ -236,12 +224,6 @@ function resolveTargetAppByName(apps: readonly RunningAppInfo[], appName: string
 	}
 
 	throw new Error(`No running app matched "${appName}"`);
-}
-
-async function activateMacOSApp(app: RunningAppInfo): Promise<void> {
-	await execFileAsync("open", ["-b", app.bundleId], {
-		timeout: APP_ACTIVATION_TIMEOUT_MILLISECONDS,
-	});
 }
 
 function remapElementFramesToScreenshot(

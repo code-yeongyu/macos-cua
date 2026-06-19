@@ -3,7 +3,6 @@ import type { DragOptions, Point } from "../types/index.js";
 import type { MouseButton } from "./macos-ffi/coregraphics.js";
 import type { SkyLightTargetWindow } from "./macos-ffi/skylight.js";
 import { dragSteps, interpolatePoint } from "./macos-input-drag.js";
-import { runFocusLeasedGesture } from "./macos-targeted-gesture.js";
 
 export type MousePost = (
 	kind: "move" | "down" | "up" | "drag",
@@ -50,29 +49,4 @@ export async function postDragSequence(
 		}
 	}
 	await post("up", options.to, "left", 1, targetWindow);
-}
-
-export async function runFocusLeasedClick(
-	targetWindow: SkyLightTargetWindow,
-	position: Point,
-	button: MouseButton,
-	post: MousePost,
-): Promise<void> {
-	await runFocusLeasedGesture(targetWindow, position, post, () => postClick(post, position, button, 1, targetWindow));
-}
-
-export async function runFocusLeasedDoubleClick(
-	targetWindow: SkyLightTargetWindow,
-	position: Point,
-	post: MousePost,
-): Promise<void> {
-	await runFocusLeasedGesture(targetWindow, position, post, () => postDoubleClick(post, position, targetWindow));
-}
-
-export async function runFocusLeasedDrag(
-	targetWindow: SkyLightTargetWindow,
-	options: DragOptions,
-	post: MousePost,
-): Promise<void> {
-	await runFocusLeasedGesture(targetWindow, options.from, post, () => postDragSequence(post, options, targetWindow));
 }

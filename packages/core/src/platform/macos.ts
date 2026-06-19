@@ -33,7 +33,6 @@ import { createDisplaySleepAssertion } from "./macos-ffi/power.js";
 import { getMainDisplayLogicalSize } from "./macos-ffi/screenshot.js";
 import { selectTextByIndex } from "./macos-ffi/select-text.js";
 import {
-	activateApp,
 	assertAppApproved,
 	assertBrowserUrlAllowed,
 	captureMacOSScreenshotResult,
@@ -96,7 +95,6 @@ export class MacOSHostComputer extends HostComputer {
 			actionGateOptions,
 		);
 		this.session = new MacOSDesktopSession({
-			activateApp,
 			assertAppApproved: (app) => assertAppApproved(app, this.appApproval),
 			assertBrowserUrlAllowed: (app) => assertBrowserUrlAllowed(app, this.urlBlocklist),
 			captureWindowScreenshot: (targetWindow, size) =>
