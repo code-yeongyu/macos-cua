@@ -324,7 +324,12 @@ describe("#given a prior get_app_state #when reading the screenshot viewport #th
 
 		const viewport = await computer.getScreenshotViewport(TARGET_PID);
 
-		expect(viewport).toEqual({ windowBounds: WINDOW_BOUNDS, screenshotWidth: 1280, screenshotHeight: 800 });
+		expect(viewport).toMatchObject({
+			captureId: "macos-capture-1",
+			windowBounds: WINDOW_BOUNDS,
+			screenshotWidth: 1280,
+			screenshotHeight: 800,
+		});
 	});
 });
 
@@ -437,7 +442,12 @@ describe("#given window enumeration lacks Screen Recording #when System Events c
 		expect(screenshotMock.captureDisplayRectPng).toHaveBeenCalledWith(WINDOW_BOUNDS, 1280);
 		expect(state.windowBounds).toEqual(WINDOW_BOUNDS);
 		expect(state.elements[0]?.frame).toEqual({ x: 250, y: 200, width: 100, height: 80 });
-		expect(viewport).toEqual({ windowBounds: WINDOW_BOUNDS, screenshotWidth: 1280, screenshotHeight: 800 });
+		expect(viewport).toMatchObject({
+			captureId: "macos-capture-1",
+			windowBounds: WINDOW_BOUNDS,
+			screenshotWidth: 1280,
+			screenshotHeight: 800,
+		});
 	});
 });
 

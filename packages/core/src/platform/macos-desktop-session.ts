@@ -36,6 +36,10 @@ export class MacOSDesktopSession {
 
 	async getScreenshotViewport(targetPid: number): Promise<ScreenshotViewport | undefined> {
 		return await this.runExclusive("getScreenshotViewport", async () => {
+			const captureFrame = this.captureFrameByPid.get(targetPid);
+			if (captureFrame !== undefined) {
+				return captureFrame;
+			}
 			const stored = this.viewportByPid.get(targetPid);
 			if (stored !== undefined) {
 				return stored;
