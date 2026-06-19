@@ -1,3 +1,4 @@
+import type { AppInfo } from "../accessibility/types.js";
 import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
 import { executePointerClick } from "../computer/pointer-action.js";
@@ -27,6 +28,8 @@ const SCROLL_ACTIONS: Record<CodeModeScrollTarget["direction"], string> = {
 };
 
 export class SandboxRpcHost {
+	private appCache: readonly AppInfo[] | undefined;
+
 	constructor(
 		private readonly computer: ComputerInterface,
 		private readonly store: ScreenshotStore,
@@ -49,7 +52,7 @@ export class SandboxRpcHost {
 			case "getAppState":
 				return await this.getAppState(call.app, call.options);
 			case "listApps":
-				return await this.computer.listApps();
+				return await this.listApps();
 			case "click":
 				return await this.click(call.app, call.target, 1);
 			case "doubleClick":
@@ -102,14 +105,14 @@ export class SandboxRpcHost {
 			pressCount: count,
 			observeAfter: false,
 		});
-		return await this.actionResult(pid, result.actionId, result.method);
+		return await this.actionResult(result.actionId, result.method);
 	}
 
 	private async move(app: CodeModeAppTarget, point: Point): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
 		const screenPoint = await this.resolvePoint(pid, point);
 		await this.withPid(pid, async () => this.computer.move(screenPoint));
-		return await this.actionResult(pid, `code-mode-move:${pid}`, "move");
+		return await this.actionResult(`code-mode-move:${pid}`, "move");
 	}
 
 	private async drag(
@@ -122,7 +125,7 @@ export class SandboxRpcHost {
 			to: await this.resolvePoint(pid, options.to),
 		};
 		await this.withPid(pid, async () => this.computer.drag(dragOptions));
-		return await this.actionResult(pid, `code-mode-drag:${pid}`, "drag");
+		return await this.actionResult(`code-mode-drag:${pid}`, "drag");
 	}
 
 	private async scroll(app: CodeModeAppTarget, target: CodeModeScrollTarget): Promise<CodeModeActionResult> {
@@ -132,16 +135,16 @@ export class SandboxRpcHost {
 			for (let index = 0; index < amount; index += 1) {
 				await this.computer.performAction(pid, target.elementIndex, SCROLL_ACTIONS[target.direction]);
 			}
-			return await this.actionResult(pid, `code-mode-scroll:${pid}`, "scroll");
+			return await this.actionResult(`code-mode-scroll:${pid}`, "scroll");
 		}
 		await this.withPid(pid, async () => this.computer.scroll({ direction: target.direction, amount }));
-		return await this.actionResult(pid, `code-mode-scroll:${pid}`, "scroll");
+		return await this.actionResult(`code-mode-scroll:${pid}`, "scroll");
 	}
 
 	private async type(app: CodeModeAppTarget, text: string): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
 		await this.withPid(pid, async () => this.computer.type(text));
-		return await this.actionResult(pid, `code-mode-type:${pid}`, "type");
+		return await this.actionResult(`code-mode-type:${pid}`, "type");
 	}
 
 	private async pressKeys(
@@ -159,7 +162,7 @@ export class SandboxRpcHost {
 				}
 			}
 		});
-		return await this.actionResult(pid, `code-mode-press-keys:${pid}`, "pressKeys");
+		return await this.actionResult(`code-mode-press-keys:${pid}`, "pressKeys");
 	}
 
 	private async resolvePoint(pid: number, target: CodeModePointerTarget): Promise<Point> {
@@ -184,15 +187,11 @@ export class SandboxRpcHost {
 		});
 	}
 
-	private async actionResult(
-		pid: number,
-		actionId: string,
-		method: CodeModeActionMethod,
-	): Promise<CodeModeActionResult> {
+	private async actionResult(actionId: string, method: CodeModeActionMethod): Promise<CodeModeActionResult> {
 		return {
 			actionId,
 			method,
-			postAction: await capturePostActionObservation(this.computer, this.store, pid),
+			postAction: await capturePostActionObservation(this.computer, this.store),
 		};
 	}
 
@@ -217,11 +216,22 @@ export class SandboxRpcHost {
 		if (Number.isSafeInteger(numericPid) && numericPid > 0) {
 			return numericPid;
 		}
-		const match = findAppMatch(await this.computer.listApps(), normalized);
+		const match =
+			findAppMatch(await this.listApps(), normalized) ?? findAppMatch(await this.refreshApps(), normalized);
 		if (match === undefined) {
 			throw new CodeModeError("COMPILE_ERROR", `No running app matched "${app}"`);
 		}
 		return match.pid;
+	}
+
+	private async listApps(): Promise<readonly AppInfo[]> {
+		this.appCache ??= await this.computer.listApps();
+		return this.appCache;
+	}
+
+	private async refreshApps(): Promise<readonly AppInfo[]> {
+		this.appCache = await this.computer.listApps();
+		return this.appCache;
 	}
 
 	private keyOptions(modifiers: NonNullable<KeyOptions["modifiers"]>, holdMilliseconds?: number): KeyOptions {

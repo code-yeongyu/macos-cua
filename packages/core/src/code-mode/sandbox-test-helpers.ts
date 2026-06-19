@@ -131,6 +131,7 @@ export class FakeComputer implements ComputerInterface {
 	readonly rightClickCalls: Point[] = [];
 	readonly dragCalls: DragOptions[] = [];
 	readonly scrollCalls: ScrollOptions[] = [];
+	listAppsCallCount = 0;
 	readonly performActionCalls: {
 		readonly targetPid: number;
 		readonly elementIndex: number;
@@ -184,6 +185,7 @@ export class FakeComputer implements ComputerInterface {
 		return this.screenshotViewport;
 	}
 	async listApps(): Promise<AppInfo[]> {
+		this.listAppsCallCount += 1;
 		return [{ name: "Finder", bundleId: "com.apple.finder", pid: 321, isRunning: true }];
 	}
 	async setValue(_targetPid: number, _elementIndex: number, _value: string): Promise<void> {}

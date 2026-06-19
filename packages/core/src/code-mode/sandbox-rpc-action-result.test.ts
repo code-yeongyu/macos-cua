@@ -84,8 +84,7 @@ describe("#given code-mode action methods #when an element click mutates the app
 			actionId: "code-mode-click:321",
 			method: "axPress",
 			postAction: {
-				elementCount: 0,
-				screenshot: { id: "shot_1", width: 30, height: 15, mimeType: "image/png" },
+				screenshot: { id: "shot_1", width: 20, height: 10, mimeType: "image/png" },
 			},
 			json: expect.not.stringContaining(Buffer.from("app-state-screen").toString("base64")),
 		});
