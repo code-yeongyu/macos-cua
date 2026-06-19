@@ -1,9 +1,9 @@
-import type { CaptureFrame, Rect } from "@macos-cua/core";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TOOL_NAMES, createMcpServer } from "./server.js";
+import { captureFrameFixture } from "./test-support/capture-frame.js";
 
 const mockedComputer = vi.hoisted(() => ({
 	capabilities: {
@@ -35,21 +35,6 @@ const mockedComputer = vi.hoisted(() => ({
 	typeIntoFocused: vi.fn(),
 	close: vi.fn(),
 }));
-
-function createCaptureFrame(windowBounds: Rect, model: { width: number; height: number }): CaptureFrame {
-	return {
-		captureId: "capture-test-1",
-		capturedAt: "2026-06-18T00:00:00.000Z",
-		displayEpoch: "test-display-1",
-		target: { pid: 1234, bundleId: "com.apple.finder", appName: "Finder" },
-		windowBounds,
-		screenshot: model,
-		model,
-		display: { logical: windowBounds, native: model, scaleFactor: 1 },
-		screenshotWidth: model.width,
-		screenshotHeight: model.height,
-	};
-}
 
 vi.mock("@macos-cua/core", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("@macos-cua/core")>();
@@ -155,7 +140,7 @@ beforeEach(() => {
 	mockedComputer.pressAtPosition.mockResolvedValue(false);
 	mockedComputer.typeIntoFocused.mockResolvedValue(false);
 	mockedComputer.getScreenshotViewport.mockResolvedValue(
-		createCaptureFrame({ x: 0, y: 0, width: 1920, height: 1080 }, { width: 1920, height: 1080 }),
+		captureFrameFixture({ x: 0, y: 0, width: 1920, height: 1080 }, { width: 1920, height: 1080 }),
 	);
 });
 
@@ -207,14 +192,11 @@ describe("MCP server tools #given #when #then", () => {
 	});
 
 	it("calls the computer click method with the requested app and coordinates", async () => {
-		// given
 		const { client, close } = await createHarness();
 		closeHarness = close;
 
-		// when
 		await client.callTool({ name: "click", arguments: { app: "Finder", x: 123, y: 456, mouse_button: "left" } });
 
-		// then
 		expect(mockedComputer.click).toHaveBeenCalledOnce();
 		expect(mockedComputer.click).toHaveBeenCalledWith({ x: 123, y: 456 });
 		expect(mockedComputer.setTarget).toHaveBeenNthCalledWith(1, 1234);
@@ -222,33 +204,27 @@ describe("MCP server tools #given #when #then", () => {
 	});
 
 	it("maps screenshot pixel coordinates onto the window before clicking", async () => {
-		// given
 		mockedComputer.getScreenshotViewport.mockResolvedValue(
-			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+			captureFrameFixture({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
 		);
 		const { client, close } = await createHarness();
 		closeHarness = close;
 
-		// when
 		await client.callTool({ name: "click", arguments: { app: "Finder", x: 250, y: 200 } });
 
-		// then
 		expect(mockedComputer.pressAtPosition).toHaveBeenCalledWith(1234, { x: 800, y: 550 });
 		expect(mockedComputer.click).toHaveBeenCalledWith({ x: 800, y: 550 });
 	});
 
 	it("maps both drag endpoints onto the window before dragging", async () => {
-		// given
 		mockedComputer.getScreenshotViewport.mockResolvedValue(
-			createCaptureFrame({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
+			captureFrameFixture({ x: 300, y: 150, width: 1000, height: 800 }, { width: 500, height: 400 }),
 		);
 		const { client, close } = await createHarness();
 		closeHarness = close;
 
-		// when
 		await client.callTool({ name: "drag", arguments: { app: "Finder", from_x: 0, from_y: 0, to_x: 250, to_y: 200 } });
 
-		// then
 		expect(mockedComputer.drag).toHaveBeenCalledWith({ from: { x: 300, y: 150 }, to: { x: 800, y: 550 } });
 	});
 
@@ -314,53 +290,6 @@ describe("MCP server tools #given #when #then", () => {
 			selection: "text",
 			text: "foo",
 			suffix: " baz",
-		});
-	});
-
-	it("captures a high-resolution zoom crop and returns remapped element marks", async () => {
-		// given
-		mockedComputer.getScreenshotViewport.mockResolvedValue({
-			windowBounds: { x: 300, y: 150, width: 1000, height: 800 },
-			screenshotWidth: 500,
-			screenshotHeight: 400,
-		});
-		mockedComputer.screenshot.mockResolvedValue({
-			data: Buffer.from("zoom-png"),
-			mimeType: "image/png",
-			width: 800,
-			height: 400,
-		});
-		const { client, close } = await createHarness();
-		closeHarness = close;
-
-		// when
-		const result = await client.callTool({
-			name: "zoom",
-			arguments: { app: "Finder", region: { x: 50, y: 175, width: 200, height: 100 } },
-		});
-
-		// then
-		expect(mockedComputer.screenshot).toHaveBeenCalledWith({ region: { x: 400, y: 500, width: 400, height: 200 } });
-		if (!Array.isArray(result.content)) {
-			throw new Error("zoom result content must be an array");
-		}
-		expect(result.content[0]).toEqual({
-			type: "image",
-			data: Buffer.from("zoom-png").toString("base64"),
-			mimeType: "image/png",
-		});
-		const text = result.content.find((entry) => entry.type === "text");
-		if (text?.type !== "text") {
-			throw new Error("zoom result must include JSON details text");
-		}
-		expect(JSON.parse(text.text)).toMatchObject({
-			message: expect.stringContaining("click element_index=<number>"),
-			rect: {
-				source: { x: 50, y: 175, width: 200, height: 100 },
-				screen: { x: 400, y: 500, width: 400, height: 200 },
-				crop: { width: 800, height: 400 },
-			},
-			marks: [{ id: 9, frame: { x: 200, y: 100, width: 80, height: 40 } }],
 		});
 	});
 });

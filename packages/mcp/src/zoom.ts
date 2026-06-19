@@ -1,5 +1,6 @@
 import {
 	type AXTreeElement,
+	type CaptureFrame,
 	type ComputerInterface,
 	type Rect,
 	type ScreenshotViewport,
@@ -28,19 +29,26 @@ export function registerZoomTool(server: McpServer, computer: ComputerInterface)
 		async ({ app, element_index, region }): Promise<ToolResult> => {
 			const targetPid = await resolveAppPid(computer, app);
 			const state = await computer.getAppState(targetPid);
-			const viewport = await computer.getScreenshotViewport(targetPid);
+			const viewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
 			if (viewport === undefined) {
 				throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");
 			}
 			const source = zoomSourceRect(element_index, region, state.elements);
 			const screen = cropScreenRect(source, viewport);
 			const crop = await computer.screenshot({ region: screen });
+			const cropBounds = { x: 0, y: 0, width: crop.width, height: crop.height };
 			const marks = state.elements
-				.filter((element) => rectsIntersect(cropScreenRect(element.frame, viewport), screen))
-				.map((element) => ({
-					id: element.id,
-					frame: remapFrameToCrop(element.frame, viewport, screen, { width: crop.width, height: crop.height }),
-				}));
+				.map((element) => ({ element, frame: clipRect(element.frame, screenshotBounds(viewport)) }))
+				.filter(hasClippedFrame)
+				.filter((entry) => rectsIntersect(cropScreenRect(entry.frame, viewport), screen))
+				.map((entry) => ({
+					id: entry.element.id,
+					frame: clipRect(
+						remapFrameToCrop(entry.frame, viewport, screen, { width: crop.width, height: crop.height }),
+						cropBounds,
+					),
+				}))
+				.filter(hasMarkFrame);
 			return {
 				content: [
 					{ type: "image", data: crop.data.toString("base64"), mimeType: crop.mimeType },
@@ -100,6 +108,42 @@ function remapFrameToCrop(frame: Rect, viewport: ScreenshotViewport, screen: Rec
 		((screenFrame.x + screenFrame.width - screen.x) * crop.width) / screen.width,
 		((screenFrame.y + screenFrame.height - screen.y) * crop.height) / screen.height,
 	);
+}
+
+function clipRect(rect: Rect, bounds: Rect): Rect | undefined {
+	const x = Math.max(rect.x, bounds.x);
+	const y = Math.max(rect.y, bounds.y);
+	const right = Math.min(rect.x + rect.width, bounds.x + bounds.width);
+	const bottom = Math.min(rect.y + rect.height, bounds.y + bounds.height);
+	if (right <= x || bottom <= y) {
+		return undefined;
+	}
+	return { x, y, width: right - x, height: bottom - y };
+}
+
+function hasClippedFrame(entry: {
+	readonly element: AXTreeElement;
+	readonly frame: Rect | undefined;
+}): entry is { readonly element: AXTreeElement; readonly frame: Rect } {
+	return entry.frame !== undefined;
+}
+
+function hasMarkFrame(entry: {
+	readonly id: number;
+	readonly frame: Rect | undefined;
+}): entry is { readonly id: number; readonly frame: Rect } {
+	return entry.frame !== undefined;
+}
+
+function screenshotBounds(viewport: ScreenshotViewport): Rect {
+	if (isCaptureFrameViewport(viewport)) {
+		return { x: 0, y: 0, width: viewport.model.width, height: viewport.model.height };
+	}
+	return { x: 0, y: 0, width: viewport.screenshotWidth, height: viewport.screenshotHeight };
+}
+
+function isCaptureFrameViewport(viewport: ScreenshotViewport): viewport is CaptureFrame {
+	return "model" in viewport;
 }
 
 function rectsIntersect(a: Rect, b: Rect): boolean {
