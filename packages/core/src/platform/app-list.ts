@@ -3,9 +3,11 @@ import { promisify } from "node:util";
 import type { AppInfo } from "../accessibility/types.js";
 import { type AppUsage, parseAppUsageBlocks } from "./app-usage.js";
 import { execFileStdout } from "./exec-util.js";
+import { appLookupKey } from "./macos-app-resolver.js";
 
 const execFileAsync = promisify(execFile);
 const LIST_APPS_TIMEOUT_MILLISECONDS = 20_000;
+const TARGET_APP_TIMEOUT_MILLISECONDS = 2_000;
 
 export interface RunningAppInfo extends AppInfo {
 	readonly isActive: boolean;
@@ -39,6 +41,16 @@ export async function getRunningMacOSApps(): Promise<RunningAppInfo[]> {
 	return parseRunningApps(execFileStdout(result));
 }
 
+export async function resolveRunningMacOSAppByName(appName: string): Promise<RunningAppInfo> {
+	const lookup = appLookupKey(appName);
+	const bundleId = lookup.includes(".") ? lookup : await resolveBundleIdentifier(appName);
+	const result = await execFileAsync("osascript", ["-e", targetAppScript(bundleId)], {
+		encoding: "utf8",
+		timeout: TARGET_APP_TIMEOUT_MILLISECONDS,
+	});
+	return parseTargetApp(execFileStdout(result));
+}
+
 export function parseRunningApps(output: string): RunningAppInfo[] {
 	const parsed: unknown = JSON.parse(output);
 	if (!Array.isArray(parsed)) {
@@ -62,6 +74,48 @@ function parseRunningApp(value: unknown): RunningAppInfo {
 function optionalStringField(record: Record<string, unknown>, key: string): string {
 	const value = record[key];
 	return typeof value === "string" ? value : "";
+}
+
+async function resolveBundleIdentifier(appName: string): Promise<string> {
+	const result = await execFileAsync("osascript", ["-e", `id of application ${appleScriptString(appName)}`], {
+		encoding: "utf8",
+		timeout: TARGET_APP_TIMEOUT_MILLISECONDS,
+	});
+	const bundleId = execFileStdout(result).trim();
+	if (bundleId.length === 0) {
+		throw new Error(`No installed app matched '${appName}'`);
+	}
+	return bundleId;
+}
+
+function parseTargetApp(output: string): RunningAppInfo {
+	const [name, bundleId, pidText, frontmostText, path] = output.trim().split("\t");
+	const pid = Number(pidText);
+	if (
+		name === undefined ||
+		bundleId === undefined ||
+		path === undefined ||
+		!Number.isSafeInteger(pid) ||
+		pid <= 0 ||
+		(frontmostText !== "true" && frontmostText !== "false")
+	) {
+		throw new Error("target app lookup returned an invalid row");
+	}
+	return { name, bundleId, pid, isActive: frontmostText === "true", isRunning: true, path };
+}
+
+function targetAppScript(bundleId: string): string {
+	const quotedBundleId = appleScriptString(bundleId);
+	return `
+tell application "System Events"
+	set targetProcess to first application process whose bundle identifier is ${quotedBundleId}
+	return (name of targetProcess) & tab & (bundle identifier of targetProcess) & tab & (unix id of targetProcess) & tab & (frontmost of targetProcess) & tab & POSIX path of (file of targetProcess)
+end tell
+`;
+}
+
+function appleScriptString(value: string): string {
+	return `"${value.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
 function stringField(record: Record<string, unknown>, key: string): string {

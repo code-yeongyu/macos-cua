@@ -42,6 +42,7 @@ class FakeSessionBackend implements MacOSDesktopSessionBackend {
 	display: DisplayInfo = DISPLAY;
 	cursor: Point | undefined = CURSOR;
 	elements: readonly AXTreeElement[] = [ELEMENT];
+	resolveAppByName?: (appName: string) => Promise<RunningAppInfo>;
 	approved = true;
 	urlAllowed = true;
 	readonly calls: string[] = [];
@@ -185,6 +186,30 @@ describe("#given a warm same-target session #when get_app_state repeats #then re
 		expect(second.axChangeSummary).toEqual({ added: 0, changed: 0, removed: 0 });
 		expect(first.captureFrame?.captureId).toBe("macos-capture-1");
 		expect(second.captureFrame?.captureId).toBe("macos-capture-2");
+	});
+
+	it("reuses app-name lookup inside the warm session", async () => {
+		const session = new MacOSDesktopSession(backend);
+
+		await session.getAppStateForApp("Finder", { settleMs: 0 });
+		await session.getAppStateForApp("com.apple.finder", { settleMs: 0 });
+
+		expect(backend.calls.filter((call) => call === "listApps")).toHaveLength(1);
+	});
+
+	it("uses the direct app resolver before falling back to the full app list", async () => {
+		const session = new MacOSDesktopSession(backend);
+		backend.resolveAppByName = async (appName) => {
+			backend.calls.push(`resolveApp:${appName}`);
+			return APP;
+		};
+
+		await session.getAppStateForApp("Finder", { settleMs: 0 });
+		await session.getAppStateForApp("com.apple.finder", { settleMs: 0 });
+
+		expect(backend.calls).toContain("resolveApp:Finder");
+		expect(backend.calls.filter((call) => call === "listApps")).toHaveLength(0);
+		expect(backend.calls.filter((call) => call.startsWith("resolveApp:"))).toHaveLength(1);
 	});
 });
 

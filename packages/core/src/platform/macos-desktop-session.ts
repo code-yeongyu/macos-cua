@@ -7,6 +7,7 @@ import type { ScreenshotResult } from "../computer/interface.js";
 import { type ScreenshotViewport, resolveWindowScreenshotSize, screenRectToScreenshot } from "../computer/viewport.js";
 import type { AppStateOptions } from "../types/index.js";
 import type { RunningAppInfo } from "./app-list.js";
+import { MacOSDesktopAppCache } from "./macos-desktop-app-cache.js";
 import {
 	macOSDesktopSessionSignature,
 	macOSDisplayEpoch,
@@ -16,7 +17,7 @@ import type { MacOSAppStateTargetWindow, MacOSDesktopSessionBackend } from "./ma
 import { createMacOSObservationMetadata } from "./macos-observation-metadata.js";
 
 export class MacOSDesktopSession {
-	private readonly appByPid = new Map<number, RunningAppInfo>();
+	private readonly apps = new MacOSDesktopAppCache();
 	private readonly viewportByPid = new Map<number, ScreenshotViewport>();
 	private readonly previousAxByPid = new Map<number, readonly AXTreeElement[]>();
 	private readonly signatureByPid = new Map<number, string>();
@@ -30,6 +31,10 @@ export class MacOSDesktopSession {
 
 	async getAppState(targetPid?: number, options: AppStateOptions = {}): Promise<AppState> {
 		return await this.runExclusive("getAppState", () => this.getAppStateUnqueued(targetPid, options));
+	}
+
+	async getAppStateForApp(appName: string, options: AppStateOptions = {}): Promise<AppState> {
+		return await this.runExclusive("getAppStateForApp", () => this.getAppStateForAppUnqueued(appName, options));
 	}
 
 	async getScreenshotViewport(targetPid: number): Promise<ScreenshotViewport | undefined> {
@@ -58,7 +63,7 @@ export class MacOSDesktopSession {
 
 	refresh(targetPid?: number): void {
 		if (targetPid === undefined) {
-			this.appByPid.clear();
+			this.apps.clear();
 			this.viewportByPid.clear();
 			this.previousAxByPid.clear();
 			this.signatureByPid.clear();
@@ -68,7 +73,7 @@ export class MacOSDesktopSession {
 			return;
 		}
 		this.invalidatePid(targetPid);
-		this.appByPid.delete(targetPid);
+		this.apps.deletePid(targetPid);
 	}
 
 	async runExclusive<T>(label: string, action: () => Promise<T>): Promise<T> {
@@ -95,7 +100,31 @@ export class MacOSDesktopSession {
 		if (options.settleMs !== undefined && options.settleMs > 0) {
 			await this.backend.sleep(options.settleMs);
 		}
-		const app = await this.resolveApp(targetPid, refresh);
+		let app: RunningAppInfo;
+		try {
+			app = await this.apps.resolvePid(targetPid, this.backend, refresh);
+		} catch (error) {
+			if (targetPid !== undefined) {
+				this.invalidatePid(targetPid);
+			}
+			throw error;
+		}
+		return await this.captureResolvedAppState(app, options);
+	}
+
+	private async getAppStateForAppUnqueued(appName: string, options: AppStateOptions): Promise<AppState> {
+		const refresh = options.refresh === true;
+		if (refresh) {
+			this.refresh();
+		}
+		if (options.settleMs !== undefined && options.settleMs > 0) {
+			await this.backend.sleep(options.settleMs);
+		}
+		const app = await this.apps.resolveName(appName, this.backend, refresh);
+		return await this.captureResolvedAppState(app, options);
+	}
+
+	private async captureResolvedAppState(app: RunningAppInfo, options: AppStateOptions): Promise<AppState> {
 		this.backend.assertAppApproved(app);
 		await this.backend.assertBrowserUrlAllowed(app);
 		const targetWindow = await this.backend.resolveTargetWindow(app.pid);
@@ -169,32 +198,6 @@ export class MacOSDesktopSession {
 		};
 	}
 
-	private async resolveApp(targetPid: number | undefined, refresh: boolean): Promise<RunningAppInfo> {
-		if (targetPid !== undefined && !refresh) {
-			const cached = this.appByPid.get(targetPid);
-			if (cached !== undefined) {
-				return cached;
-			}
-		}
-		const apps = await this.backend.listApps();
-		for (const app of apps) {
-			this.appByPid.set(app.pid, app);
-		}
-		if (targetPid === undefined) {
-			const frontmost = apps.find((candidate) => candidate.isActive);
-			if (frontmost === undefined) {
-				throw new Error("No frontmost application available");
-			}
-			return frontmost;
-		}
-		const app = apps.find((candidate) => candidate.pid === targetPid);
-		if (app === undefined) {
-			this.invalidatePid(targetPid);
-			throw new Error(`No running app matched pid ${targetPid}`);
-		}
-		return app;
-	}
-
 	private createCaptureFrame(
 		app: RunningAppInfo,
 		viewport: ScreenshotViewport,
@@ -219,6 +222,7 @@ export class MacOSDesktopSession {
 	}
 
 	private invalidatePid(pid: number): void {
+		this.apps.deletePid(pid);
 		this.viewportByPid.delete(pid);
 		this.previousAxByPid.delete(pid);
 		this.signatureByPid.delete(pid);

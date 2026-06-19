@@ -18,7 +18,7 @@ import type {
 	ScrollOptions,
 	SelectTextOptions,
 } from "../types/index.js";
-import { getRunningMacOSApps } from "./app-list.js";
+import { getRunningMacOSApps, resolveRunningMacOSAppByName } from "./app-list.js";
 import { HostComputer, type HostComputerOptions } from "./host.js";
 import { MacOSDesktopSession } from "./macos-desktop-session.js";
 import {
@@ -39,7 +39,6 @@ import {
 	listMacOSAppInfo,
 	resolveAppStateTargetWindow,
 	resolveDisplayInfo,
-	resolveTargetAppByName,
 } from "./macos-host-helpers.js";
 import { MacOSInputController } from "./macos-input.js";
 import { getMacOSLogicalScreenSize } from "./macos-screen.js";
@@ -104,6 +103,7 @@ export class MacOSHostComputer extends HostComputer {
 			extractAccessibilityTree,
 			highlightWindow: (bounds) => this.overlay.highlight(bounds),
 			listApps: getRunningMacOSApps,
+			resolveAppByName: resolveRunningMacOSAppByName,
 			resolveAppInstructions,
 			resolveCursorPosition: () => this.input.getCursorPosition(),
 			resolveDisplayInfo,
@@ -185,8 +185,7 @@ export class MacOSHostComputer extends HostComputer {
 	}
 
 	async getAppStateForApp(appName: string, options?: AppStateOptions): Promise<AppState> {
-		const app = resolveTargetAppByName(await getRunningMacOSApps(), appName);
-		return await this.session.getAppState(app.pid, this.withDefaultSettle(options));
+		return await this.session.getAppStateForApp(appName, this.withDefaultSettle(options));
 	}
 
 	private async resolveAppStateTargetWindow(pid: number) {

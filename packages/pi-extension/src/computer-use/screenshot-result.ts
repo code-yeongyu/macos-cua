@@ -1,5 +1,5 @@
 import { type ComputerInterface, type Point, type Rect, type ScreenshotResult, createDebugLog } from "@macos-cua/core";
-import { Image, createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { PNG } from "pngjs";
 
 import type { ComputerUseResult } from "../anthropic-computer-use.js";
@@ -71,13 +71,17 @@ export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Poi
 	return PNG.sync.write(png);
 }
 
-export function drawCursorOnWindowScreenshot(pngBytes: Buffer, cursor: Point, windowBounds: Rect): Buffer {
+export async function drawCursorOnWindowScreenshot(
+	imageBytes: Buffer,
+	cursor: Point,
+	windowBounds: Rect,
+): Promise<Buffer> {
 	if (!containsPoint(windowBounds, cursor)) {
-		return pngBytes;
+		return imageBytes;
 	}
-	const image = decodeImageOrUndefined(pngBytes);
+	const image = await decodeImageOrUndefined(imageBytes);
 	if (image === undefined) {
-		return pngBytes;
+		return imageBytes;
 	}
 	const canvas = createCanvas(image.width, image.height);
 	const context = canvas.getContext("2d");
@@ -206,11 +210,9 @@ function decodePngOrUndefined(data: Buffer): PNG | undefined {
 	}
 }
 
-function decodeImageOrUndefined(data: Buffer): Image | undefined {
+async function decodeImageOrUndefined(data: Buffer): Promise<Awaited<ReturnType<typeof loadImage>> | undefined> {
 	try {
-		const image = new Image();
-		image.src = data;
-		return image;
+		return await loadImage(data);
 	} catch (error) {
 		if (error instanceof Error) {
 			return undefined;

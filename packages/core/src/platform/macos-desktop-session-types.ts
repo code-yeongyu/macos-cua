@@ -10,6 +10,7 @@ export type MacOSAppStateTargetWindow = {
 
 export interface MacOSDesktopSessionBackend {
 	listApps(): Promise<readonly RunningAppInfo[]>;
+	resolveAppByName?(appName: string): Promise<RunningAppInfo>;
 	assertAppApproved(app: RunningAppInfo): void;
 	assertBrowserUrlAllowed(app: RunningAppInfo): Promise<void>;
 	resolveTargetWindow(pid: number): Promise<MacOSAppStateTargetWindow | undefined>;

@@ -1,19 +1,19 @@
 import type { AppState, Point, Rect } from "@macos-cua/core";
-import { Image, createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 const CURSOR_FILL = "rgba(255, 59, 48, 1)";
 const CURSOR_RING = "rgba(255, 255, 255, 0.74)";
 const CURSOR_RADIUS_PIXELS = 5;
 const CURSOR_RING_RADIUS_PIXELS = 13;
 
-export function appStateImageContent(state: AppState): {
+export async function appStateImageContent(state: AppState): Promise<{
 	readonly data: string;
 	readonly mimeType: "image/png" | "image/jpeg";
-} {
+}> {
 	const baseImage = Buffer.from(state.screenshotBase64, "base64");
 	const annotatedImage =
 		state.windowBounds !== undefined && state.observation?.cursor !== undefined
-			? drawCursorOnWindowScreenshot(baseImage, state.observation.cursor, state.windowBounds)
+			? await drawCursorOnWindowScreenshot(baseImage, state.observation.cursor, state.windowBounds)
 			: baseImage;
 	return {
 		data: annotatedImage.toString("base64"),
@@ -21,11 +21,11 @@ export function appStateImageContent(state: AppState): {
 	};
 }
 
-function drawCursorOnWindowScreenshot(imageBytes: Buffer, cursor: Point, windowBounds: Rect): Buffer {
+async function drawCursorOnWindowScreenshot(imageBytes: Buffer, cursor: Point, windowBounds: Rect): Promise<Buffer> {
 	if (!containsPoint(windowBounds, cursor)) {
 		return imageBytes;
 	}
-	const image = decodeImageOrUndefined(imageBytes);
+	const image = await decodeImageOrUndefined(imageBytes);
 	if (image === undefined || image.width <= 0 || image.height <= 0) {
 		return imageBytes;
 	}
@@ -45,11 +45,9 @@ function containsPoint(rect: Rect, point: Point): boolean {
 	return point.x >= rect.x && point.y >= rect.y && point.x < rect.x + rect.width && point.y < rect.y + rect.height;
 }
 
-function decodeImageOrUndefined(data: Buffer): Image | undefined {
+async function decodeImageOrUndefined(data: Buffer): Promise<Awaited<ReturnType<typeof loadImage>> | undefined> {
 	try {
-		const image = new Image();
-		image.src = data;
-		return image;
+		return await loadImage(data);
 	} catch (error) {
 		if (error instanceof Error) {
 			return undefined;

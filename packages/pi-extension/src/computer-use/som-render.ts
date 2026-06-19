@@ -1,5 +1,5 @@
 import { createDebugLog } from "@macos-cua/core";
-import { Image, createCanvas } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 
 import type { SomMark } from "./som-layout.js";
 
@@ -12,21 +12,20 @@ const LABEL_TEXT_X_PADDING = 4;
 const LABEL_TEXT_Y_OFFSET = 1;
 const logOverlay = createDebugLog("overlay");
 
-export function renderSomOverlay(pngBytes: Buffer, marks: readonly SomMark[]): Buffer {
+export async function renderSomOverlay(imageBytes: Buffer, marks: readonly SomMark[]): Promise<Buffer> {
 	if (marks.length === 0) {
-		return pngBytes;
+		return imageBytes;
 	}
 
 	try {
-		const image = new Image();
-		image.src = pngBytes;
+		const image = await loadImage(imageBytes);
 		if (image.width <= 0 || image.height <= 0) {
 			logOverlay("skip", {
 				reason: "InvalidImageDimensions",
-				byteLength: pngBytes.byteLength,
+				byteLength: imageBytes.byteLength,
 				markCount: marks.length,
 			});
-			return pngBytes;
+			return imageBytes;
 		}
 
 		const canvas = createCanvas(image.width, image.height);
@@ -60,18 +59,18 @@ export function renderSomOverlay(pngBytes: Buffer, marks: readonly SomMark[]): B
 			logOverlay("skip", {
 				reason: error.name,
 				message: error.message,
-				byteLength: pngBytes.byteLength,
+				byteLength: imageBytes.byteLength,
 				markCount: marks.length,
 			});
-			return pngBytes;
+			return imageBytes;
 		}
 
 		logOverlay("skip", {
 			reason: "NonErrorThrow",
-			byteLength: pngBytes.byteLength,
+			byteLength: imageBytes.byteLength,
 			markCount: marks.length,
 		});
-		return pngBytes;
+		return imageBytes;
 	}
 }
 

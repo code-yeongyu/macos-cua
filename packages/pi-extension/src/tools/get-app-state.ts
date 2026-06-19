@@ -30,11 +30,11 @@ export function createGetAppStateTool(computer: ComputerInterface): ToolDefiniti
 			const baseImage = Buffer.from(state.screenshotBase64, "base64");
 			const somImage =
 				state.windowBounds !== undefined && layout.marks.length > 0
-					? renderSomOverlay(baseImage, layout.marks)
+					? await renderSomOverlay(baseImage, layout.marks)
 					: baseImage;
 			const annotatedImage =
 				state.windowBounds !== undefined && state.observation?.cursor !== undefined
-					? drawCursorOnWindowScreenshot(somImage, state.observation.cursor, state.windowBounds)
+					? await drawCursorOnWindowScreenshot(somImage, state.observation.cursor, state.windowBounds)
 					: somImage;
 			const imageBase64 = annotatedImage.toString("base64");
 			const mimeType = annotatedImage.equals(baseImage) ? (state.screenshotMimeType ?? "image/png") : "image/png";

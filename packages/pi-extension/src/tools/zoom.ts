@@ -95,7 +95,7 @@ export function createZoomTool(computer: ComputerInterface): ToolDefinition {
 			const cropDims = { width: crop.width, height: crop.height };
 			const cropState = appStateForCrop(state, sourceViewport, screenRect, cropDims);
 			const layout = computeSomMarks(cropState);
-			const annotated = renderSomOverlay(crop.data, layout.marks);
+			const annotated = await renderSomOverlay(crop.data, layout.marks);
 			const details: ZoomDetails = {
 				rect: { source: sourceRect, screen: screenRect, crop: cropDims },
 				marks: layout.marks,

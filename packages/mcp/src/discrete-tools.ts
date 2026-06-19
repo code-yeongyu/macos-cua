@@ -85,7 +85,7 @@ function registerGetAppStateTool(server: McpServer, computer: ComputerInterface)
 		},
 		async ({ app }): Promise<ToolResult> => {
 			const state = await getAppStateForApp(computer, app);
-			const image = appStateImageContent(state);
+			const image = await appStateImageContent(state);
 			const content: ToolContent[] = [
 				{ type: "image", data: image.data, mimeType: image.mimeType },
 				{ type: "text", text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
