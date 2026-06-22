@@ -1,17 +1,9 @@
-import {
-	type ComputerInterface,
-	parseElementIndex,
-	pressKeySequence,
-	resolveAppPid,
-	scrollElement,
-	withTargetedApp,
-} from "@macos-cua/core";
+import { type ComputerInterface, executeScrollAction, parseElementIndex, resolveAppPid } from "@macos-cua/core";
 import { type Static, Type } from "typebox";
 
 import { type ToolDefinition, defineTool } from "../pi/index.js";
 import { actionCompleteWithHint } from "./result.js";
 
-const LINES_PER_PAGE = 10;
 const SCROLL_HINT =
 	"Call get_app_state to fetch the updated UI state. For browser pages, scroll without element_index uses page_down/page_up keys. If axChangeSummary is 0/0/0, retry with a scrollable element_index from get_app_state, or use press_keys with page_down, page_up, space, or shift+space.";
 
@@ -37,47 +29,17 @@ export function createScrollTool(computer: ComputerInterface): ToolDefinition {
 		parameters: ScrollParams,
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);
-			if (params.element_index !== undefined) {
-				await scrollElement(
-					computer,
-					targetPid,
-					parseElementIndex(params.element_index),
-					params.direction,
-					params.pages ?? 1,
-				);
-				return actionCompleteWithHint(SCROLL_HINT);
-			}
-			await withTargetedApp(computer, targetPid, async () => {
-				await scrollWithoutElement(computer, params.direction, pageCount(params.pages));
+			await executeScrollAction(computer, {
+				targetPid,
+				direction: params.direction,
+				pages: params.pages ?? 1,
+				...(params.element_index === undefined
+					? {}
+					: {
+							elementIndex: parseElementIndex(params.element_index),
+						}),
 			});
 			return actionCompleteWithHint(SCROLL_HINT);
 		},
 	});
-}
-
-async function scrollWithoutElement(
-	computer: ComputerInterface,
-	direction: ScrollInput["direction"],
-	pages: number,
-): Promise<void> {
-	switch (direction) {
-		case "down":
-			await pressKeySequence(computer, repeatKey("page_down", pages));
-			return;
-		case "up":
-			await pressKeySequence(computer, repeatKey("page_up", pages));
-			return;
-		case "left":
-		case "right":
-			await computer.scroll({ direction, amount: pages * LINES_PER_PAGE });
-			return;
-	}
-}
-
-function repeatKey(key: string, count: number): readonly { readonly key: string }[] {
-	return Array.from({ length: count }, () => ({ key }));
-}
-
-function pageCount(pages: number | undefined): number {
-	return Math.max(1, Math.trunc(pages ?? 1));
 }
