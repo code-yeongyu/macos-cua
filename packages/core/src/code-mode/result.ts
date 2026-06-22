@@ -12,11 +12,18 @@ export type CodeModeRunResult = {
 };
 
 export function assembleRunResult(
-	raw: { readonly logs: readonly string[]; readonly result: unknown; readonly surfaced: readonly string[] },
+	raw: {
+		readonly logs: readonly string[];
+		readonly result: unknown;
+		readonly surfaced: readonly string[];
+		readonly actions?: readonly string[];
+	},
 	store: ScreenshotStore,
 ): CodeModeRunResult {
 	const images: CodeModeRunResult["images"][number][] = [];
-	const textLines: string[] = [...raw.logs];
+	const textLines: string[] =
+		raw.actions === undefined || raw.actions.length === 0 ? [] : [formatActions(raw.actions)];
+	textLines.push(...raw.logs);
 	for (const id of raw.surfaced) {
 		try {
 			const screenshot = store.get(id);
@@ -44,6 +51,10 @@ export function assembleRunResult(
 		images,
 		text,
 	};
+}
+
+function formatActions(actions: readonly string[]): string {
+	return `actions: ${actions.join(" -> ")}`;
 }
 
 function normalizeRunResult(

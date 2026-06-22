@@ -68,6 +68,26 @@ describe("#given a void run with no logs #when assembling a run result #then tex
 	});
 });
 
+describe("#given code-mode action trace #when assembling a run result #then text names the executed actions first", () => {
+	it("#given a bulky app state result #when actions were recorded #then the action summary precedes JSON", () => {
+		const store = new ScreenshotStore();
+
+		const result = assembleRunResult(
+			{
+				logs: [],
+				result: { elements: [{ id: 1, role: "AXWindow" }] },
+				surfaced: [],
+				actions: ['mac.getAppState("Safari")', 'mac.scroll("Safari")'],
+			},
+			store,
+		);
+
+		expect(result.text).toBe(
+			'actions: mac.getAppState("Safari") -> mac.scroll("Safari")\n{"elements":[{"id":1,"role":"AXWindow"}]}',
+		);
+	});
+});
+
 describe("#given a surfaced image with secret bytes #when assembling a run result #then text does not leak base64 data", () => {
 	it("keeps image bytes only in the image attachment", () => {
 		const store = new ScreenshotStore();

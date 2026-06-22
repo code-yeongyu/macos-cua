@@ -5,7 +5,9 @@ import { executePointerClick } from "../computer/pointer-action.js";
 import { executeScrollAction } from "../computer/scroll-action.js";
 import { executeTypeTextAction } from "../computer/type-text-action.js";
 import type { AppOpenOptions, AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
+import { formatActionTrace } from "./action-trace.js";
 import type { CodeModeActionMethod, CodeModeActionResult, CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
+import { getAppStateWithWindowRetry } from "./app-state-retry.js";
 import { capturePostActionObservation, toCodeModeAppState } from "./capture-metadata.js";
 import { CodeModeError } from "./errors.js";
 import { serializeHostError } from "./sandbox-errors.js";
@@ -28,12 +30,16 @@ export class SandboxRpcHost {
 	constructor(
 		private readonly computer: ComputerInterface,
 		private readonly store: ScreenshotStore,
+		private readonly actions: string[] = [],
 	) {}
 
 	handler(): HostFunction {
 		return async (methodInput: unknown, argsInput: unknown): Promise<HostRpcEnvelope> => {
 			try {
-				return { ok: true, value: await this.dispatch(parseHostCall(methodInput, argsInput)) };
+				const call = parseHostCall(methodInput, argsInput);
+				const value = await this.dispatch(call);
+				this.actions.push(formatActionTrace(call));
+				return { ok: true, value };
 			} catch (error) {
 				return { ok: false, error: serializeHostError(error) };
 			}
@@ -92,7 +98,7 @@ export class SandboxRpcHost {
 
 	private async getAppState(app?: CodeModeAppTarget, options?: AppStateOptions): Promise<CodeModeAppState> {
 		const targetPid = app === undefined ? undefined : await this.resolvePid(app);
-		return toCodeModeAppState(await this.computer.getAppState(targetPid, options), this.store);
+		return toCodeModeAppState(await getAppStateWithWindowRetry(this.computer, targetPid, options), this.store);
 	}
 
 	private async click(

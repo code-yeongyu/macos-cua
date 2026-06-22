@@ -41,7 +41,7 @@ describe("code mode settings #given activation sources #when resolving mode #the
 		expect(enabled).toBe(true);
 	});
 
-	it("#given an installed Senpi code-mode package #when project settings are absent #then code mode is enabled", () => {
+	it("#given an installed Senpi code-mode package #when env and project settings are absent #then code mode is disabled", () => {
 		fsMock.existsSync.mockImplementation((targetPath) => targetPath === PACKAGE_PATH || targetPath === WRAPPER_PATH);
 		fsMock.readFileSync.mockImplementation((targetPath) => {
 			if (targetPath === PACKAGE_PATH) {
@@ -60,8 +60,15 @@ describe("code mode settings #given activation sources #when resolving mode #the
 		const enabled = isMacOSCuaCodeModeEnabled("/Users/tester/local-workspaces");
 
 		expect(fsMock.existsSync).toHaveBeenCalledWith("/Users/tester/local-workspaces/.senpi/settings.json");
-		expect(fsMock.existsSync).toHaveBeenCalledWith(PACKAGE_PATH);
-		expect(fsMock.existsSync).toHaveBeenCalledWith(WRAPPER_PATH);
+		expect(fsMock.existsSync).not.toHaveBeenCalledWith(PACKAGE_PATH);
+		expect(fsMock.existsSync).not.toHaveBeenCalledWith(WRAPPER_PATH);
+		expect(enabled).toBe(false);
+	});
+
+	it("#given env codeMode true and no project settings #when resolving mode #then code mode is enabled", () => {
+		const enabled = isMacOSCuaCodeModeEnabled("/repo", { [CODE_MODE_ENV]: "1" });
+
+		expect(fsMock.existsSync).not.toHaveBeenCalled();
 		expect(enabled).toBe(true);
 	});
 

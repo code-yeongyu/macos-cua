@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
 import path from "node:path";
 
 export const CODE_MODE_ENV = "MACOS_CUA_CODE_MODE";
@@ -7,9 +6,6 @@ export const DISABLE_COMPUTER_USE_BETA_ENV = "MACOS_CUA_DISABLE_COMPUTER_USE_BET
 
 const TRUE_SETTING_VALUES = new Set(["1", "true", "yes", "on"]);
 const SETTINGS_PATH_SEGMENTS = [".senpi", "settings.json"] as const;
-const SENPI_CODE_MODE_PACKAGE_SEGMENTS = [".senpi", "agent", "code-mode-packages", "macos-cua"] as const;
-const SENPI_CODE_MODE_PACKAGE_NAME = "macos-cua-senpi-code-mode";
-const SENPI_CODE_MODE_EXTENSION_ENTRY = "./macos-cua.js";
 
 export function isMacOSCuaCodeModeEnabled(
 	cwd: string | undefined,
@@ -26,7 +22,7 @@ export function isMacOSCuaCodeModeEnabled(
 	if (projectSetting !== undefined) {
 		return projectSetting;
 	}
-	return isSenpiCodeModePackageInstalled();
+	return false;
 }
 
 export function isComputerUseBetaEnabled(env: Readonly<NodeJS.ProcessEnv> = process.env): boolean {
@@ -50,30 +46,6 @@ function readProjectCodeModeSetting(cwd: string): boolean | undefined {
 		return typeof codeMode === "boolean" ? codeMode : undefined;
 	}
 	return undefined;
-}
-
-function isSenpiCodeModePackageInstalled(): boolean {
-	const packageDirectory = path.join(homedir(), ...SENPI_CODE_MODE_PACKAGE_SEGMENTS);
-	const packagePath = path.join(packageDirectory, "package.json");
-	const wrapperPath = path.join(packageDirectory, "macos-cua.js");
-	if (!existsSync(packagePath) || !existsSync(wrapperPath)) {
-		return false;
-	}
-	const parsed = parseSettingsJson(readFileSync(packagePath, "utf8"));
-	if (!isObjectRecord(parsed)) {
-		return false;
-	}
-	if (parsed["name"] !== SENPI_CODE_MODE_PACKAGE_NAME) {
-		return false;
-	}
-	const pi = parsed["pi"];
-	if (!isObjectRecord(pi)) {
-		return false;
-	}
-	if (!isStringArray(pi["extensions"]) || !pi["extensions"].includes(SENPI_CODE_MODE_EXTENSION_ENTRY)) {
-		return false;
-	}
-	return readFileSync(wrapperPath, "utf8").includes(CODE_MODE_ENV);
 }
 
 function projectSettingsPaths(cwd: string): readonly string[] {
@@ -102,10 +74,6 @@ function parseSettingsJson(content: string): unknown {
 
 function isObjectRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isStringArray(value: unknown): value is readonly string[] {
-	return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
 function isOptedIn(value: string | undefined): boolean {

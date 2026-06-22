@@ -42,6 +42,7 @@ describe("#given sandboxed code #when it calls host RPC methods #then screenshot
 			state: { screenshot: { id: "shot_2", width: 30, height: 15 } },
 		});
 		expect(result.surfaced).toEqual(["shot_1", "shot_2"]);
+		expect(result.actions).toEqual(["mac.screenshot()", "mac.getAppState(123)"]);
 		expect(store.get("shot_1").data.toString()).toBe("screen");
 		expect(store.get("shot_2").data.toString()).toBe("app-state-screen");
 		expect(computer.appStateCalls).toEqual([{ targetPid: 123, options: { settleMs: 0 } }]);

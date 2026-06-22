@@ -12,10 +12,16 @@ const fsMock = vi.hoisted(() => ({
 	existsSync: vi.fn(() => false),
 	readFileSync: vi.fn(() => "{}"),
 }));
+const osMock = vi.hoisted(() => ({
+	homedir: vi.fn(() => "/Users/tester"),
+}));
 
 vi.mock("node:fs", () => ({
 	existsSync: fsMock.existsSync,
 	readFileSync: fsMock.readFileSync,
+}));
+vi.mock("node:os", () => ({
+	homedir: osMock.homedir,
 }));
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
@@ -102,6 +108,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	fsMock.existsSync.mockReturnValue(false);
 	fsMock.readFileSync.mockReturnValue("{}");
+	osMock.homedir.mockReturnValue("/Users/tester");
 	sandboxRunMock.mockResolvedValue({ logs: ["ok"], result: { done: true }, surfaced: ["shot_1"] });
 });
 
@@ -217,5 +224,31 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 
 		expect(fsMock.existsSync).toHaveBeenCalledWith("/repo/.senpi/settings.json");
 		expect(pi.registeredTools.map((tool) => tool.name)).toEqual(["run"]);
+	});
+
+	it("#given only an installed Senpi code-mode package #when direct extension starts #then discrete tools stay registered", async () => {
+		const packagePath = "/Users/tester/.senpi/agent/code-mode-packages/macos-cua/package.json";
+		const wrapperPath = "/Users/tester/.senpi/agent/code-mode-packages/macos-cua/macos-cua.js";
+		const pi = createMockPi();
+		fsMock.existsSync.mockImplementation((targetPath) => targetPath === packagePath || targetPath === wrapperPath);
+		fsMock.readFileSync.mockImplementation((targetPath) => {
+			if (targetPath === packagePath) {
+				return JSON.stringify({
+					name: "macos-cua-senpi-code-mode",
+					type: "module",
+					pi: { extensions: ["./macos-cua.js"] },
+				});
+			}
+			if (targetPath === wrapperPath) {
+				return 'process.env.MACOS_CUA_CODE_MODE = "1";';
+			}
+			return "{}";
+		});
+		macosCuaExtension(pi);
+
+		await runSessionStartInCwd(pi, "/Users/tester/local-workspaces");
+
+		expect(pi.registeredTools.map((tool) => tool.name)).toContain("get_app_state");
+		expect(pi.registeredTools.map((tool) => tool.name)).not.toEqual(["run"]);
 	});
 });
