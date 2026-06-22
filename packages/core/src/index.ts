@@ -27,6 +27,12 @@ export {
 	type PointerClickTarget,
 } from "./computer/actions.js";
 export {
+	executeScrollAction,
+	type ExecuteScrollInput,
+	type ScrollDirection,
+} from "./computer/scroll-action.js";
+export { executeTypeTextAction, type ExecuteTypeTextInput } from "./computer/type-text-action.js";
+export {
 	createCaptureFrame,
 	createCaptureFrameTransform,
 	type CaptureFrame,

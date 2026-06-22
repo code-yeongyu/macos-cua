@@ -132,6 +132,7 @@ export class FakeComputer implements ComputerInterface {
 	readonly rightClickCalls: Point[] = [];
 	readonly dragCalls: DragOptions[] = [];
 	readonly scrollCalls: ScrollOptions[] = [];
+	readonly keyCalls: { readonly key: string; readonly options: KeyOptions | undefined }[] = [];
 	readonly openAppCalls: { readonly appName: string; readonly options: AppOpenOptions | undefined }[] = [];
 	listAppsCallCount = 0;
 	readonly performActionCalls: {
@@ -166,7 +167,9 @@ export class FakeComputer implements ComputerInterface {
 	async middleClick(_position: Point): Promise<void> {}
 	async doubleClick(_position: Point): Promise<void> {}
 	async type(_text: string): Promise<void> {}
-	async key(_key: string, _options?: KeyOptions): Promise<void> {}
+	async key(key: string, options?: KeyOptions): Promise<void> {
+		this.keyCalls.push({ key, options });
+	}
 	async scroll(options: ScrollOptions): Promise<void> {
 		this.scrollCalls.push(options);
 	}

@@ -2,6 +2,8 @@ import type { AppInfo } from "../accessibility/types.js";
 import { resolveScreenPoint } from "../computer/coordinate.js";
 import type { ComputerInterface } from "../computer/interface.js";
 import { executePointerClick } from "../computer/pointer-action.js";
+import { executeScrollAction } from "../computer/scroll-action.js";
+import { executeTypeTextAction } from "../computer/type-text-action.js";
 import type { AppOpenOptions, AppStateOptions, KeyOptions, Point, ScreenshotOptions } from "../types/index.js";
 import type { CodeModeActionMethod, CodeModeActionResult, CodeModeAppState, CodeModeAppTarget } from "./api-surface.js";
 import { capturePostActionObservation, toCodeModeAppState } from "./capture-metadata.js";
@@ -19,13 +21,6 @@ import type {
 	ParsedPressOptions,
 } from "./sandbox-types.js";
 import type { ScreenshotHandle, ScreenshotStore } from "./screenshot-store.js";
-
-const SCROLL_ACTIONS: Record<CodeModeScrollTarget["direction"], string> = {
-	up: "AXScrollUpByPage",
-	down: "AXScrollDownByPage",
-	left: "AXScrollLeftByPage",
-	right: "AXScrollRightByPage",
-};
 
 export class SandboxRpcHost {
 	private appCache: readonly AppInfo[] | undefined;
@@ -138,20 +133,18 @@ export class SandboxRpcHost {
 
 	private async scroll(app: CodeModeAppTarget, target: CodeModeScrollTarget): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
-		const amount = Math.max(1, Math.trunc(target.amount ?? 1));
-		if (target.elementIndex !== undefined) {
-			for (let index = 0; index < amount; index += 1) {
-				await this.computer.performAction(pid, target.elementIndex, SCROLL_ACTIONS[target.direction]);
-			}
-			return await this.actionResult(`code-mode-scroll:${pid}`, "scroll");
-		}
-		await this.withPid(pid, async () => this.computer.scroll({ direction: target.direction, amount }));
+		await executeScrollAction(this.computer, {
+			targetPid: pid,
+			direction: target.direction,
+			pages: target.amount ?? 1,
+			...(target.elementIndex === undefined ? {} : { elementIndex: target.elementIndex }),
+		});
 		return await this.actionResult(`code-mode-scroll:${pid}`, "scroll");
 	}
 
 	private async type(app: CodeModeAppTarget, text: string): Promise<CodeModeActionResult> {
 		const pid = await this.resolvePid(app);
-		await this.withPid(pid, async () => this.computer.type(text));
+		await executeTypeTextAction(this.computer, { targetPid: pid, text });
 		return await this.actionResult(`code-mode-type:${pid}`, "type");
 	}
 
