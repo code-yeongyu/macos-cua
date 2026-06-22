@@ -41,6 +41,7 @@ export function registerZoomTool(server: McpServer, computer: ComputerInterface,
 			const marks = state.elements
 				.map((element) => ({ element, frame: clipRect(element.frame, screenshotBounds(viewport)) }))
 				.filter(hasClippedFrame)
+				.filter(({ element }) => shouldMarkElement(element))
 				.filter((entry) => rectsIntersect(cropScreenRect(entry.frame, viewport), screen))
 				.map((entry) => ({
 					id: entry.element.id,
@@ -134,6 +135,25 @@ function hasMarkFrame(entry: {
 	readonly frame: Rect | undefined;
 }): entry is { readonly id: number; readonly frame: Rect } {
 	return entry.frame !== undefined;
+}
+
+function shouldMarkElement(element: AXTreeElement): boolean {
+	return hasInteractiveAction(element) || hasDescription(element);
+}
+
+function hasInteractiveAction(element: AXTreeElement): boolean {
+	return element.actions.length > 0;
+}
+
+function hasDescription(element: AXTreeElement): boolean {
+	if (element.role === "AXStaticText") {
+		return false;
+	}
+	return hasText(element.label) || hasText(element.value);
+}
+
+function hasText(value: string | null): boolean {
+	return value !== null && value.trim().length > 0;
 }
 
 function screenshotBounds(viewport: ScreenshotViewport): Rect {
