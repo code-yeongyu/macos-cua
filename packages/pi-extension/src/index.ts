@@ -62,10 +62,6 @@ const computerFallbackToolSchema = Type.Union([
 let state: ExtensionState | undefined;
 
 export default function macosCuaExtension(pi: ExtensionAPI): void {
-	pi.on("resources_discover", () => {
-		return { skillPaths: [] };
-	});
-
 	pi.on("session_start", async (_event, ctx) => {
 		const codeMode = isMacOSCuaCodeModeEnabled(ctx.cwd);
 		const computer = new MacOSHostComputer(codeMode ? { overlay: NOOP_OVERLAY } : {});

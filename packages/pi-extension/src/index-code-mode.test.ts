@@ -128,14 +128,6 @@ async function runSessionStartInCwd(pi: MockPi, cwd: string): Promise<void> {
 	await handler({ reason: "startup" }, { model: undefined, cwd });
 }
 
-async function runResourcesDiscover(pi: MockPi): Promise<unknown> {
-	const handler = pi.handlers.get("resources_discover");
-	if (handler === undefined) {
-		throw new Error("resources_discover handler missing");
-	}
-	return await handler({ type: "resources_discover", cwd: "/repo" });
-}
-
 function runBeforeProviderRequest(pi: MockPi, payload: unknown): unknown {
 	const handler = pi.handlers.get("before_provider_request");
 	if (handler === undefined) {
@@ -159,16 +151,6 @@ async function runBeforeAgentStart(pi: MockPi): Promise<unknown> {
 }
 
 describe("#given codeMode env var #when session_start runs #then only run is registered", () => {
-	it("#given the macos-cua skill exists #when Senpi discovers resources #then tool mode does not load it", async () => {
-		const pi = createMockPi();
-		fsMock.existsSync.mockImplementation((targetPath) => targetPath.toString().endsWith("skills/macos-cua/SKILL.md"));
-		macosCuaExtension(pi);
-
-		const result = await runResourcesDiscover(pi);
-
-		expect(result).toEqual({ skillPaths: [] });
-	});
-
 	it("skips discrete tools and native payload injection", async () => {
 		process.env["MACOS_CUA_CODE_MODE"] = "1";
 		const pi = createMockPi();

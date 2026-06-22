@@ -199,21 +199,19 @@ describe("#given macosCuaExtension #when imported #then default export is a name
 });
 
 describe("#given a pi API #when extension factory runs #then lifecycle handlers are registered", () => {
-	it("registers resources_discover, session_start, model_select, request, prompt, and session_shutdown handlers", () => {
+	it("registers session_start, model_select, request, prompt, and session_shutdown handlers", () => {
 		const pi = createMockPi();
 		const onSpy = vi.spyOn(pi, "on");
 
 		macosCuaExtension(pi);
 
-		expect(onSpy).toHaveBeenCalledWith("resources_discover", expect.any(Function));
 		expect(onSpy).toHaveBeenCalledWith("session_start", expect.any(Function));
 		expect(onSpy).toHaveBeenCalledWith("model_select", expect.any(Function));
 		expect(onSpy).toHaveBeenCalledWith("before_provider_request", expect.any(Function));
 		expect(onSpy).toHaveBeenCalledWith("before_agent_start", expect.any(Function));
 		expect(onSpy).toHaveBeenCalledWith("session_shutdown", expect.any(Function));
-		expect(onSpy).toHaveBeenCalledTimes(6);
+		expect(onSpy).toHaveBeenCalledTimes(5);
 		expect([...pi.handlers.keys()]).toEqual([
-			"resources_discover",
 			"session_start",
 			"model_select",
 			"before_provider_request",
@@ -434,21 +432,6 @@ describe("#given fallback computer tool #when model changes display profile befo
 
 		expect(macOSHostComputerMock.instance.screenshot).toHaveBeenCalledWith({
 			targetSize: { width: 1024, height: 576 },
-		});
-	});
-});
-
-describe("#given resources_discover #when invoked #then macOS skill path is returned", () => {
-	it("does not advertise a missing macos-cua skill path", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		const resourcesDiscover = pi.handlers.get("resources_discover");
-
-		expect(resourcesDiscover).toBeDefined();
-		const result = await resourcesDiscover?.();
-
-		expect(result).toEqual({
-			skillPaths: [],
 		});
 	});
 });
