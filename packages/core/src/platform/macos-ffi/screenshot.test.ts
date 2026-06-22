@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const nativeMock = vi.hoisted(() => {
 	const displayId = 7;
 	const mainImage = { type: "main-image" };
+	const secondaryImage = { type: "secondary-image" };
 	const croppedImage = { type: "cropped-image" };
 	const cfData = { type: "cf-data" };
 	const destination = { type: "destination" };
@@ -18,11 +19,29 @@ const nativeMock = vi.hoisted(() => {
 
 	const coreGraphicsFunctions = {
 		CGMainDisplayID: vi.fn(() => displayId),
-		CGDisplayBounds: vi.fn(() => ({ origin: { x: 0, y: 0 }, size: { width: 800, height: 600 } })),
-		CGDisplayCreateImage: vi.fn(() => mainImage),
+		CGDisplayBounds: vi.fn((requestedDisplayId: number) =>
+			requestedDisplayId === 8
+				? { origin: { x: -1200, y: 0 }, size: { width: 1200, height: 800 } }
+				: { origin: { x: 0, y: 0 }, size: { width: 800, height: 600 } },
+		),
+		CGDisplayCreateImage: vi.fn((requestedDisplayId: number) =>
+			requestedDisplayId === 8 ? secondaryImage : mainImage,
+		),
 		CGImageCreateWithImageInRect: vi.fn(() => croppedImage),
-		CGDisplayPixelsWide: vi.fn(() => 1600),
-		CGDisplayPixelsHigh: vi.fn(() => 1200),
+		CGDisplayPixelsWide: vi.fn((requestedDisplayId: number) => (requestedDisplayId === 8 ? 2400 : 1600)),
+		CGDisplayPixelsHigh: vi.fn((requestedDisplayId: number) => (requestedDisplayId === 8 ? 1600 : 1200)),
+		CGGetDisplaysWithRect: vi.fn(
+			(
+				rect: { readonly origin: { readonly x: number } },
+				_maxDisplays: number,
+				displays: number[],
+				matchingDisplayCount: number[],
+			) => {
+				displays[0] = rect.origin.x < 0 ? 8 : displayId;
+				matchingDisplayCount[0] = 1;
+				return 0;
+			},
+		),
 		CGImageGetWidth: vi.fn((image: object) => (image === croppedImage ? 600 : 1600)),
 		CGImageGetHeight: vi.fn((image: object) => (image === croppedImage ? 400 : 1200)),
 	} satisfies Record<string, unknown>;
@@ -75,6 +94,7 @@ const nativeMock = vi.hoisted(() => {
 	return {
 		croppedImage,
 		mainImage,
+		secondaryImage,
 		coreFoundationFunctions,
 		coreGraphicsFunctions,
 		imageIoFunctions,
@@ -159,10 +179,32 @@ describe("#given a valid display rect #when capturing a region screenshot #then 
 	});
 });
 
+describe("#given a display rect on a non-main negative-origin display #when capturing a region screenshot #then it crops that display image", () => {
+	it("selects the display intersecting the rect and crops relative to that display origin", () => {
+		const result = captureDisplayRectPng({ x: -1100, y: 50, width: 300, height: 200 });
+
+		expect(result).toMatchObject({ width: 600, height: 400 });
+		expect(nativeMock.coreGraphicsFunctions.CGGetDisplaysWithRect).toHaveBeenCalledWith(
+			{ origin: { x: -1100, y: 50 }, size: { width: 300, height: 200 } },
+			1,
+			expect.any(Array),
+			expect.any(Array),
+		);
+		expect(nativeMock.coreGraphicsFunctions.CGDisplayCreateImage).toHaveBeenCalledWith(8);
+		expect(nativeMock.coreGraphicsFunctions.CGImageCreateWithImageInRect).toHaveBeenCalledWith(
+			nativeMock.secondaryImage,
+			{
+				origin: { x: 200, y: 100 },
+				size: { width: 600, height: 400 },
+			},
+		);
+	});
+});
+
 describe("#given an out-of-bounds display rect #when capturing a region screenshot #then bounds are named in the error", () => {
 	it("rejects before creating a cropped image", () => {
 		expect(() => captureDisplayRectPng({ x: 790, y: 0, width: 20, height: 100 })).toThrow(
-			"outside main display bounds 0,0,800,600",
+			"outside selected display bounds 0,0,800,600",
 		);
 		expect(nativeMock.coreGraphicsFunctions.CGImageCreateWithImageInRect).not.toHaveBeenCalled();
 	});
