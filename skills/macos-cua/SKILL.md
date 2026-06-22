@@ -1,6 +1,6 @@
 ---
 name: macos-cua
-description: "MUST USE whenever the user wants to automate the local macOS desktop — clicking, typing, scrolling, screenshots, or driving a macOS app. In Senpi/pi-extension sessions, use registered tools: `get_app_state` first, then `click`, `type_text`, `press_keys`, `scroll`, `drag`, `set_value`, `select_text`, `perform_secondary_action`, or `zoom`. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI. Triggers: macos-cua, macos computer use, macos automation, control mac, screenshot desktop, click screen, type mac app, scroll window, drive macOS app, macOS GUI automation, accessibility automation, ScreenCaptureKit, CGEvent, host-native computer use, no-sandbox computer use, codex-style locally, 맥 자동화, 데스크탑 자동화, 화면 스크린샷, 클릭 자동화, 키보드 자동화, 맥 컴퓨터 사용, GUI 제어, mac 화면 캡쳐, mac 입력 자동화, codex 로컬 자동화."
+description: "Use for macos-cua setup, troubleshooting, MCP/CLI operation, or desktop automation only when Senpi/pi-extension registered tools are unavailable. In Senpi registered-tool mode, do not load this skill just to operate the UI; use the tool guides on `get_app_state`, `click`, `type_text`, `press_keys`, `scroll`, `drag`, `set_value`, `select_text`, `perform_secondary_action`, and `zoom`. Triggers: macos-cua setup, macos-cua troubleshooting, macos-cua CLI, macos-cua MCP, macos computer use without registered tools, host-native computer use, ScreenCaptureKit, CGEvent, macOS GUI automation fallback."
 ---
 
 # macos-cua
@@ -17,11 +17,11 @@ Use macos-cua whenever the user wants the agent to operate their actual macOS de
 - Drive a macOS app through a sequence of UI actions.
 - Run automation that needs low-latency, host-native execution (no Docker/QEMU/Lume overhead).
 
-If the user only wants to read a file, run a normal CLI, or write code, this skill does not apply. Use pi's existing read/bash/edit tools instead.
+If the user only wants to read a file, run a normal CLI, write code, or operate UI through Senpi's registered `get_app_state`/`click`/`type_text` tools, this skill does not apply. Registered tools carry their own guides.
 
 ## Operating modes
 
-macos-cua has three entry points. Prefer the highest available mode in this order:
+macos-cua has three entry points. Registered Senpi/pi-extension tools are self-guiding and do not require loading this skill. When this skill is already loaded for setup, troubleshooting, MCP, or CLI work, prefer the highest available mode in this order:
 
 | Mode | How to invoke | When to pick it |
 |---|---|---|
@@ -31,9 +31,9 @@ macos-cua has three entry points. Prefer the highest available mode in this orde
 
 All three modes share the same underlying `MacOSHostComputer` implementation.
 
-## Senpi/pi-extension action loop
+## Senpi/pi-extension fallback note
 
-In Senpi/pi-extension sessions, use `get_app_state` first for visible UI work, then act with the discrete tools. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI.
+If this skill is already loaded while Senpi/pi-extension tools are visible, use `get_app_state` first for visible UI work, then act with the discrete tools. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI.
 
 1. Start with `get_app_state` for the target app. It returns a screenshot, numbered `element_index` boxes, the accessibility tree, and remembers the target window.
 2. Prefer `click element_index=<number>`, `set_value`, `select_text`, or `perform_secondary_action` when the accessibility tree exposes the target. Use `zoom` for small or ambiguous targets before clicking.

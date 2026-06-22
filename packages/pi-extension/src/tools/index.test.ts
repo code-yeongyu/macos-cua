@@ -150,8 +150,10 @@ describe("#given Senpi pi-extension tool guides #when desktop automation starts 
 		expect(piExtensionMode).toBeGreaterThanOrEqual(0);
 		expect(cliMode).toBeGreaterThanOrEqual(0);
 		expect(piExtensionMode).toBeLessThan(cliMode);
-		expect(skill).toContain("## Senpi/pi-extension action loop");
-		expect(skill).toContain("In Senpi/pi-extension sessions, use `get_app_state` first");
+		expect(skill).not.toContain("MUST USE whenever the user wants to automate");
+		expect(skill).toContain("Registered tools carry their own guides");
+		expect(skill).toContain("## Senpi/pi-extension fallback note");
+		expect(skill).toContain("If this skill is already loaded while Senpi/pi-extension tools are visible");
 		expect(skill).toContain("Use bash/CLI only when the discrete tools are unavailable");
 		expect(skill).toContain("Only check permissions after a black screenshot, missing window, or ignored input");
 		expect(skill).not.toContain("Before starting any automation session, verify permissions");

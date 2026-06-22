@@ -1,7 +1,3 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
 import { MacOSHostComputer } from "@macos-cua/core";
 import { Type } from "typebox";
 
@@ -57,9 +53,6 @@ const NOOP_OVERLAY = {
 	close(): void {},
 };
 
-const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
-const packageRoot = path.resolve(sourceDirectory, "..");
-const skillPath = path.resolve(packageRoot, "../../skills/macos-cua/SKILL.md");
 const computerFallbackToolSchema = Type.Union([
 	computerToolSchema,
 	openaiComputerToolSchema,
@@ -70,7 +63,7 @@ let state: ExtensionState | undefined;
 
 export default function macosCuaExtension(pi: ExtensionAPI): void {
 	pi.on("resources_discover", () => {
-		return { skillPaths: existsSync(skillPath) ? [skillPath] : [] };
+		return { skillPaths: [] };
 	});
 
 	pi.on("session_start", async (_event, ctx) => {
