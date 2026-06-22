@@ -143,9 +143,17 @@ describe("#given Senpi pi-extension tool guides #when desktop automation starts 
 
 	it("#given the Senpi skill guide #when pi-extension tools are available #then bash is fallback-only", () => {
 		const skill = readFileSync(macosCuaSkillPath, "utf8");
+		const piExtensionMode = skill.indexOf("| **pi-extension** |");
+		const cliMode = skill.indexOf("| **CLI** |");
 
 		expect(skill).not.toContain("NO custom tools registered");
+		expect(piExtensionMode).toBeGreaterThanOrEqual(0);
+		expect(cliMode).toBeGreaterThanOrEqual(0);
+		expect(piExtensionMode).toBeLessThan(cliMode);
+		expect(skill).toContain("## Senpi/pi-extension action loop");
 		expect(skill).toContain("In Senpi/pi-extension sessions, use `get_app_state` first");
 		expect(skill).toContain("Use bash/CLI only when the discrete tools are unavailable");
+		expect(skill).toContain("Only check permissions after a black screenshot, missing window, or ignored input");
+		expect(skill).not.toContain("Before starting any automation session, verify permissions");
 	});
 });

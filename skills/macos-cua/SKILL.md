@@ -21,36 +21,36 @@ If the user only wants to read a file, run a normal CLI, or write code, this ski
 
 ## Operating modes
 
-macos-cua has three entry points. Pick the one that matches the host's setup.
+macos-cua has three entry points. Prefer the highest available mode in this order:
 
 | Mode | How to invoke | When to pick it |
 |---|---|---|
-| **CLI** | `macos-cua <verb>` directly in pi's bash | The discrete tools are unavailable, you are setting up/debugging the package, or the user explicitly asks for the CLI. |
-| **MCP server** | `macos-cua-mcp` over stdio | The host loads MCP servers automatically. The server exposes the same verbs as tools. |
 | **pi-extension** | `pi install file://...` then restart pi | Senpi has registered Codex-compatible `list_apps`, `get_app_state`, `click`, `drag`, `scroll`, `type_text`, `press_keys`, `set_value`, `select_text`, `perform_secondary_action`, and `zoom` tools. |
+| **MCP server** | `macos-cua-mcp` over stdio | The host loads MCP servers automatically. The server exposes the same verbs as tools. |
+| **CLI** | `macos-cua <verb>` directly in pi's bash | The discrete tools are unavailable, you are setting up/debugging the package, or the user explicitly asks for the CLI. |
 
 All three modes share the same underlying `MacOSHostComputer` implementation.
 
+## Senpi/pi-extension action loop
+
 In Senpi/pi-extension sessions, use `get_app_state` first for visible UI work, then act with the discrete tools. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI.
+
+1. Start with `get_app_state` for the target app. It returns a screenshot, numbered `element_index` boxes, the accessibility tree, and remembers the target window.
+2. Prefer `click element_index=<number>`, `set_value`, `select_text`, or `perform_secondary_action` when the accessibility tree exposes the target. Use `zoom` for small or ambiguous targets before clicking.
+3. Use `type_text`, `press_keys`, `scroll`, or `drag` for direct input. Keep using the same app name or bundle id.
+4. Call `get_app_state` again only after a UI-changing action when you need to verify or choose the next target.
 
 When the `@macos-cua/pi-extension` is loaded, Anthropic Messages and direct OpenAI Responses models automatically receive native computer-use. Anthropic gets the `computer-use-2025-01-24` beta tool plus header/body fields; direct OpenAI Responses gets `{ type: "computer" }` in the provider payload. OpenAI Chat/proxy models, including Kimi in Senpi, use the discrete tools instead. All flows keep the Codex-compatible app tools available and all native-computer flows are disabled only by `MACOS_CUA_DISABLE_COMPUTER_USE_BETA=1` (`true`, `yes`, and `on` also work).
 
 The extension sends model-facing screenshots captured at a 1280px long edge. Coordinates returned by the model are interpreted in that image space, then unscaled back to macOS logical points before `click`, `move`, or `drag` dispatch.
 
-## First-time host consent
+## macOS permissions
 
-macOS requires these permissions before `macos-cua` can control the desktop:
+macOS needs host consent before `macos-cua` can see or control UI:
 
-1. **Screen Recording** — required for `screenshot` to capture the display.
-2. **Accessibility** — required for `click`, `type`, `key`, `scroll`, and `drag` to synthesize input events.
-3. **Apple Events** — required when resolving `--target-bundle-id` through System Events.
-
-Grant both manually in **System Settings → Privacy & Security**:
-
-- **Screen Recording** → enable for the terminal/IDE that launches `macos-cua`.
-- **Accessibility** → enable for the same terminal/IDE.
-
-If either permission is missing, `screenshot` returns a black image and input verbs silently do nothing. Permission is per-binary, so switching from iTerm to Ghostty (or VS Code's integrated terminal) requires re-granting for the new app.
+- **Screen Recording** for screenshots and window discovery.
+- **Accessibility** for click, type, key, scroll, drag, and AX actions.
+- **Apple Events** when resolving `--target-bundle-id` through System Events.
 
 Full installation walkthrough: [`references/installation.md`](references/installation.md).
 
@@ -119,13 +119,9 @@ Before executing any irreversible UI action (deleting files in Finder, confirmin
 
 `MacOSHostComputer` input uses macOS logical points. The pi-extension native computer tool shows models a downscaled screenshot (1280x720 maximum) and unscales model-space coordinates back to logical points before input dispatch. Raw CLI screenshots may still be Retina physical PNGs, so convert screenshot pixels to logical points when driving the CLI directly.
 
-### One screenshot per decision, not per turn
+## Permission troubleshooting
 
-Don't take a screenshot after every single micro-action. In MCP or pi-extension mode, call `get_app_state` once at the start of a turn, act with `click`/`type_text`/`press_keys`/`scroll`/`drag`/`set_value`, then call `get_app_state` again only when you need to verify changed UI.
-
-## Validation reminder
-
-Before starting any automation session, verify permissions:
+Only check permissions after a black screenshot, missing window, or ignored input. Permission is per-binary, so switching terminal apps may require re-granting. In CLI mode, verify with:
 
 ```bash
 macos-cua permissions check screen
