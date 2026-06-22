@@ -1,6 +1,6 @@
 ---
 name: macos-cua
-description: "MUST USE whenever the user wants to automate the local macOS desktop — clicking, typing, scrolling, screenshots, or driving a macOS app. Wraps the native @macos-cua/cli TypeScript CLI (no Python) using CoreGraphics CGEvent and macOS screen capture. Same OpenAI computer-use vocabulary as Codex, but host-native instead of VM sandbox. NO custom tools registered; call `macos-cua` through pi's built-in bash. Triggers: macos-cua, macos computer use, macos automation, control mac, screenshot desktop, click screen, type mac app, scroll window, drive macOS app, macOS GUI automation, accessibility automation, ScreenCaptureKit, CGEvent, host-native computer use, no-sandbox computer use, codex-style locally, 맥 자동화, 데스크탑 자동화, 화면 스크린샷, 클릭 자동화, 키보드 자동화, 맥 컴퓨터 사용, GUI 제어, mac 화면 캡쳐, mac 입력 자동화, codex 로컬 자동화."
+description: "MUST USE whenever the user wants to automate the local macOS desktop — clicking, typing, scrolling, screenshots, or driving a macOS app. In Senpi/pi-extension sessions, use registered tools: `get_app_state` first, then `click`, `type_text`, `press_keys`, `scroll`, `drag`, `set_value`, `select_text`, `perform_secondary_action`, or `zoom`. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI. Triggers: macos-cua, macos computer use, macos automation, control mac, screenshot desktop, click screen, type mac app, scroll window, drive macOS app, macOS GUI automation, accessibility automation, ScreenCaptureKit, CGEvent, host-native computer use, no-sandbox computer use, codex-style locally, 맥 자동화, 데스크탑 자동화, 화면 스크린샷, 클릭 자동화, 키보드 자동화, 맥 컴퓨터 사용, GUI 제어, mac 화면 캡쳐, mac 입력 자동화, codex 로컬 자동화."
 ---
 
 # macos-cua
@@ -25,13 +25,15 @@ macos-cua has three entry points. Pick the one that matches the host's setup.
 
 | Mode | How to invoke | When to pick it |
 |---|---|---|
-| **CLI** (default) | `macos-cua <verb>` directly in pi's bash | The `@macos-cua/cli` package is built and on PATH. This is the simplest path. |
+| **CLI** | `macos-cua <verb>` directly in pi's bash | The discrete tools are unavailable, you are setting up/debugging the package, or the user explicitly asks for the CLI. |
 | **MCP server** | `macos-cua-mcp` over stdio | The host loads MCP servers automatically. The server exposes the same verbs as tools. |
-| **pi-extension** | `pi install file://...` then restart pi | The host uses pi's extension system. Registers Codex-compatible `list_apps`, `get_app_state`, `click`, `drag`, `scroll`, `type_text`, `press_key`, `set_value`, and `perform_secondary_action` tools. |
+| **pi-extension** | `pi install file://...` then restart pi | Senpi has registered Codex-compatible `list_apps`, `get_app_state`, `click`, `drag`, `scroll`, `type_text`, `press_keys`, `set_value`, `select_text`, `perform_secondary_action`, and `zoom` tools. |
 
-All three modes share the same underlying `MacOSHostComputer` implementation. The CLI mode is preferred for ad-hoc automation because it requires no host configuration beyond building the package.
+All three modes share the same underlying `MacOSHostComputer` implementation.
 
-When the `@macos-cua/pi-extension` is loaded, Anthropic Messages and OpenAI Responses models automatically receive native computer-use. Anthropic gets the `computer-use-2025-01-24` beta tool plus header/body fields; OpenAI Responses gets `{ type: "computer" }` in the provider payload. `gpt-5.*` Responses API models get the GA `computer` tool with zero token overhead from extension prompt scaffolding. Both flows keep the Codex-compatible app tools available and both are disabled only by `MACOS_CUA_DISABLE_COMPUTER_USE_BETA=1` (`true`, `yes`, and `on` also work).
+In Senpi/pi-extension sessions, use `get_app_state` first for visible UI work, then act with the discrete tools. Use bash/CLI only when the discrete tools are unavailable, for setup, or when the user explicitly asks for the CLI.
+
+When the `@macos-cua/pi-extension` is loaded, Anthropic Messages and direct OpenAI Responses models automatically receive native computer-use. Anthropic gets the `computer-use-2025-01-24` beta tool plus header/body fields; direct OpenAI Responses gets `{ type: "computer" }` in the provider payload. OpenAI Chat/proxy models, including Kimi in Senpi, use the discrete tools instead. All flows keep the Codex-compatible app tools available and all native-computer flows are disabled only by `MACOS_CUA_DISABLE_COMPUTER_USE_BETA=1` (`true`, `yes`, and `on` also work).
 
 The extension sends model-facing screenshots captured at a 1280px long edge. Coordinates returned by the model are interpreted in that image space, then unscaled back to macOS logical points before `click`, `move`, or `drag` dispatch.
 
@@ -56,9 +58,9 @@ Full installation walkthrough: [`references/installation.md`](references/install
 
 When you want the agent to drive a specific app, call `get_app_state` first in MCP/pi-extension mode, or pass `--target-pid`/`--target-bundle-id` in CLI mode. Targeted input uses a remembered visible app window and routes through CoreGraphics plus SkyLight/AppKit FFI. If no target window is known, targeted input fails loudly rather than falling back to global cursor-moving input.
 
-## Core surface — `macos-cua <verb>`
+## CLI surface — `macos-cua <verb>`
 
-Every desktop action goes through the `macos-cua` CLI. The verb taxonomy:
+When using CLI mode, desktop actions go through `macos-cua <verb>`. The verb taxonomy:
 
 | Action | Command shape |
 |---|---|
@@ -81,9 +83,9 @@ Every desktop action goes through the `macos-cua` CLI. The verb taxonomy:
 
 Add `--json` to any subcommand for machine-readable output. If a call fails with an unknown flag, run `macos-cua <verb> --help` to see the exact flag set for that verb.
 
-## The screenshot → Read pattern
+## CLI screenshot → Read pattern
 
-The single most important recipe. `macos-cua` writes the PNG to disk; pi's Read tool ingests it as inline image content.
+In CLI mode, `macos-cua` writes the PNG to disk; pi's Read tool ingests it as inline image content.
 
 ```bash
 # capture with a unique filename so concurrent calls don't collide
@@ -96,7 +98,7 @@ Then in the **same agent turn**, call pi's Read tool with the absolute path `/tm
 
 ## Shell on localhost — prefer pi's bash
 
-On localhost, prefer pi's built-in bash tool for shell commands. It has the same shell environment and you get pi's standard output capture. Use `macos-cua` only for computer-use actions (screenshot, click, type, etc.).
+On localhost, prefer pi's built-in bash tool for shell commands. It has the same shell environment and you get pi's standard output capture. If pi-extension computer-use tools are visible, use them for desktop actions; otherwise use `macos-cua` only for computer-use actions (screenshot, click, type, etc.).
 
 ## Reference files — load only what you need
 
@@ -119,7 +121,7 @@ Before executing any irreversible UI action (deleting files in Finder, confirmin
 
 ### One screenshot per decision, not per turn
 
-Don't take a screenshot after every single micro-action. In MCP or pi-extension mode, call `get_app_state` once at the start of a turn, act with `click`/`type_text`/`press_key`/`scroll`/`drag`/`set_value`, then call `get_app_state` again only when you need to verify changed UI.
+Don't take a screenshot after every single micro-action. In MCP or pi-extension mode, call `get_app_state` once at the start of a turn, act with `click`/`type_text`/`press_keys`/`scroll`/`drag`/`set_value`, then call `get_app_state` again only when you need to verify changed UI.
 
 ## Validation reminder
 

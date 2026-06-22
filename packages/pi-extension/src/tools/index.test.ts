@@ -1,9 +1,17 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
 import type { ComputerInterface } from "@macos-cua/core";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildCodexComputerUseSection, buildComputerUseSection } from "../anthropic-computer-use.js";
 import type { ExtensionAPI } from "../pi/index.js";
 import { buildAllTools, registerAllTools } from "./index.js";
+
+const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(currentDirectory, "../../../..");
+const macosCuaSkillPath = path.join(repoRoot, "skills/macos-cua/SKILL.md");
 
 function createPiApi(): ExtensionAPI {
 	const on = ((eventName: string, handler: (...parameters: ReadonlyArray<unknown>) => unknown) => {
@@ -119,5 +127,25 @@ describe("#given computer-use prompt text #when small targets are present #then 
 		expect(prompt).toContain("zoom");
 		expect(prompt).toContain("small targets");
 		expect(prompt).toContain("click element_index=<number>");
+	});
+});
+
+describe("#given Senpi pi-extension tool guides #when desktop automation starts #then app state is the primary path", () => {
+	it("#given registered tools #when descriptions are read #then get_app_state tells models to start there", () => {
+		const tools = buildAllTools({ computer: createComputer() });
+		const getAppState = tools.find((tool) => tool.name === "get_app_state");
+
+		expect(getAppState?.description).toContain("first");
+		expect(getAppState?.description).toContain("click");
+		expect(getAppState?.description).toContain("type_text");
+		expect(getAppState?.description).toContain("press_keys");
+	});
+
+	it("#given the Senpi skill guide #when pi-extension tools are available #then bash is fallback-only", () => {
+		const skill = readFileSync(macosCuaSkillPath, "utf8");
+
+		expect(skill).not.toContain("NO custom tools registered");
+		expect(skill).toContain("In Senpi/pi-extension sessions, use `get_app_state` first");
+		expect(skill).toContain("Use bash/CLI only when the discrete tools are unavailable");
 	});
 });

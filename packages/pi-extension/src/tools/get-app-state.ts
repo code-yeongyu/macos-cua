@@ -23,7 +23,7 @@ export function createGetAppStateTool(computer: ComputerInterface, cache?: AppSt
 		name: "get_app_state",
 		label: "Computer Use: get app state",
 		description:
-			"Start an app use session if needed, then get the state of the app's key window and return a screenshot and accessibility tree. The numbered boxes in the screenshot are element_index values from the JSON accessibility tree.",
+			"Use first when controlling an app with click, type_text, press_keys, scroll, drag, set_value, select_text, or perform_secondary_action. Starts an app session if needed and returns the key-window screenshot plus accessibility tree; numbered boxes are element_index values from the JSON tree.",
 		parameters: GetAppStateParams,
 		async execute(_toolCallId, params) {
 			const state = await getAppStateForApp(computer, params.app);
