@@ -207,7 +207,7 @@ describe("#given codeMode env var #when session_start runs #then only run is reg
 		});
 	});
 
-	it("enables code mode from project settings when the env var is unset", async () => {
+	it("#given project codeMode true #when the env var is unset #then only run is registered", async () => {
 		const pi = createMockPi();
 		fsMock.existsSync.mockReturnValue(true);
 		fsMock.readFileSync.mockReturnValue(JSON.stringify({ macosCua: { codeMode: true } }));
