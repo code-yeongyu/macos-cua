@@ -44,6 +44,7 @@ import {
 import { MacOSInputController } from "./macos-input.js";
 import type { MacOSHostComputerOptions } from "./macos-options.js";
 import { getMacOSLogicalScreenSize } from "./macos-screen.js";
+import { captureMacOSAppStateWindowScreenshot } from "./macos-window-capture.js";
 
 export { captureMacOSScreenshot, getMacOSLogicalScreenSize } from "./macos-screen.js";
 export type { MacOSHostComputerOptions } from "./macos-options.js";
@@ -89,9 +90,11 @@ export class MacOSHostComputer extends HostComputer {
 			assertAppApproved: (app) => assertAppApproved(app, this.appApproval),
 			assertBrowserUrlAllowed: (app) => assertBrowserUrlAllowed(app, this.urlBlocklist),
 			captureWindowScreenshot: (targetWindow, size) =>
-				targetWindow.id === undefined
-					? this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds })
-					: this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow.id),
+				captureMacOSAppStateWindowScreenshot(
+					(options, windowId) => this.captureScreenshot(options, windowId),
+					targetWindow,
+					size,
+				),
 			extractAccessibilityTree,
 			highlightWindow: (bounds) => this.overlay.highlight(bounds),
 			listApps: getRunningMacOSApps,
