@@ -77,6 +77,9 @@ function hasInteractiveAction(element: AXTreeElement): boolean {
 }
 
 function hasDescription(element: AXTreeElement): boolean {
+	if (element.role === "AXStaticText") {
+		return false;
+	}
 	return hasText(element.label) || hasText(element.value);
 }
 

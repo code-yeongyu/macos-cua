@@ -19,6 +19,7 @@ const BASE_STATE: AppState = {
 
 function element(input: {
 	readonly id: number;
+	readonly role?: string;
 	readonly x: number;
 	readonly y: number;
 	readonly width: number;
@@ -29,7 +30,7 @@ function element(input: {
 }): AXTreeElement {
 	return {
 		id: input.id,
-		role: "AXButton",
+		role: input.role ?? "AXButton",
 		label: input.label ?? null,
 		value: input.value ?? null,
 		frame: { x: input.x, y: input.y, width: input.width, height: input.height },
@@ -55,6 +56,37 @@ describe("#given normalized elements whose id differs from array index #when com
 		expect(layout.marks).toHaveLength(1);
 		expect(layout.marks[0]).toMatchObject({ id: 5, label: "5", colorIndex: 0 });
 		expect(layout.marks[0]?.label).not.toBe("1");
+	});
+});
+
+describe("#given static article text #when computing SoM marks #then text-only content is not boxed", () => {
+	it("filters large AXStaticText nodes even when they have label or value text", () => {
+		const layout = computeSomMarks(
+			stateWith([
+				element({
+					id: 11,
+					role: "AXStaticText",
+					x: 20,
+					y: 20,
+					width: 340,
+					height: 40,
+					label: "A long article paragraph that should remain readable.",
+				}),
+				element({
+					id: 12,
+					role: "AXStaticText",
+					x: 20,
+					y: 70,
+					width: 340,
+					height: 40,
+					value: "Another static text run with only a value.",
+				}),
+				element({ id: 13, x: 30, y: 130, width: 80, height: 30, label: "Open", actions: ["AXPress"] }),
+			]),
+		);
+
+		expect(layout.marks.map((mark) => mark.id)).toEqual([13]);
+		expect(layout.dropped).toBe(0);
 	});
 });
 
