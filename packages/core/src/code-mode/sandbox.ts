@@ -34,12 +34,13 @@ export class CodeModeSandbox {
 			const disposer = new IsolateDisposer(isolate);
 			const logs: string[] = [];
 			const surfaced: string[] = [];
+			const actions: string[] = [];
 			try {
-				const execution = this.execute(ivm, isolate, transpiled.js, logs, surfaced);
+				const execution = this.execute(ivm, isolate, transpiled.js, logs, surfaced, actions);
 				const result = await withTimeout(execution, this.opts.timeoutMs ?? DEFAULT_TIMEOUT_MS, () =>
 					disposer.dispose(),
 				);
-				return { logs, result, surfaced };
+				return { logs, result, surfaced, actions };
 			} finally {
 				disposer.dispose();
 			}
@@ -54,8 +55,9 @@ export class CodeModeSandbox {
 		jsCode: string,
 		logs: string[],
 		surfaced: string[],
+		actions: string[],
 	): Promise<unknown> {
-		const rpcHost = new SandboxRpcHost(this.computer, this.store);
+		const rpcHost = new SandboxRpcHost(this.computer, this.store, actions);
 		const context = await installSandboxGlobals(ivm, isolate, rpcHost.handler(), logs, surfaced);
 		const script = await isolate.compileScript(wrapCode(jsCode), { filename: "code-mode-run.js" });
 		return await script.run(context, {

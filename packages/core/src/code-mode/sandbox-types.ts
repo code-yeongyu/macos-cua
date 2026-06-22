@@ -37,6 +37,7 @@ export type SandboxRunResult = {
 	readonly logs: readonly string[];
 	readonly result: unknown;
 	readonly surfaced: readonly string[];
+	readonly actions: readonly string[];
 };
 
 export type SandboxOptions = {
