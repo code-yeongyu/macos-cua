@@ -204,7 +204,7 @@ describe("#given a display rect on a non-main negative-origin display #when capt
 describe("#given an out-of-bounds display rect #when capturing a region screenshot #then bounds are named in the error", () => {
 	it("rejects before creating a cropped image", () => {
 		expect(() => captureDisplayRectPng({ x: 790, y: 0, width: 20, height: 100 })).toThrow(
-			"outside main display bounds 0,0,800,600",
+			"outside selected display bounds 0,0,800,600",
 		);
 		expect(nativeMock.coreGraphicsFunctions.CGImageCreateWithImageInRect).not.toHaveBeenCalled();
 	});

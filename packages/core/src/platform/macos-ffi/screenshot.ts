@@ -213,7 +213,7 @@ function assertRectInsideBounds(rect: Rect, bounds: CGRect): void {
 	if (rect.x < minX || rect.y < minY || rectMaxX > maxX || rectMaxY > maxY) {
 		const boundsRect = { x: minX, y: minY, width: bounds.size.width, height: bounds.size.height };
 		throw new Error(
-			`captureDisplayRectPng rect ${formatRect(rect)} is outside main display bounds ${formatRect(boundsRect)}`,
+			`captureDisplayRectPng rect ${formatRect(rect)} is outside selected display bounds ${formatRect(boundsRect)}`,
 		);
 	}
 }
