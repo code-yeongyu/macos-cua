@@ -85,6 +85,24 @@ pnpm macos-cua-mcp --version
 
 **Fix:** grant Accessibility to the terminal/IDE that launches `macos-cua`, then refresh the app session with `get_app_state` or retry the CLI command after ensuring the target window is visible.
 
+## Senpi code mode fails with `CODE_MODE_UNAVAILABLE` under Node 26
+
+**Cause:** code mode depends on `isolated-vm`, which is a native module built for a specific Node ABI. Node 26.3.1 uses ABI 147. If the installed `isolated-vm` package only has a native build for another ABI, code mode cannot load and the `run` tool fails before any macOS action executes.
+
+**Fix:** run Senpi code mode through the bundled Node 24 wrapper, or explicitly disable local code mode and keep the discrete macOS tools enabled. Direct extension activation should not infer code mode merely because a Senpi code-mode package is installed.
+
+Use `.senpi/settings.json` for local opt-out:
+
+```json
+{
+	"macosCua": {
+		"codeMode": false
+	}
+}
+```
+
+Use `MACOS_CUA_CODE_MODE=1` or project settings only when the process is running with a Node runtime that can load `isolated-vm`, such as the bundled Node 24 runtime.
+
 ## My active app loses focus or my keystrokes get redirected mid-task
 
 **Cause:** on older builds, raw coordinate `click`/`drag` (calls without `element_index`) activated the target app before posting synthetic mouse events. Current builds route through the remembered visible target window without intentionally promoting the app to frontmost.
