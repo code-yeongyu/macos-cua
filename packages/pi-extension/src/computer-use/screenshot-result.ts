@@ -25,7 +25,7 @@ export type ScreenshotCursorMetadata = {
 	};
 	readonly cursor: {
 		readonly logical: Point;
-		readonly image: Point;
+		readonly image?: Point;
 	};
 };
 export type ScreenshotResultWithCursorMetadata = {
@@ -50,19 +50,25 @@ export async function screenshotResultWithCursorMetadata(
 	});
 	const cursor = await computer.getCursorPosition();
 	const exactScreenshot = ensureModelDimensions(screenshot, display);
-	const cursorImage = cursorImagePoint(cursor, display, {
-		width: exactScreenshot.width,
-		height: exactScreenshot.height,
-	});
+	const cursorImage = containsDisplayPoint(display, cursor)
+		? cursorImagePoint(cursor, display, {
+				width: exactScreenshot.width,
+				height: exactScreenshot.height,
+			})
+		: undefined;
+	const cursorMetadata = cursorImage === undefined ? { logical: cursor } : { logical: cursor, image: cursorImage };
 	return {
 		result: imageResult(drawCursorOnScreenshot(exactScreenshot, cursor, display).toString("base64")),
-		metadata: { captureFrame, cursor: { logical: cursor, image: cursorImage } },
+		metadata: { captureFrame, cursor: cursorMetadata },
 	};
 }
 
 export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Point, display: DisplayConfig): Buffer {
 	const png = decodePngOrUndefined(screenshot.data);
 	if (png === undefined) {
+		return screenshot.data;
+	}
+	if (!containsDisplayPoint(display, cursor)) {
 		return screenshot.data;
 	}
 	const center = cursorImagePoint(cursor, display, { width: png.width, height: png.height });
@@ -97,6 +103,10 @@ export async function drawCursorOnWindowScreenshot(
 
 function containsPoint(rect: Rect, point: Point): boolean {
 	return point.x >= rect.x && point.y >= rect.y && point.x < rect.x + rect.width && point.y < rect.y + rect.height;
+}
+
+function containsDisplayPoint(display: DisplayConfig, point: Point): boolean {
+	return point.x >= 0 && point.y >= 0 && point.x < display.logicalWidth && point.y < display.logicalHeight;
 }
 
 function imageResult(pngBase64: string): ComputerUseResult {

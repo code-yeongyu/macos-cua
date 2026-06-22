@@ -104,13 +104,13 @@ describe("#given native computer screenshots #when OpenAI screenshot executes #t
 	});
 });
 
-describe("#given a cursor outside the display #when screenshot executes #then overlay is clamped to the image edge", () => {
-	it("draws the cursor at the nearest visible pixel", async () => {
+describe("#given a cursor outside the display #when screenshot executes #then overlay is omitted", () => {
+	it("leaves the capture pixels unchanged instead of clamping the cursor to an edge", async () => {
 		const computer = createComputer({ x: 999, y: -20 });
 
 		const result = await executeNativeComputerAction({ action: "screenshot" }, computer, DISPLAY);
 
-		expect(pixelAt(imageDataFrom(result), 99, 0)).toEqual(CURSOR_RED);
+		expect(pixelAt(imageDataFrom(result), 99, 0)).toEqual([12, 16, 20, 255]);
 	});
 });
 
