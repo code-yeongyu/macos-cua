@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { type ComputerActionDriver, executeNativeComputerAction } from "../anthropic-computer-use.js";
 import { executeOpenAIComputerAction } from "../openai-computer-use.js";
 import type { DisplayConfig } from "./coords.js";
+import { drawCursorOnWindowScreenshot } from "./screenshot-result.js";
 
 const DISPLAY = {
 	logicalWidth: 200,
@@ -111,6 +112,20 @@ describe("#given a cursor outside the display #when screenshot executes #then ov
 		const result = await executeNativeComputerAction({ action: "screenshot" }, computer, DISPLAY);
 
 		expect(pixelAt(imageDataFrom(result), 99, 0)).toEqual([12, 16, 20, 255]);
+	});
+});
+
+describe("#given a cursor outside the target window #when drawing on a window screenshot #then overlay is omitted", () => {
+	it("returns the original image bytes", async () => {
+		const imageBytes = createPng(80, 40);
+
+		const result = await drawCursorOnWindowScreenshot(
+			imageBytes,
+			{ x: 500, y: 50 },
+			{ x: 10, y: 10, width: 200, height: 100 },
+		);
+
+		expect(result).toBe(imageBytes);
 	});
 });
 
