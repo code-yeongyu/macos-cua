@@ -28,6 +28,17 @@ export {
 	type PointerClickTarget,
 } from "./computer/actions.js";
 export {
+	executeDiscreteBatch,
+	type DiscreteBatchAction,
+	type DiscreteBatchContent,
+	type DiscreteBatchDetails,
+	type DiscreteBatchExecutionResult,
+	type DiscreteBatchExecutorOptions,
+	type DiscreteBatchResult,
+	type DiscreteBatchStepDetails,
+	type DiscreteBatchTextContent,
+} from "./computer/batch.js";
+export {
 	executeScrollAction,
 	type ExecuteScrollInput,
 	type ScrollDirection,
