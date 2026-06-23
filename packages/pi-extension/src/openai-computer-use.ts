@@ -110,7 +110,7 @@ function parsePosition(
 	if (x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y)) {
 		throw new ComputerUseError("invalid_arguments", `${action} requires finite x and y`);
 	}
-	return unscaleCoord({ x, y }, display, freshness);
+	return unscaleCoord({ x, y }, display, freshness, { action });
 }
 
 function parseDrag(

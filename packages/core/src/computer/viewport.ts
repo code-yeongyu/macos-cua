@@ -124,7 +124,7 @@ function assertPointInsideDisplay(point: Point, viewport: ScreenshotViewport | C
 	) {
 		throw new ComputerUseError(
 			"OUT_OF_BOUNDS_COORDINATE",
-			`Mapped point (${point.x}, ${point.y}) is outside display ${display.width}x${display.height}`,
+			`Mapped point received (${point.x}, ${point.y}) is outside the display frame; valid x range [${display.x}, ${display.x + display.width}] and y range [${display.y}, ${display.y + display.height}]. Capture a fresh screenshot or call get_app_state, then retry within the latest frame.`,
 			{
 				details: {
 					x: point.x,
@@ -149,7 +149,7 @@ function assertFreshCapture(
 	if (viewport.captureId !== freshness.captureId || viewport.displayEpoch !== freshness.displayEpoch) {
 		throw new ComputerUseError(
 			"STALE_CAPTURE",
-			`Capture ${viewport.captureId} is stale for display epoch ${freshness.displayEpoch}`,
+			`Coordinate uses stale capture metadata: latest captureId ${viewport.captureId}, displayEpoch ${viewport.displayEpoch}; received captureId ${freshness.captureId}, displayEpoch ${freshness.displayEpoch}. Call get_app_state for a fresh screenshot before retrying within the latest frame.`,
 			{
 				details: {
 					captureId: viewport.captureId,
@@ -165,7 +165,7 @@ function assertFreshCapture(
 function throwOutOfBounds(point: Point, size: Size): never {
 	throw new ComputerUseError(
 		"OUT_OF_BOUNDS_COORDINATE",
-		`Point (${point.x}, ${point.y}) is outside capture frame ${size.width}x${size.height}`,
+		`Coordinate received (${point.x}, ${point.y}) is outside the latest screenshot frame; valid x range [0, ${size.width}] and y range [0, ${size.height}]. Capture a fresh screenshot or call get_app_state, then retry within the latest frame.`,
 		{
 			details: {
 				x: Number.isFinite(point.x) ? point.x : String(point.x),

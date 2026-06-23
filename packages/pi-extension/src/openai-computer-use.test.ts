@@ -202,7 +202,21 @@ describe("#given OpenAI stale coordinates #when native computer use rejects them
 			}),
 		).rejects.toMatchObject({
 			code: "STALE_CAPTURE",
-			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+			message: expect.stringContaining("captureId capture-1"),
+			recoveryHint: expect.stringContaining("fresh screenshot"),
+		});
+		expect(computer.click).not.toHaveBeenCalled();
+	});
+
+	it("#given an out-of-bounds coordinate #when click executes #then valid frame and corrective action are reported", async () => {
+		const computer = createComputer();
+
+		await expect(
+			executeOpenAIComputerAction({ type: "click", button: "left", x: 101, y: 20 }, computer, DISPLAY),
+		).rejects.toMatchObject({
+			code: "OUT_OF_BOUNDS_COORDINATE",
+			message: expect.stringContaining("valid x range [0, 100] and y range [0, 100]"),
+			recoveryHint: expect.stringContaining("Capture a fresh screenshot"),
 		});
 		expect(computer.click).not.toHaveBeenCalled();
 	});

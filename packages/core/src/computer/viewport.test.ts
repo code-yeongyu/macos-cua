@@ -104,7 +104,8 @@ describe("#given a window screenshot viewport #when mapping a screenshot pixel #
 			expect.objectContaining({
 				name: "ComputerUseError",
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
+				message: expect.stringContaining("valid x range [0, 500] and y range [0, 400]"),
+				recoveryHint: expect.stringContaining("Capture a fresh screenshot"),
 			}),
 		);
 	});
@@ -120,7 +121,8 @@ describe("#given a window screenshot viewport #when mapping a screenshot pixel #
 			expect.objectContaining({
 				name: "ComputerUseError",
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
+				message: expect.stringContaining("received (600, 500)"),
+				recoveryHint: expect.stringContaining("Call get_app_state"),
 			}),
 		);
 	});

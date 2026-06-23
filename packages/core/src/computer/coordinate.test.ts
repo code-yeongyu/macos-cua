@@ -121,13 +121,17 @@ describe("#given a stale capture marker #when resolving a model coordinate #then
 
 		await expect(
 			resolveScreenPoint(computer, 321, { x: 250, y: 200, captureId: "capture-1", displayEpoch: "display-2" }),
-		).rejects.toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
-				code: "STALE_CAPTURE",
-				recoveryHint: expect.stringContaining("refresh the capture"),
+		).rejects.toMatchObject({
+			name: "ComputerUseError",
+			code: "STALE_CAPTURE",
+			message: expect.stringContaining("captureId capture-1"),
+			recoveryHint: expect.stringContaining("Call get_app_state"),
+			details: expect.objectContaining({
+				captureId: "capture-1",
+				displayEpoch: "display-1",
+				expectedDisplayEpoch: "display-2",
 			}),
-		);
+		});
 	});
 });
 

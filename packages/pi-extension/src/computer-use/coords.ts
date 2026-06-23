@@ -8,6 +8,9 @@ type CoordinateErrorOptions = {
 };
 type CoordinateErrorCode = "STALE_CAPTURE" | "OUT_OF_BOUNDS_COORDINATE";
 type CoordinateErrorDetails = Readonly<Record<string, string | number | boolean | null>>;
+type CoordinateContext = {
+	readonly action?: string;
+};
 export type CaptureFreshnessMarker = {
 	readonly captureId: string;
 	readonly displayEpoch: string;
@@ -24,8 +27,8 @@ export class CoordinateValidationError extends Error {
 		this.code = code;
 		this.recoveryHint =
 			code === "STALE_CAPTURE"
-				? "Please refresh the capture and retry the action against the newest frame."
-				: "Choose a point inside the capture frame before retrying.";
+				? "Call get_app_state or capture a fresh screenshot before retrying within the latest frame."
+				: "Capture a fresh screenshot. Call get_app_state, then retry within the latest frame.";
 		this.details = options.details;
 	}
 }
@@ -79,25 +82,31 @@ export function unscaleCoord(
 	point: { readonly x: number; readonly y: number },
 	display: DisplayConfig,
 	freshness?: CaptureFreshnessMarker,
+	context: CoordinateContext = {},
 ): { x: number; y: number } {
-	assertFreshDisplay(display, freshness);
-	assertPointInsideModel(point, display);
+	assertFreshDisplay(display, freshness, context);
+	assertPointInsideModel(point, display, context);
 	return {
 		x: Math.round(point.x * (display.logicalWidth / display.modelWidth)),
 		y: Math.round(point.y * (display.logicalHeight / display.modelHeight)),
 	};
 }
 
-function assertFreshDisplay(display: DisplayConfig, freshness: CaptureFreshnessMarker | undefined): void {
+function assertFreshDisplay(
+	display: DisplayConfig,
+	freshness: CaptureFreshnessMarker | undefined,
+	context: CoordinateContext,
+): void {
 	if (freshness === undefined || display.captureId === undefined || display.displayEpoch === undefined) {
 		return;
 	}
 	if (display.captureId !== freshness.captureId || display.displayEpoch !== freshness.displayEpoch) {
 		throw new CoordinateValidationError(
 			"STALE_CAPTURE",
-			`Capture ${display.captureId} is stale for display epoch ${freshness.displayEpoch}`,
+			`${actionPrefix(context)}uses stale capture metadata: latest captureId ${display.captureId}, displayEpoch ${display.displayEpoch}; received captureId ${freshness.captureId}, displayEpoch ${freshness.displayEpoch}. Capture a fresh screenshot before retrying within the latest frame.`,
 			{
 				details: {
+					...(context.action === undefined ? {} : { action: context.action }),
 					captureId: display.captureId,
 					expectedCaptureId: freshness.captureId,
 					displayEpoch: display.displayEpoch,
@@ -108,7 +117,11 @@ function assertFreshDisplay(display: DisplayConfig, freshness: CaptureFreshnessM
 	}
 }
 
-function assertPointInsideModel(point: { readonly x: number; readonly y: number }, display: DisplayConfig): void {
+function assertPointInsideModel(
+	point: { readonly x: number; readonly y: number },
+	display: DisplayConfig,
+	context: CoordinateContext,
+): void {
 	if (
 		!Number.isFinite(point.x) ||
 		!Number.isFinite(point.y) ||
@@ -119,9 +132,10 @@ function assertPointInsideModel(point: { readonly x: number; readonly y: number 
 	) {
 		throw new CoordinateValidationError(
 			"OUT_OF_BOUNDS_COORDINATE",
-			`Point (${point.x}, ${point.y}) is outside capture frame ${display.modelWidth}x${display.modelHeight}`,
+			`${actionPrefix(context)}coordinate received (${point.x}, ${point.y}) is outside the latest screenshot frame; valid x range [0, ${display.modelWidth}] and y range [0, ${display.modelHeight}]. Capture a fresh screenshot before retrying within the latest frame.`,
 			{
 				details: {
+					...(context.action === undefined ? {} : { action: context.action }),
 					x: Number.isFinite(point.x) ? point.x : String(point.x),
 					y: Number.isFinite(point.y) ? point.y : String(point.y),
 					width: display.modelWidth,
@@ -130,6 +144,10 @@ function assertPointInsideModel(point: { readonly x: number; readonly y: number 
 			},
 		);
 	}
+}
+
+function actionPrefix(context: CoordinateContext): string {
+	return context.action === undefined ? "" : `${context.action} `;
 }
 
 function assertPositiveFiniteDimension(value: number, name: string): number {
