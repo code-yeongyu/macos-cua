@@ -1,4 +1,4 @@
-import type { AppState, ComputerInterface } from "@macos-cua/core";
+import type { AppState, CaptureFrame, ComputerInterface, ScreenshotCoordinateMetadata } from "@macos-cua/core";
 import { createCanvas } from "@napi-rs/canvas";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -10,12 +10,42 @@ const coreMocks = vi.hoisted(() => {
 	const getAppStateForAppMock = vi.fn();
 	const overlayLogMock = vi.fn();
 	const createDebugLogMock = vi.fn((scope: string) => (scope === "overlay" ? overlayLogMock : vi.fn()));
-	return { createDebugLogMock, getAppStateForAppMock, overlayLogMock };
+	const screenshotMetadataForCaptureFrameMock = vi.fn(
+		(frame: CaptureFrame): ScreenshotCoordinateMetadata => ({
+			captureId: frame.captureId,
+			displayEpoch: frame.displayEpoch,
+			height: frame.model.height,
+			originX: 0,
+			originY: 0,
+			scaleX: frame.model.width / frame.windowBounds.width,
+			scaleY: frame.model.height / frame.windowBounds.height,
+			width: frame.model.width,
+		}),
+	);
+	const modelFacingAppStateMock = vi.fn((state: AppState): object => {
+		const screenshotMetadata =
+			state.screenshotMetadata ??
+			(state.captureFrame !== undefined ? screenshotMetadataForCaptureFrameMock(state.captureFrame) : undefined);
+		return {
+			...state,
+			...(screenshotMetadata !== undefined ? { screenshotMetadata } : {}),
+			screenshotBase64: undefined,
+		};
+	});
+	return {
+		createDebugLogMock,
+		getAppStateForAppMock,
+		modelFacingAppStateMock,
+		overlayLogMock,
+		screenshotMetadataForCaptureFrameMock,
+	};
 });
 
 vi.mock("@macos-cua/core", () => ({
 	createDebugLog: coreMocks.createDebugLogMock,
 	getAppStateForApp: coreMocks.getAppStateForAppMock,
+	modelFacingAppState: coreMocks.modelFacingAppStateMock,
+	screenshotMetadataForCaptureFrame: coreMocks.screenshotMetadataForCaptureFrameMock,
 }));
 
 const BASE_STATE: AppState = {
@@ -49,6 +79,22 @@ const BASE_STATE: AppState = {
 	screenshotHeight: 120,
 	screenshotMimeType: "image/png",
 	display: { width: 160, height: 120, scaleFactor: 1 },
+	captureFrame: {
+		captureId: "capture-fixture-1",
+		capturedAt: "2026-06-23T00:00:00.000Z",
+		displayEpoch: "160x120@1",
+		display: {
+			logical: { x: 0, y: 0, width: 160, height: 120 },
+			native: { width: 160, height: 120 },
+			scaleFactor: 1,
+		},
+		model: { width: 160, height: 120 },
+		screenshot: { width: 160, height: 120 },
+		screenshotHeight: 120,
+		screenshotWidth: 160,
+		target: { appName: "Fixture", bundleId: "com.example.fixture", pid: 42 },
+		windowBounds: { x: 10, y: 20, width: 160, height: 120 },
+	},
 	windowBounds: { x: 10, y: 20, width: 160, height: 120 },
 };
 
@@ -57,9 +103,11 @@ afterEach(() => {
 	coreMocks.getAppStateForAppMock.mockReset();
 	coreMocks.overlayLogMock.mockReset();
 	coreMocks.createDebugLogMock.mockClear();
+	coreMocks.modelFacingAppStateMock.mockClear();
+	coreMocks.screenshotMetadataForCaptureFrameMock.mockClear();
 });
 
-describe("#given SoM marks are available #when get_app_state executes #then the screenshot is annotated and state JSON stays unchanged", () => {
+describe("#given SoM marks are available #when get_app_state executes #then the screenshot is annotated and state JSON preserves ids", () => {
 	it("returns changed image bytes with the original details and AX element ids", async () => {
 		const state = stateWith();
 		coreMocks.getAppStateForAppMock.mockResolvedValue(state);
@@ -79,7 +127,8 @@ describe("#given SoM marks are available #when get_app_state executes #then the 
 			Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
 		);
 		expect(annotatedChanged).toBe(true);
-		expect(text).toBe(JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2));
+		expect(parsed.screenshotBase64).toBeUndefined();
+		expect(parsed.screenshotMetadata).toMatchObject({ captureId: "capture-fixture-1", width: 160, height: 120 });
 		expect(text).toContain('"id": 7');
 		expect(idConsistent).toBe(true);
 		expect(result.details).toBe(state);
@@ -94,19 +143,45 @@ describe("#given a state without window bounds #when get_app_state executes #the
 		const tool = createGetAppStateTool(createComputer());
 
 		const result = await tool.execute("call-1", { app: "Fixture" }, undefined, undefined, {} as ExtensionContext);
+		const expectedImageData = state.screenshotBase64;
 
 		expect(imageContent(result.content)).toMatchObject({
 			type: "image",
-			data: state.screenshotBase64,
+			data: expectedImageData,
 			mimeType: "image/png",
 		});
-		expect(primaryText(result.content)).toBe(JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2));
+		const parsed = parseStateText(primaryText(result.content));
+		expect(parsed.screenshotBase64).toBeUndefined();
+		expect(parsed.screenshotMetadata).toMatchObject({ captureId: "capture-fixture-1", width: 160, height: 120 });
 		expect(result.details).toBe(state);
 		expect(coreMocks.overlayLogMock).toHaveBeenCalledWith("skip", {
 			reason: "no_window_bounds",
 			marks: 0,
 			dropped: 0,
 		});
+	});
+});
+
+describe("#given capture-frame metadata #when get_app_state returns text #then coordinate frame metadata is self describing", () => {
+	it("#given a screenshot-bearing state #when serialized #then coordinate frame metadata is top-level and screenshotBase64 is omitted", async () => {
+		const state = stateWith();
+		coreMocks.getAppStateForAppMock.mockResolvedValue(state);
+		const tool = createGetAppStateTool(createComputer());
+
+		const result = await tool.execute("call-1", { app: "Fixture" }, undefined, undefined, {} as ExtensionContext);
+		const parsed = parseStateText(primaryText(result.content));
+
+		expect(parsed.screenshotMetadata).toMatchObject({
+			captureId: "capture-fixture-1",
+			displayEpoch: "160x120@1",
+			height: 120,
+			originX: 0,
+			originY: 0,
+			scaleX: 1,
+			scaleY: 1,
+			width: 160,
+		});
+		expect(parsed.screenshotBase64).toBeUndefined();
 	});
 });
 
@@ -158,7 +233,20 @@ function primaryText(content: readonly { readonly type: string }[]): string {
 	return text.text;
 }
 
-function parseStateText(text: string): { readonly elements: readonly { readonly id: number }[] } {
+function parseStateText(text: string): {
+	readonly elements: readonly { readonly id: number }[];
+	readonly screenshotBase64?: string;
+	readonly screenshotMetadata?: {
+		readonly captureId: string;
+		readonly displayEpoch: string;
+		readonly height: number;
+		readonly originX: number;
+		readonly originY: number;
+		readonly scaleX: number;
+		readonly scaleY: number;
+		readonly width: number;
+	};
+} {
 	const parsed: unknown = JSON.parse(text);
 	if (!isStateWithElementIds(parsed)) {
 		throw new Error("state text did not include element ids");
@@ -166,7 +254,20 @@ function parseStateText(text: string): { readonly elements: readonly { readonly 
 	return parsed;
 }
 
-function isStateWithElementIds(value: unknown): value is { readonly elements: readonly { readonly id: number }[] } {
+function isStateWithElementIds(value: unknown): value is {
+	readonly elements: readonly { readonly id: number }[];
+	readonly screenshotBase64?: string;
+	readonly screenshotMetadata?: {
+		readonly captureId: string;
+		readonly displayEpoch: string;
+		readonly height: number;
+		readonly originX: number;
+		readonly originY: number;
+		readonly scaleX: number;
+		readonly scaleY: number;
+		readonly width: number;
+	};
+} {
 	return (
 		typeof value === "object" &&
 		value !== null &&

@@ -11,11 +11,13 @@ import { createGetAppStateTool } from "./get-app-state.js";
 const coreMocks = vi.hoisted(() => ({
 	createDebugLogMock: vi.fn(() => vi.fn()),
 	getAppStateForAppMock: vi.fn(),
+	modelFacingAppStateMock: vi.fn((state: AppState): object => ({ ...state, screenshotBase64: undefined })),
 }));
 
 vi.mock("@macos-cua/core", () => ({
 	createDebugLog: coreMocks.createDebugLogMock,
 	getAppStateForApp: coreMocks.getAppStateForAppMock,
+	modelFacingAppState: coreMocks.modelFacingAppStateMock,
 }));
 
 const BASE_STATE: AppState = {
@@ -40,6 +42,7 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	coreMocks.getAppStateForAppMock.mockReset();
 	coreMocks.createDebugLogMock.mockClear();
+	coreMocks.modelFacingAppStateMock.mockClear();
 });
 
 describe("#given cursor metadata #when get_app_state executes #then the returned screenshot includes the virtual cursor", () => {
@@ -88,7 +91,7 @@ function stateWith(overrides: Partial<AppState> = {}): AppState {
 
 function observationWithCursor(
 	cursor: { readonly x: number; readonly y: number },
-	mimeType: string,
+	mimeType: "image/png" | "image/jpeg",
 ): AppState["observation"] {
 	return {
 		app: { name: "Fixture", bundleId: "com.example.fixture", pid: 42, frontmost: false },
@@ -96,6 +99,17 @@ function observationWithCursor(
 		capture: {
 			captureId: "capture-1",
 			capturedAt: "2026-06-18T00:00:00.000Z",
+			coordinateFrame: {
+				captureId: "capture-1",
+				displayEpoch: "160x120@1",
+				height: 120,
+				mimeType,
+				originX: 0,
+				originY: 0,
+				scaleX: 1,
+				scaleY: 1,
+				width: 160,
+			},
 			displayEpoch: "160x120@1",
 			model: { width: 160, height: 120 },
 			screenshot: { width: 160, height: 120, mimeType },

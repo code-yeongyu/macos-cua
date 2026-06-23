@@ -1,4 +1,4 @@
-import type { CaptureFrame } from "../computer/capture-frame.js";
+import type { CaptureFrame, ScreenshotCoordinateMetadata } from "../computer/capture-frame.js";
 import type { Point } from "../types/index.js";
 
 export interface AXTreeElement {
@@ -63,6 +63,7 @@ export interface ObservationMetadata {
 			readonly height: number;
 			readonly mimeType?: "image/png" | "image/jpeg";
 		};
+		readonly coordinateFrame: ScreenshotCoordinateMetadata;
 		readonly model: { readonly width: number; readonly height: number };
 	};
 	readonly ax: {
@@ -88,6 +89,7 @@ export interface AppState {
 	screenshotWidth: number;
 	screenshotHeight: number;
 	screenshotMimeType?: "image/png" | "image/jpeg";
+	screenshotMetadata?: ScreenshotCoordinateMetadata;
 	display: DisplayInfo;
 	captureFrame?: CaptureFrame;
 	observation?: ObservationMetadata;

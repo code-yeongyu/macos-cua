@@ -35,6 +35,7 @@ export function createMacOSObservationMetadata(input: MacOSObservationMetadataIn
 		capture: {
 			captureId: input.captureFrame.captureId,
 			capturedAt: input.captureFrame.capturedAt,
+			coordinateFrame: input.captureFrame.screenshotMetadata,
 			displayEpoch: input.captureFrame.displayEpoch,
 			model: input.captureFrame.model,
 			screenshot: {

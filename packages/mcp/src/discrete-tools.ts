@@ -4,6 +4,7 @@ import {
 	clickElementByIndex,
 	clickPoint,
 	getAppStateForApp,
+	modelFacingAppState,
 	parseElementIndex,
 	pressKeySequence,
 	resolveAppPid,
@@ -99,7 +100,7 @@ function registerGetAppStateTool(
 			const image = await appStateImageContent(state);
 			const content: ToolContent[] = [
 				{ type: "image", data: image.data, mimeType: image.mimeType },
-				{ type: "text", text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
+				{ type: "text", text: JSON.stringify(modelFacingAppState(state), null, 2) },
 			];
 			return { content };
 		},
