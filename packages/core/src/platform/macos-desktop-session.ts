@@ -4,7 +4,12 @@ import type { AXTreeElement, AppState, DisplayInfo } from "../accessibility/type
 import { type CaptureFrame, createCaptureFrame } from "../computer/capture-frame.js";
 import { ComputerUseError } from "../computer/errors.js";
 import type { ScreenshotResult } from "../computer/interface.js";
-import { type ScreenshotViewport, resolveWindowScreenshotSize, screenRectToScreenshot } from "../computer/viewport.js";
+import {
+	type ScreenshotViewport,
+	resolveAdaptiveWindowScreenshotSize,
+	resolveWindowScreenshotSize,
+	screenRectToScreenshot,
+} from "../computer/viewport.js";
 import type { AppStateOptions } from "../types/index.js";
 import type { RunningAppInfo } from "./app-list.js";
 import { MacOSDesktopAppCache } from "./macos-desktop-app-cache.js";
@@ -135,10 +140,12 @@ export class MacOSDesktopSession {
 			);
 		}
 		this.windowByPid.set(app.pid, targetWindow);
-		const size = options.screenshotSize ?? resolveWindowScreenshotSize(targetWindow.bounds);
+		const display = this.backend.resolveDisplayInfo();
+		const size =
+			options.screenshotSize ??
+			resolveAdaptiveWindowScreenshotSize(targetWindow.bounds, { displayScaleFactor: display.scaleFactor });
 		const screenshot = await this.backend.captureWindowScreenshot(targetWindow, size);
 		const tree = this.backend.extractAccessibilityTree(app.pid);
-		const display = this.backend.resolveDisplayInfo();
 		const viewport: ScreenshotViewport = {
 			windowBounds: { ...targetWindow.bounds },
 			screenshotHeight: screenshot.height,

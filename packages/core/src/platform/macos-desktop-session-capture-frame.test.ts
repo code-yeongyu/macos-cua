@@ -65,7 +65,7 @@ describe("#given capture-frame metadata #when coordinates are resolved later #th
 		expect(viewport).toMatchObject({
 			captureId: "macos-capture-1",
 			displayEpoch: "1440x900@2",
-			model: { width: 400, height: 200 },
+			model: { width: 800, height: 400 },
 			windowBounds: WINDOW.bounds,
 		});
 	});
