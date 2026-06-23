@@ -106,6 +106,7 @@ describe("#given all tool factories #when built #then every Codex Computer Use t
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 		expect(tools.map((tool) => tool.name)).not.toContain("batch");
 	});
@@ -118,7 +119,7 @@ describe("#given all tools #when registered #then pi.registerTool is called for 
 
 		registerAllTools(pi, { computer: createComputer() });
 
-		expect(registerToolSpy).toHaveBeenCalledTimes(11);
+		expect(registerToolSpy).toHaveBeenCalledTimes(12);
 	});
 });
 
