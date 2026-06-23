@@ -1,6 +1,7 @@
 import { supportsAnthropicNativeComputerUse } from "../anthropic-payload.js";
 
-const MAX_MODEL_LONG_EDGE = 1280;
+const DEFAULT_SCREENSHOT_BYTE_BUDGET = 5 * 1024 * 1024;
+const DEFAULT_ESTIMATED_BYTES_PER_PIXEL = 2;
 const ANTHROPIC_NATIVE_MAX_LONG_EDGE = 1024;
 
 type CoordinateErrorOptions = {
@@ -31,7 +32,9 @@ export class CoordinateValidationError extends Error {
 }
 
 export type DisplayProfile = {
-	readonly maxLongEdge: number;
+	readonly maxLongEdge?: number;
+	readonly byteBudget?: number;
+	readonly estimatedBytesPerPixel?: number;
 };
 
 export interface DisplayConfig {
@@ -39,9 +42,9 @@ export interface DisplayConfig {
 	readonly logicalWidth: number;
 	/** Logical screen height in points. */
 	readonly logicalHeight: number;
-	/** Resolution sent to the model (e.g. 1280). */
+	/** Width sent to the model after provider caps and byte-budget policy. */
 	readonly modelWidth: number;
-	/** Resolution sent to the model (e.g. 720). */
+	/** Height sent to the model after provider caps and byte-budget policy. */
 	readonly modelHeight: number;
 	readonly captureId?: string;
 	readonly displayEpoch?: string;
@@ -49,24 +52,33 @@ export interface DisplayConfig {
 
 export function displayProfileForModel(api: string | undefined, modelId: string | undefined): DisplayProfile {
 	if (api === "anthropic-messages" && supportsAnthropicNativeComputerUse(modelId)) {
-		return { maxLongEdge: ANTHROPIC_NATIVE_MAX_LONG_EDGE };
+		return { maxLongEdge: ANTHROPIC_NATIVE_MAX_LONG_EDGE, byteBudget: DEFAULT_SCREENSHOT_BYTE_BUDGET };
 	}
-	return { maxLongEdge: MAX_MODEL_LONG_EDGE };
+	return { byteBudget: DEFAULT_SCREENSHOT_BYTE_BUDGET };
 }
 
 export function resolveDisplayConfig(
 	screenSize: { readonly width: number; readonly height: number },
-	profile: DisplayProfile = { maxLongEdge: MAX_MODEL_LONG_EDGE },
+	profile: DisplayProfile = { byteBudget: DEFAULT_SCREENSHOT_BYTE_BUDGET },
 ): DisplayConfig {
 	const logicalWidth = assertPositiveFiniteDimension(screenSize.width, "width");
 	const logicalHeight = assertPositiveFiniteDimension(screenSize.height, "height");
-	const maxLongEdge = assertPositiveFiniteDimension(profile.maxLongEdge, "maxLongEdge");
+	const maxLongEdge =
+		profile.maxLongEdge === undefined ? undefined : assertPositiveFiniteDimension(profile.maxLongEdge, "maxLongEdge");
+	const byteBudget = assertPositiveFiniteDimension(profile.byteBudget ?? DEFAULT_SCREENSHOT_BYTE_BUDGET, "byteBudget");
+	const estimatedBytesPerPixel = assertPositiveFiniteNumber(
+		profile.estimatedBytesPerPixel ?? DEFAULT_ESTIMATED_BYTES_PER_PIXEL,
+		"estimatedBytesPerPixel",
+	);
 	const logicalLongEdge = Math.max(logicalWidth, logicalHeight);
-	if (logicalLongEdge <= maxLongEdge) {
+	const logicalPixels = logicalWidth * logicalHeight;
+	const budgetScale = Math.min(1, Math.sqrt(byteBudget / estimatedBytesPerPixel / logicalPixels));
+	const hardCapScale = maxLongEdge === undefined ? 1 : Math.min(1, maxLongEdge / logicalLongEdge);
+	const scale = Math.min(budgetScale, hardCapScale);
+	if (scale >= 1) {
 		return { logicalWidth, logicalHeight, modelWidth: logicalWidth, modelHeight: logicalHeight };
 	}
 
-	const scale = maxLongEdge / logicalLongEdge;
 	return {
 		logicalWidth,
 		logicalHeight,
@@ -137,4 +149,11 @@ function assertPositiveFiniteDimension(value: number, name: string): number {
 		throw new Error(`${name} must be a positive finite number`);
 	}
 	return Math.round(value);
+}
+
+function assertPositiveFiniteNumber(value: number, name: string): number {
+	if (!Number.isFinite(value) || value <= 0) {
+		throw new Error(`${name} must be a positive finite number`);
+	}
+	return value;
 }

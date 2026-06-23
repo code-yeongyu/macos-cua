@@ -17,7 +17,8 @@ export type OpenAIComputerBatchResultDetails = {
 		readonly source: OpenAIComputerBatchScreenshotSource;
 	};
 };
-type OpenAIComputerBatchResult = AgentToolResult<OpenAIComputerBatchResultDetails | undefined>;
+export type OpenAIComputerResultDetails = OpenAIComputerBatchResultDetails | ScreenshotCursorMetadata | undefined;
+type OpenAIComputerBatchResult = AgentToolResult<OpenAIComputerResultDetails>;
 type TrackedOpenAIComputerScreenshot = {
 	readonly result: ComputerUseResult;
 	readonly metadata: ScreenshotCursorMetadata;
@@ -87,6 +88,7 @@ export async function executeOpenAIComputerActionBatch(
 				source: finalScreenshot.source,
 				captureFrame: finalScreenshot.metadata.captureFrame,
 				cursor: finalScreenshot.metadata.cursor,
+				fidelity: finalScreenshot.metadata.fidelity,
 			},
 		},
 	};
