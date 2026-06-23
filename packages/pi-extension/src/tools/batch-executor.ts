@@ -1,5 +1,11 @@
-import type { AppState, CaptureFrame, ComputerInterface } from "@macos-cua/core";
-import { ComputerUseError } from "@macos-cua/core";
+import type {
+	AppState,
+	CaptureFrame,
+	ComputerInterface,
+	DiscreteBatchDetails,
+	DiscreteBatchStepDetails,
+} from "@macos-cua/core";
+import { executeDiscreteBatch } from "@macos-cua/core";
 
 import type { AgentToolResult, ExtensionContext, ToolDefinition } from "../pi/index.js";
 import type { AppStateCache } from "./app-state-cache.js";
@@ -16,38 +22,8 @@ import { createSetValueTool } from "./set-value.js";
 import { createTypeTextTool } from "./type-text.js";
 import { createZoomTool } from "./zoom.js";
 
-export type BatchStepDetails =
-	| {
-			readonly index: number;
-			readonly action: BatchAction["action"];
-			readonly status: "success";
-			readonly contentCount: number;
-			readonly hasImage: boolean;
-	  }
-	| {
-			readonly index: number;
-			readonly action: BatchAction["action"];
-			readonly status: "error";
-			readonly message: string;
-			readonly code?: string;
-			readonly recoveryHint?: string;
-	  };
-
-export type BatchResultDetails =
-	| {
-			readonly ok: true;
-			readonly type: "batch";
-			readonly actionCount: number;
-			readonly steps: readonly BatchStepDetails[];
-			readonly finalActionType: BatchAction["action"];
-	  }
-	| {
-			readonly ok: false;
-			readonly type: "batch";
-			readonly actionCount: number;
-			readonly failedStep: number;
-			readonly steps: readonly BatchStepDetails[];
-	  };
+export type BatchStepDetails = DiscreteBatchStepDetails<BatchAction["action"]>;
+export type BatchResultDetails = DiscreteBatchDetails<BatchAction["action"]>;
 
 type BatchToolResult = AgentToolResult<BatchResultDetails>;
 
@@ -85,30 +61,10 @@ export async function executePiDiscreteBatch(
 	tools: BatchTools,
 	context: BatchExecutionContext,
 ): Promise<BatchToolResult> {
-	const steps: BatchStepDetails[] = [];
-	let finalResult: AgentToolResult<unknown> | undefined;
-	let finalActionType: BatchAction["action"] | undefined;
-
-	for (const [index, action] of actions.entries()) {
-		try {
-			finalResult = await executeBatchAction(action, tools, context);
-			finalActionType = action.action;
-			steps.push(successStep(index, action.action, finalResult));
-		} catch (error) {
-			return batchTextResult({
-				ok: false,
-				type: "batch",
-				actionCount: actions.length,
-				failedStep: index,
-				steps: [...steps, errorStep(index, action.action, error)],
-			});
-		}
-	}
-
-	if (finalResult === undefined || finalActionType === undefined) {
-		return batchTextResult({ ok: false, type: "batch", actionCount: actions.length, failedStep: 0, steps });
-	}
-	return { content: finalResult.content, details: successDetails(actions.length, steps, finalActionType) };
+	return await executeDiscreteBatch({
+		actions,
+		executeAction: async (action) => await executeBatchAction(action, tools, context),
+	});
 }
 
 function createBatchTools(computer: ComputerInterface, cache: AppStateCache): BatchTools {
@@ -215,45 +171,6 @@ function computerWithBatchViewportCache(computer: ComputerInterface, cache: AppS
 
 function captureFrameFrom(state: AppState | undefined): CaptureFrame | undefined {
 	return state?.captureFrame;
-}
-
-function successStep(index: number, action: BatchAction["action"], result: AgentToolResult<unknown>): BatchStepDetails {
-	return {
-		index,
-		action,
-		status: "success",
-		contentCount: result.content.length,
-		hasImage: result.content.some((part) => part.type === "image"),
-	};
-}
-
-function errorStep(index: number, action: BatchAction["action"], error: unknown): BatchStepDetails {
-	if (error instanceof ComputerUseError) {
-		return {
-			index,
-			action,
-			status: "error",
-			message: error.message,
-			code: error.code,
-			recoveryHint: error.recoveryHint,
-		};
-	}
-	if (error instanceof Error) {
-		return { index, action, status: "error", message: error.message };
-	}
-	return { index, action, status: "error", message: String(error) };
-}
-
-function successDetails(
-	actionCount: number,
-	steps: readonly BatchStepDetails[],
-	finalActionType: BatchAction["action"],
-): BatchResultDetails {
-	return { ok: true, type: "batch", actionCount, steps, finalActionType };
-}
-
-function batchTextResult(details: BatchResultDetails): BatchToolResult {
-	return { content: [{ type: "text", text: JSON.stringify(details, null, 2) }], details };
 }
 
 function assertNever(value: never): never {

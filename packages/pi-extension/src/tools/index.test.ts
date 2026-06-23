@@ -12,7 +12,6 @@ import { buildAllTools, registerAllTools } from "./index.js";
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDirectory, "../../../..");
 const macosCuaSkillPath = path.join(repoRoot, "skills/macos-cua/SKILL.md");
-const readmePath = path.join(repoRoot, "README.md");
 
 function createPiApi(): ExtensionAPI {
 	const on = ((eventName: string, handler: (...parameters: ReadonlyArray<unknown>) => unknown) => {
@@ -108,7 +107,6 @@ describe("#given all tool factories #when built #then every Codex Computer Use t
 			"press_keys",
 			"batch",
 		]);
-		expect(tools.map((tool) => tool.name)).not.toContain("batch");
 	});
 });
 
@@ -173,19 +171,15 @@ describe("#given Senpi pi-extension tool guides #when desktop automation starts 
 		expect(skill).not.toContain("Before starting any automation session, verify permissions");
 	});
 
-	it("#given user docs #when computer-use policy is described #then adaptive batch and deferrals are explicit", () => {
-		const docs = `${readFileSync(readmePath, "utf8")}\n${readFileSync(macosCuaSkillPath, "utf8")}`;
+	it("#given registered schemas #when computer-use policy is enforced #then batch exists without deferred fields", () => {
+		const tools = buildAllTools({ computer: createComputer() });
+		const toolNames = tools.map((tool) => tool.name);
+		const schemaText = JSON.stringify(tools.map((tool) => tool.parameters));
 
-		expect(docs).toContain("adaptive screenshot");
-		expect(docs).toContain("batch");
-		expect(docs).toContain("screenshot metadata");
-		expect(docs).toContain("screenshot pixels");
-		expect(docs).toContain("fresh screenshot");
-		expect(docs).toContain("Deferred from gajae learnings");
-		expect(docs).not.toContain("1280px long edge");
-		expect(docs).not.toContain("fixed 1280");
-		expect(docs).not.toContain("scroll_x");
-		expect(docs).not.toContain("scroll_y");
-		expect(docs).not.toContain("camelCase fields");
+		expect(toolNames).toContain("batch");
+		expect(schemaText).toContain("capture_id");
+		expect(schemaText).toContain("display_epoch");
+		expect(schemaText).not.toContain("scroll_x");
+		expect(schemaText).not.toContain("scroll_y");
 	});
 });

@@ -62,7 +62,7 @@ describe("#given all registered tools #when schemas are serialized #then byte an
 		const fakeComputer = createFakeComputer();
 
 		const tools = buildAllTools({ computer: fakeComputer });
-		expect(tools.length).toBe(11);
+		expect(tools.length).toBe(12);
 
 		let totalBytes = 0;
 		for (const tool of tools) {
@@ -85,6 +85,6 @@ describe("#given all registered tools #when schemas are serialized #then byte an
 
 		expect(metrics.tool_descriptor_bytes).toBeGreaterThan(0);
 		expect(metrics.tool_descriptor_estimated_tokens).toBeGreaterThan(0);
-		expect(metrics.tool_count).toBe(12);
+		expect(metrics.tool_count).toBe(13);
 	});
 });
