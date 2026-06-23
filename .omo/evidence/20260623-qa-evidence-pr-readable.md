@@ -44,12 +44,13 @@ Prompt defect classification: missing context. The terse or opaque PR evidence b
 - Build precondition: `pnpm build` exited 0 and generated workspace outputs needed by package consumers.
 - Repository check: `pnpm check` exited 0 after the build precondition. Biome checked 268 files, TypeScript typecheck completed for all packages, and Vitest passed 105 test files / 459 tests.
 - Cleanup: `pnpm build` refreshed tracked native binaries as a side effect; those generated binary changes were restored so only the instruction/report change remains in the PR.
-- Manual surface: Pending PR body review after PR creation. The PR body will be written using the new `AGENTS.md` evidence contract.
+- Manual surface: GitHub PR #7 was opened with a body that follows the new contract: behavior-first summary, reviewer-area changes, action-by-action QA/evidence, and risk -> evidence -> conclusion.
 
 ## PR
 
-- URL: Pending.
+- URL: https://github.com/code-yeongyu/macos-cua/pull/7
 - Commits:
+  - `aac9662 docs: record PR evidence readability report`
   - `2c2ed70 docs: clarify PR evidence expectations`
 - Merge SHA: Pending.
 
