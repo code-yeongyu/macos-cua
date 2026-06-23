@@ -170,6 +170,10 @@ describe("#given Pi batch tool #when actions run #then results describe each ste
 });
 
 describe("#given Pi batch schema #when serialized #then discrete action contracts match standalone tools", () => {
+	it("#given list_apps #when schemas are read #then batch does not expose it as an action", () => {
+		expect(() => actionSchema("list_apps")).toThrow("Batch action list_apps schema was not found");
+	});
+
 	it("#given coordinate actions #when schemas are read #then capture freshness fields are accepted", () => {
 		const clickProperties = actionProperties("click");
 		const dragProperties = actionProperties("drag");

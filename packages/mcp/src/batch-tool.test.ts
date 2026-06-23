@@ -11,6 +11,20 @@ import { captureFrameFixture } from "./test-support/capture-frame.js";
 installBatchMcpTestHooks();
 
 describe("MCP batch tool #given get_app_state then click #when run through the client #then coordinates re-anchor", () => {
+	it("#given list_apps in a batch #when run through the client #then schema validation rejects it", async () => {
+		const client = await createBatchClient();
+
+		const result = await client.callTool({
+			name: "batch",
+			arguments: { actions: [{ action: "list_apps" }] },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(textContent(result)).toContain("Invalid discriminator value");
+		expect(textContent(result)).not.toContain("list_apps'");
+		expect(mockedComputer.listApps).not.toHaveBeenCalled();
+	});
+
 	it("#given in-batch app state #when click follows #then it maps through the latest capture frame", async () => {
 		const client = await createBatchClient();
 

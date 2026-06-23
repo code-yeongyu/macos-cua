@@ -46,8 +46,6 @@ async function dispatchBatchAction(
 	action: McpBatchAction,
 ): Promise<ToolResult> {
 	switch (action.action) {
-		case "list_apps":
-			return { content: [{ type: "text", text: JSON.stringify(await computer.listApps(), null, 2) }] };
 		case "get_app_state":
 			return await getAppState(computer, appStateCache, state, action.app);
 		case "click": {

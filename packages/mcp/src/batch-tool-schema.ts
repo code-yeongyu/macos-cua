@@ -12,7 +12,6 @@ const keySequenceEntrySchema = z.union([
 ]);
 
 export const mcpBatchActionSchema = z.discriminatedUnion("action", [
-	z.object({ action: z.literal("list_apps") }),
 	z.object({ action: z.literal("get_app_state"), app: appSchema }),
 	z.object({
 		action: z.literal("click"),

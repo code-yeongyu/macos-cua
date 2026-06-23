@@ -22,7 +22,6 @@ const RegionParam = Type.Object(
 );
 
 const BatchActionParams = Type.Union([
-	Type.Object({ action: Type.Literal("list_apps") }, { additionalProperties: false }),
 	Type.Object({ action: Type.Literal("get_app_state"), app: AppParam }, { additionalProperties: false }),
 	Type.Object(
 		{

@@ -13,7 +13,6 @@ import type { BatchAction } from "./batch-schema.js";
 import { createClickTool } from "./click.js";
 import { createDragTool } from "./drag.js";
 import { createGetAppStateTool } from "./get-app-state.js";
-import { createListAppsTool } from "./list-apps.js";
 import { createPerformSecondaryActionTool } from "./perform-secondary-action.js";
 import { createPressKeysTool } from "./press-key.js";
 import { createScrollTool } from "./scroll.js";
@@ -37,7 +36,6 @@ type BatchExecutionContext = {
 type PiBatchExecutor = (actions: readonly BatchAction[], context: BatchExecutionContext) => Promise<BatchToolResult>;
 
 type BatchTools = {
-	readonly listApps: ToolDefinition;
 	readonly getAppState: ToolDefinition;
 	readonly click: ToolDefinition;
 	readonly performSecondaryAction: ToolDefinition;
@@ -69,7 +67,6 @@ export async function executePiDiscreteBatch(
 
 function createBatchTools(computer: ComputerInterface, cache: AppStateCache): BatchTools {
 	return {
-		listApps: createListAppsTool(computer),
 		getAppState: createGetAppStateTool(computer, cache),
 		click: createClickTool(computer),
 		performSecondaryAction: createPerformSecondaryActionTool(computer),
@@ -89,8 +86,6 @@ async function executeBatchAction(
 	context: BatchExecutionContext,
 ): Promise<AgentToolResult<unknown>> {
 	switch (action.action) {
-		case "list_apps":
-			return await tools.listApps.execute(context.toolCallId, {}, context.signal, context.onUpdate, context.ctx);
 		case "get_app_state": {
 			const { action: _action, ...params } = action;
 			return await tools.getAppState.execute(
