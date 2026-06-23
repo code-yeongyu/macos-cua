@@ -2,6 +2,7 @@ import type { AppState, CaptureFrame, ComputerInterface, Rect } from "@macos-cua
 import { describe, expect, it, vi } from "vitest";
 
 import type { ExtensionContext } from "../pi/index.js";
+import { BatchParams } from "./batch-schema.js";
 import { createBatchTool } from "./batch.js";
 
 function createCaptureFrame(
@@ -167,3 +168,79 @@ describe("#given Pi batch tool #when actions run #then results describe each ste
 		});
 	});
 });
+
+describe("#given Pi batch schema #when serialized #then discrete action contracts match standalone tools", () => {
+	it("#given coordinate actions #when schemas are read #then capture freshness fields are accepted", () => {
+		const clickProperties = actionProperties("click");
+		const dragProperties = actionProperties("drag");
+
+		expect(Object.keys(clickProperties)).toEqual(expect.arrayContaining(["capture_id", "display_epoch", "x", "y"]));
+		expect(Object.keys(dragProperties)).toEqual(
+			expect.arrayContaining(["capture_id", "display_epoch", "from_x", "from_y", "to_x", "to_y"]),
+		);
+	});
+
+	it("#given deferred scroll delta fields #when schemas are read #then batch still rejects item five fields", () => {
+		const scrollProperties = actionProperties("scroll");
+		const scrollSchema = actionSchema("scroll");
+
+		expect(scrollProperties).not.toHaveProperty("scroll_x");
+		expect(scrollProperties).not.toHaveProperty("scroll_y");
+		expect(scrollSchema).toHaveProperty("additionalProperties", false);
+	});
+});
+
+function actionProperties(actionName: string): Record<string, unknown> {
+	const schema = actionSchema(actionName);
+	const properties = schema["properties"];
+	if (!isRecord(properties)) {
+		throw new Error(`Batch action ${actionName} is missing schema properties`);
+	}
+	return properties;
+}
+
+function actionSchema(actionName: string): Record<string, unknown> {
+	const rootProperties = propertyRecord(BatchParams, "properties");
+	const actions = propertyRecord(rootProperties, "actions");
+	const items = propertyRecord(actions, "items");
+	const anyOf = items["anyOf"];
+	if (!Array.isArray(anyOf)) {
+		throw new Error("Batch action schema is missing anyOf variants");
+	}
+	const match = anyOf.find((candidate) => actionNameFor(candidate) === actionName);
+	if (!isRecord(match)) {
+		throw new Error(`Batch action ${actionName} schema was not found`);
+	}
+	return match;
+}
+
+function propertyRecord(source: unknown, key: string): Record<string, unknown> {
+	if (!isRecord(source)) {
+		throw new Error(`Expected an object while reading ${key}`);
+	}
+	const value = source[key];
+	if (!isRecord(value)) {
+		throw new Error(`Expected ${key} to be an object`);
+	}
+	return value;
+}
+
+function actionNameFor(candidate: unknown): string | undefined {
+	if (!isRecord(candidate)) {
+		return undefined;
+	}
+	const properties = candidate["properties"];
+	if (!isRecord(properties)) {
+		return undefined;
+	}
+	const action = properties["action"];
+	if (!isRecord(action)) {
+		return undefined;
+	}
+	const actionConst = action["const"];
+	return typeof actionConst === "string" ? actionConst : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}

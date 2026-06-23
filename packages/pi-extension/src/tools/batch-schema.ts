@@ -31,6 +31,10 @@ const BatchActionParams = Type.Union([
 			element_index: Type.Optional(Type.String()),
 			x: Type.Optional(Type.Number()),
 			y: Type.Optional(Type.Number()),
+			capture_id: Type.Optional(Type.String({ description: "Capture id from the latest get_app_state metadata." })),
+			display_epoch: Type.Optional(
+				Type.String({ description: "Display epoch from the latest get_app_state metadata." }),
+			),
 			click_count: Type.Optional(Type.Integer({ minimum: 1 })),
 			mouse_button: Type.Optional(MouseButtonParam),
 		},
@@ -69,6 +73,10 @@ const BatchActionParams = Type.Union([
 			from_y: Type.Number(),
 			to_x: Type.Number(),
 			to_y: Type.Number(),
+			capture_id: Type.Optional(Type.String({ description: "Capture id from the latest get_app_state metadata." })),
+			display_epoch: Type.Optional(
+				Type.String({ description: "Display epoch from the latest get_app_state metadata." }),
+			),
 		},
 		{ additionalProperties: false },
 	),

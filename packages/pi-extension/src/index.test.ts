@@ -55,6 +55,7 @@ vi.mock("node:fs", () => ({
 vi.mock("@macos-cua/core", () => ({
 	MacOSHostComputer: macOSHostComputerMock.constructor,
 	createDebugLog: vi.fn(() => vi.fn()),
+	executeDiscreteBatch: vi.fn(),
 }));
 
 import macosCuaExtension from "./index.js";
@@ -240,6 +241,7 @@ describe("#given default-on session_start #when invoked #then native computer an
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 			"computer",
 		]);
 	});
@@ -265,6 +267,7 @@ describe("#given opt-out env var #when session_start runs #then native computer 
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 	});
 });
@@ -355,6 +358,7 @@ describe("#given enabled session #when model changes from native computer-use to
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 	});
 });
