@@ -117,6 +117,9 @@ describe("#given get_app_state and prompt text #when read by a model #then numbe
 
 		expect(tool.description).toContain("numbered boxes");
 		expect(tool.description).toContain("element_index");
+		expect(tool.description).toContain("screenshot pixels");
+		expect(tool.description).toContain("fresh screenshot");
+		expect(tool.description).toContain("Do not guess");
 		expect(prompt).toContain("numbered boxes");
 		expect(prompt).toContain("element_index labels");
 		expect(prompt).toContain("click element_index=<number>");

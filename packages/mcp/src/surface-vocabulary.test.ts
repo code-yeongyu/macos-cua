@@ -127,6 +127,23 @@ describe("#given MCP action results #when serialized #then stable vocabulary is 
 		expect(JSON.stringify(result.content)).not.toContain("<app_specific_instructions>");
 	});
 
+	it("#given MCP tool descriptions #when listed #then coordinate recovery contract is present", async () => {
+		const server = new McpServer({ name: "test", version: "0.1.0" });
+		registerDiscreteTools(server, fakeComputer);
+
+		const result = await withClient(server, (client) => client.listTools());
+		const descriptions = result.tools
+			.filter((tool) => ["get_app_state", "click", "drag", "zoom"].includes(tool.name))
+			.map((tool) => tool.description ?? "")
+			.join("\n");
+
+		expect(descriptions).toContain("screenshot pixels");
+		expect(descriptions).toContain("fresh screenshot");
+		expect(descriptions).toContain("Do not guess");
+		expect(descriptions).toContain("element_index");
+		expect(descriptions).toContain("zoom");
+	});
+
 	it("#given an internal error with stack #when formatted for stderr #then stack frames are not exposed", () => {
 		const error = new Error("top-level failure");
 

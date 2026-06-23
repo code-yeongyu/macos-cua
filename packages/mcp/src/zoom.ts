@@ -12,6 +12,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 import type { AppStateCache } from "./app-state-cache.js";
+import { MCP_COORDINATE_CONTRACT } from "./coordinate-contract.js";
 import type { ToolResult } from "./tool-result.js";
 
 const zoomSchema = z.object({
@@ -24,7 +25,7 @@ export function registerZoomTool(server: McpServer, computer: ComputerInterface,
 	server.registerTool(
 		"zoom",
 		{
-			description: "Capture a high-resolution crop for an element_index or screenshot-pixel region.",
+			description: `Capture a high-resolution crop for an element_index or screenshot-pixel region. ${MCP_COORDINATE_CONTRACT}`,
 			inputSchema: zoomSchema,
 		},
 		async ({ app, element_index, region }): Promise<ToolResult> => {
