@@ -16,6 +16,7 @@ import { appStateImageContent } from "./app-state-image.js";
 import { click, drag } from "./batch-pointer.js";
 import type { McpBatchAction } from "./batch-tool-schema.js";
 import { type ToolContent, type ToolResult, actionComplete } from "./tool-result.js";
+import { executeZoom } from "./zoom.js";
 
 type BatchDispatchState = {
 	readonly framesByPid: Map<number, CaptureFrame>;
@@ -84,6 +85,8 @@ async function dispatchBatchAction(
 		case "scroll":
 			await scroll(computer, action);
 			return actionComplete();
+		case "zoom":
+			return await executeZoom(computer, appStateCache, action);
 		case "type_text":
 			await typeText(computer, action.app, action.text);
 			return actionComplete();

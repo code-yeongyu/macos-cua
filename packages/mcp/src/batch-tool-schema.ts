@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 const appSchema = z.string().min(1);
 const elementIndexSchema = z.string();
+const regionSchema = z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() });
 const keySequenceEntrySchema = z.union([
 	z.string().min(1),
 	z.object({
@@ -62,6 +63,12 @@ export const mcpBatchActionSchema = z.discriminatedUnion("action", [
 		element_index: elementIndexSchema.optional(),
 		pages: z.number().positive().optional(),
 	}),
+	z.object({
+		action: z.literal("zoom"),
+		app: appSchema,
+		element_index: elementIndexSchema.optional(),
+		region: regionSchema.optional(),
+	}),
 	z.object({ action: z.literal("type_text"), app: appSchema, text: z.string() }),
 	z.object({
 		action: z.literal("press_keys"),
@@ -72,6 +79,8 @@ export const mcpBatchActionSchema = z.discriminatedUnion("action", [
 	}),
 ]);
 
-export const mcpBatchSchema = z.object({ actions: z.array(mcpBatchActionSchema).min(1) });
+export const MCP_BATCH_ACTION_LIMIT = 20;
+
+export const mcpBatchSchema = z.object({ actions: z.array(mcpBatchActionSchema).min(1).max(MCP_BATCH_ACTION_LIMIT) });
 
 export type McpBatchAction = z.infer<typeof mcpBatchActionSchema>;

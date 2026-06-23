@@ -33,7 +33,7 @@ export async function click(
 		return;
 	}
 	const point = await resolvePoint(computer, targetPid, frame, action.x, action.y, action);
-	if ((action.mouse_button ?? "left") === "left" && (await computer.pressAtPosition(targetPid, point))) {
+	if ((action.mouse_button ?? "left") === "left" && (await pressAtPosition(computer, targetPid, point, pressCount))) {
 		return;
 	}
 	await withTargetedApp(computer, targetPid, async () =>
@@ -85,6 +85,20 @@ function completeFreshnessForFrame(action: CoordinateAction): CaptureFreshnessMa
 		return { captureId: action.capture_id, displayEpoch: action.display_epoch };
 	}
 	throw incompleteFreshnessError(action.capture_id, action.display_epoch);
+}
+
+async function pressAtPosition(
+	computer: ComputerInterface,
+	targetPid: number,
+	point: { readonly x: number; readonly y: number },
+	pressCount: number,
+): Promise<boolean> {
+	for (let pressIndex = 0; pressIndex < pressCount; pressIndex += 1) {
+		if (!(await computer.pressAtPosition(targetPid, point))) {
+			return false;
+		}
+	}
+	return true;
 }
 
 function incompleteFreshnessError(captureId: string | undefined, displayEpoch: string | undefined): ComputerUseError {
