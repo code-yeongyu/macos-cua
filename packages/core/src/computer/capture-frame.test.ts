@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Point } from "../types/index.js";
 import { createCaptureFrame, createCaptureFrameTransform } from "./capture-frame.js";
+import { ComputerUseError, type ComputerUseErrorCode } from "./errors.js";
 import { screenshotPointToScreen } from "./viewport.js";
 
 const CAPTURE_FRAME = createCaptureFrame({
@@ -18,6 +19,35 @@ const CAPTURE_FRAME = createCaptureFrame({
 		scaleFactor: 2,
 	},
 });
+
+type ExpectedComputerUseError = {
+	readonly code: ComputerUseErrorCode;
+	readonly message: string;
+	readonly recoveryHint: string;
+	readonly details?: Readonly<Record<string, unknown>>;
+};
+
+function expectComputerUseError(action: () => unknown, expected: ExpectedComputerUseError): void {
+	const error = captureThrown(action);
+
+	expect(error).toBeInstanceOf(ComputerUseError);
+	expect(error).toMatchObject({
+		name: "ComputerUseError",
+		code: expected.code,
+		message: expect.stringContaining(expected.message),
+		recoveryHint: expect.stringContaining(expected.recoveryHint),
+		...(expected.details === undefined ? {} : { details: expect.objectContaining(expected.details) }),
+	});
+}
+
+function captureThrown(action: () => unknown): unknown {
+	try {
+		action();
+	} catch (error) {
+		return error;
+	}
+	throw new Error("Expected action to throw");
+}
 
 describe("#given a capture frame #when mapping an inside model point #then it resolves to global screen coordinates", () => {
 	it("#given a scaled window capture #when point is inside the model dimensions #then transform metadata maps it", () => {
@@ -37,79 +67,94 @@ describe("#given a capture frame #when mapping an inside model point #then it re
 
 describe("#given a stale capture frame #when mapping a model point #then it rejects with typed recovery guidance", () => {
 	it("#given the display epoch changed #when point is mapped #then stale capture is rejected", () => {
-		expect(() =>
-			screenshotPointToScreen({ x: 250, y: 200 }, CAPTURE_FRAME, {
-				captureId: "capture-1",
-				displayEpoch: "display-2",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: 250, y: 200 }, CAPTURE_FRAME, {
+					captureId: "capture-1",
+					displayEpoch: "display-2",
+				}),
+			{
 				code: "STALE_CAPTURE",
-				recoveryHint: expect.stringContaining("refresh the capture"),
-			}),
+				message: "latest captureId capture-1",
+				recoveryHint: "fresh screenshot",
+				details: {
+					captureId: "capture-1",
+					expectedCaptureId: "capture-1",
+					displayEpoch: "display-1",
+					expectedDisplayEpoch: "display-2",
+				},
+			},
 		);
 	});
 
 	it("#given the requested capture id changed #when point is mapped #then stale capture is rejected", () => {
-		expect(() =>
-			screenshotPointToScreen({ x: 250, y: 200 }, CAPTURE_FRAME, {
-				captureId: "capture-2",
-				displayEpoch: "display-1",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: 250, y: 200 }, CAPTURE_FRAME, {
+					captureId: "capture-2",
+					displayEpoch: "display-1",
+				}),
+			{
 				code: "STALE_CAPTURE",
-				recoveryHint: expect.stringContaining("refresh the capture"),
-			}),
+				message: "received captureId capture-2",
+				recoveryHint: "fresh screenshot",
+				details: {
+					captureId: "capture-1",
+					expectedCaptureId: "capture-2",
+					displayEpoch: "display-1",
+					expectedDisplayEpoch: "display-1",
+				},
+			},
 		);
 	});
 });
 
 describe("#given malformed model coordinates #when mapping through a capture frame #then it rejects without clamping", () => {
 	it("#given a negative model coordinate #when point is mapped #then out-of-bounds is rejected", () => {
-		expect(() =>
-			screenshotPointToScreen({ x: -1, y: 200 }, CAPTURE_FRAME, {
-				captureId: "capture-1",
-				displayEpoch: "display-1",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: -1, y: 200 }, CAPTURE_FRAME, {
+					captureId: "capture-1",
+					displayEpoch: "display-1",
+				}),
+			{
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
-			}),
+				message: "valid x range [0, 500] and y range [0, 400]",
+				recoveryHint: "Capture a fresh screenshot",
+				details: { x: -1, y: 200, width: 500, height: 400 },
+			},
 		);
 	});
 
 	it("#given a coordinate beyond model dimensions #when point is mapped #then out-of-bounds is rejected", () => {
-		expect(() =>
-			screenshotPointToScreen({ x: 501, y: 200 }, CAPTURE_FRAME, {
-				captureId: "capture-1",
-				displayEpoch: "display-1",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: 501, y: 200 }, CAPTURE_FRAME, {
+					captureId: "capture-1",
+					displayEpoch: "display-1",
+				}),
+			{
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
-			}),
+				message: "received (501, 200)",
+				recoveryHint: "Capture a fresh screenshot",
+				details: { x: 501, y: 200, width: 500, height: 400 },
+			},
 		);
 	});
 
 	it("#given a NaN coordinate #when point is mapped #then malformed input is rejected", () => {
-		expect(() =>
-			screenshotPointToScreen({ x: Number.NaN, y: 200 }, CAPTURE_FRAME, {
-				captureId: "capture-1",
-				displayEpoch: "display-1",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: Number.NaN, y: 200 }, CAPTURE_FRAME, {
+					captureId: "capture-1",
+					displayEpoch: "display-1",
+				}),
+			{
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
-			}),
+				message: "received (NaN, 200)",
+				recoveryHint: "Capture a fresh screenshot",
+				details: { x: "NaN", y: 200, width: 500, height: 400 },
+			},
 		);
 	});
 });
@@ -121,17 +166,25 @@ describe("#given a capture frame outside the display #when mapping a model point
 			windowBounds: { x: 1700, y: 1000, width: 1000, height: 800 },
 		});
 
-		expect(() =>
-			screenshotPointToScreen({ x: 250, y: 200 }, offscreenFrame, {
-				captureId: "capture-1",
-				displayEpoch: "display-1",
-			}),
-		).toThrowError(
-			expect.objectContaining({
-				name: "ComputerUseError",
+		expectComputerUseError(
+			() =>
+				screenshotPointToScreen({ x: 250, y: 200 }, offscreenFrame, {
+					captureId: "capture-1",
+					displayEpoch: "display-1",
+				}),
+			{
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
-			}),
+				message: "outside the display frame",
+				recoveryHint: "Capture a fresh screenshot",
+				details: {
+					x: 2200,
+					y: 1400,
+					displayX: 0,
+					displayY: 0,
+					displayWidth: 1728,
+					displayHeight: 1117,
+				},
+			},
 		);
 	});
 });
