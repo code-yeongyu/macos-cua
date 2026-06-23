@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	MAX_SCREENSHOT_LONG_EDGE,
 	type ScreenshotViewport,
+	resolveAdaptiveWindowScreenshotSize,
 	resolveWindowScreenshotSize,
 	screenRectToScreenshot,
 	screenshotPointToScreen,
@@ -28,6 +29,51 @@ describe("#given a window larger than the cap #when resolving screenshot size #t
 
 		expect(size.width).toBe(MAX_SCREENSHOT_LONG_EDGE);
 		expect(size.height).toBe(1);
+	});
+});
+
+describe("#given adaptive screenshot policy #when resolving screenshot size #then fidelity follows display and budget", () => {
+	it("#given sufficient screenshot budget #when resolving a large window #then model size is not blanket capped at 1280", () => {
+		expect(
+			resolveAdaptiveWindowScreenshotSize(
+				{ width: 2560, height: 1600 },
+				{ byteBudget: 40 * 1024 * 1024, displayScaleFactor: 1 },
+			),
+		).toEqual({ height: 1600, width: 2560 });
+	});
+
+	it("#given a retina window #when display scale is available #then native pixel fidelity is preserved within budget", () => {
+		expect(
+			resolveAdaptiveWindowScreenshotSize(
+				{ width: 1440, height: 900 },
+				{ byteBudget: 40 * 1024 * 1024, displayScaleFactor: 2 },
+			),
+		).toEqual({ height: 1800, width: 2880 });
+	});
+
+	it("#given a provider hard maximum #when resolving a large window #then the provider cap wins", () => {
+		expect(
+			resolveAdaptiveWindowScreenshotSize(
+				{ width: 2560, height: 1600 },
+				{ byteBudget: 40 * 1024 * 1024, displayScaleFactor: 1, providerMaxLongEdge: 1568 },
+			),
+		).toEqual({ height: 980, width: 1568 });
+	});
+
+	it("#given a small byte budget #when resolving a large window #then the candidate is downgraded", () => {
+		expect(
+			resolveAdaptiveWindowScreenshotSize(
+				{ width: 2560, height: 1600 },
+				{ byteBudget: 1 * 1024 * 1024, displayScaleFactor: 1 },
+			),
+		).toEqual({ height: 400, width: 640 });
+	});
+
+	it("#given invalid policy inputs #when resolving screenshot size #then it rejects them", () => {
+		expect(() =>
+			resolveAdaptiveWindowScreenshotSize({ width: 800, height: 600 }, { providerMaxLongEdge: Number.NaN }),
+		).toThrow();
+		expect(() => resolveAdaptiveWindowScreenshotSize({ width: 800, height: 600 }, { byteBudget: 0 })).toThrow();
 	});
 });
 
@@ -104,7 +150,8 @@ describe("#given a window screenshot viewport #when mapping a screenshot pixel #
 			expect.objectContaining({
 				name: "ComputerUseError",
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
+				message: expect.stringContaining("valid x range [0, 500] and y range [0, 400]"),
+				recoveryHint: expect.stringContaining("Capture a fresh screenshot"),
 			}),
 		);
 	});
@@ -120,7 +167,8 @@ describe("#given a window screenshot viewport #when mapping a screenshot pixel #
 			expect.objectContaining({
 				name: "ComputerUseError",
 				code: "OUT_OF_BOUNDS_COORDINATE",
-				recoveryHint: expect.stringContaining("inside the capture frame"),
+				message: expect.stringContaining("received (600, 500)"),
+				recoveryHint: expect.stringContaining("Call get_app_state"),
 			}),
 		);
 	});

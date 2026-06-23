@@ -3,11 +3,11 @@ import type { ComputerInterface, Point } from "@macos-cua/core";
 import { ComputerUseError, toComputerUseExecutionError } from "./anthropic-computer-error.js";
 import type { ComputerToolInput } from "./anthropic-payload.js";
 import { type CaptureFreshnessMarker, type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
-import { screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
+import { type ScreenshotCursorMetadata, screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
 import type { AgentToolResult } from "./pi/index.js";
 import { formatActionComplete } from "./surface-vocabulary.js";
 
-export type ComputerUseResult = AgentToolResult<undefined>;
+export type ComputerUseResult = AgentToolResult<ScreenshotCursorMetadata | undefined>;
 type KeyModifier = "command" | "option" | "control" | "shift";
 type ScrollDirection = "up" | "down" | "left" | "right";
 
@@ -31,30 +31,46 @@ export async function executeNativeComputerAction(
 			case "screenshot":
 				return await screenshotResultWithCursor(computer, display);
 			case "mouse_move":
-				await computer.move(unscaleCoord(parseCoordinate(input.coordinate, "mouse_move"), display, freshness));
+				await computer.move(
+					unscaleCoord(parseCoordinate(input.coordinate, "mouse_move"), display, freshness, {
+						action: "mouse_move",
+					}),
+				);
 				return okResult(input.action);
 			case "left_click":
-				await computer.click(unscaleCoord(parseCoordinate(input.coordinate, "left_click"), display, freshness));
+				await computer.click(
+					unscaleCoord(parseCoordinate(input.coordinate, "left_click"), display, freshness, {
+						action: "left_click",
+					}),
+				);
 				return okResult(input.action);
 			case "right_click":
 				await computer.rightClick(
-					unscaleCoord(parseCoordinate(input.coordinate, "right_click"), display, freshness),
+					unscaleCoord(parseCoordinate(input.coordinate, "right_click"), display, freshness, {
+						action: "right_click",
+					}),
 				);
 				return okResult(input.action);
 			case "middle_click":
 				await computer.middleClick(
-					unscaleCoord(parseCoordinate(input.coordinate, "middle_click"), display, freshness),
+					unscaleCoord(parseCoordinate(input.coordinate, "middle_click"), display, freshness, {
+						action: "middle_click",
+					}),
 				);
 				return okResult(input.action);
 			case "double_click":
 				await computer.doubleClick(
-					unscaleCoord(parseCoordinate(input.coordinate, "double_click"), display, freshness),
+					unscaleCoord(parseCoordinate(input.coordinate, "double_click"), display, freshness, {
+						action: "double_click",
+					}),
 				);
 				return okResult(input.action);
 			case "triple_click":
 				await tripleClick(
 					computer,
-					unscaleCoord(parseCoordinate(input.coordinate, "triple_click"), display, freshness),
+					unscaleCoord(parseCoordinate(input.coordinate, "triple_click"), display, freshness, {
+						action: "triple_click",
+					}),
 				);
 				return okResult(input.action);
 			case "left_click_drag":
@@ -63,8 +79,11 @@ export async function executeNativeComputerAction(
 						parseCoordinate(input.start_coordinate, "left_click_drag.start_coordinate"),
 						display,
 						freshness,
+						{ action: "left_click_drag.start_coordinate" },
 					),
-					to: unscaleCoord(parseCoordinate(input.coordinate, "left_click_drag.coordinate"), display, freshness),
+					to: unscaleCoord(parseCoordinate(input.coordinate, "left_click_drag.coordinate"), display, freshness, {
+						action: "left_click_drag.coordinate",
+					}),
 					duration: DEFAULT_DRAG_DURATION_MILLISECONDS,
 				});
 				return okResult(input.action);

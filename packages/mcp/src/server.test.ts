@@ -1,94 +1,27 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
-import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TOOL_NAMES, createMcpServer } from "./server.js";
 import { captureFrameFixture } from "./test-support/capture-frame.js";
+import { TOOL_NAMES, createHarness, mockedComputer } from "./test-support/server-harness.js";
 
-const mockedComputer = vi.hoisted(() => ({
-	capabilities: {
-		supportsScreenshot: true,
-		supportsInput: true,
-		supportsAccessibility: true,
-		supportsClipboard: true,
-	},
-	setTarget: vi.fn(),
-	screenshot: vi.fn(),
-	move: vi.fn(),
-	click: vi.fn(),
-	rightClick: vi.fn(),
-	middleClick: vi.fn(),
-	doubleClick: vi.fn(),
-	type: vi.fn(),
-	key: vi.fn(),
-	scroll: vi.fn(),
-	drag: vi.fn(),
-	getCursorPosition: vi.fn(),
-	getScreenSize: vi.fn(),
-	getAppState: vi.fn(),
-	getScreenshotViewport: vi.fn(),
-	listApps: vi.fn(),
-	setValue: vi.fn(),
-	selectText: vi.fn(),
-	performAction: vi.fn(),
-	pressAtPosition: vi.fn(),
-	typeIntoFocused: vi.fn(),
-	close: vi.fn(),
-}));
-
-vi.mock("@macos-cua/core", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("@macos-cua/core")>();
-	return {
-		...actual,
-		MacOSHostComputer: vi.fn(() => mockedComputer),
+function isStateWithScreenshotMetadata(value: unknown): value is {
+	readonly screenshotBase64?: string;
+	readonly screenshotMetadata: {
+		readonly captureId: string;
+		readonly displayEpoch: string;
+		readonly height: number;
+		readonly originX: number;
+		readonly originY: number;
+		readonly scaleX: number;
+		readonly scaleY: number;
+		readonly width: number;
 	};
-});
-
-class InMemoryTransport implements Transport {
-	peer: InMemoryTransport | null = null;
-	onclose?: () => void;
-	onerror?: (error: Error) => void;
-	onmessage?: <T extends JSONRPCMessage>(message: T) => void;
-
-	async start(): Promise<void> {}
-
-	async send(message: JSONRPCMessage): Promise<void> {
-		const peer = this.peer;
-		if (!peer) {
-			throw new Error("Transport peer is not connected");
-		}
-
-		queueMicrotask(() => {
-			peer.onmessage?.(message);
-		});
-	}
-
-	async close(): Promise<void> {
-		this.onclose?.();
-	}
-}
-
-function createTransportPair(): readonly [InMemoryTransport, InMemoryTransport] {
-	const clientTransport = new InMemoryTransport();
-	const serverTransport = new InMemoryTransport();
-	clientTransport.peer = serverTransport;
-	serverTransport.peer = clientTransport;
-	return [clientTransport, serverTransport];
-}
-
-async function createHarness(): Promise<{ client: Client; close: () => Promise<void> }> {
-	const server = createMcpServer();
-	const client = new Client({ name: "macos-cua-test", version: "0.1.0" });
-	const [clientTransport, serverTransport] = createTransportPair();
-
-	await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
-
-	return {
-		client,
-		close: async () => {
-			await Promise.all([client.close(), server.close()]);
-		},
-	};
+} {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"screenshotMetadata" in value &&
+		typeof value.screenshotMetadata === "object" &&
+		value.screenshotMetadata !== null
+	);
 }
 
 let closeHarness: (() => Promise<void>) | null = null;
@@ -131,6 +64,7 @@ beforeEach(() => {
 		screenshotBase64: Buffer.from("png-bytes").toString("base64"),
 		screenshotWidth: 1280,
 		screenshotHeight: 720,
+		captureFrame: captureFrameFixture({ x: 0, y: 0, width: 1280, height: 720 }, { width: 1280, height: 720 }),
 	});
 	mockedComputer.listApps.mockResolvedValue([
 		{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true },
@@ -166,9 +100,10 @@ describe("MCP server tools #given #when #then", () => {
 		// then
 		expect(result.tools).toHaveLength(TOOL_NAMES.length + 1);
 		expect(toolNames).toEqual([...TOOL_NAMES, "screenshot"].sort());
+		expect(toolNames).toContain("batch");
 	});
 
-	it("returns image content and accessibility JSON for get_app_state", async () => {
+	it("returns image content and coordinate frame accessibility JSON for get_app_state", async () => {
 		// given
 		const { client, close } = await createHarness();
 		closeHarness = close;
@@ -188,6 +123,30 @@ describe("MCP server tools #given #when #then", () => {
 			mimeType: "image/png",
 		});
 		expect(secondContent?.type).toBe("text");
+		if (secondContent?.type !== "text" || !("text" in secondContent) || typeof secondContent.text !== "string") {
+			throw new Error("get_app_state text content must be a string");
+		}
+		const parsed: unknown = JSON.parse(secondContent.text);
+		if (!isStateWithScreenshotMetadata(parsed)) {
+			throw new Error("get_app_state text content must include screenshot metadata");
+		}
+		expect(parsed).toMatchObject({
+			pid: 1234,
+			elements: [{ id: 9, actions: ["AXPress"] }],
+			screenshotWidth: 1280,
+			screenshotHeight: 720,
+		});
+		expect(parsed.screenshotMetadata).toMatchObject({
+			captureId: "capture-test-1",
+			displayEpoch: "test-display-1",
+			height: 720,
+			originX: 0,
+			originY: 0,
+			scaleX: 1,
+			scaleY: 1,
+			width: 1280,
+		});
+		expect(parsed.screenshotBase64).toBeUndefined();
 		expect(mockedComputer.getAppState).toHaveBeenCalledWith(1234, undefined);
 	});
 

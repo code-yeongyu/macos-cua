@@ -48,7 +48,7 @@ describe("#given code-mode stale coordinates #when the sandbox catches the host 
 		expect(result.result).toEqual({
 			name: "ComputerUseError",
 			code: "STALE_CAPTURE",
-			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+			recoveryHint: "Call get_app_state or capture a fresh screenshot before retrying within the latest frame.",
 			stack: undefined,
 		});
 	});

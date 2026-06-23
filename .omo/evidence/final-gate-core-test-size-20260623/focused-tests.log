@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 /Users/yeongyu/local-workspaces/macos-cua
+
+ ✓ packages/core/src/platform/macos-desktop-session.test.ts (10 tests) 6ms
+ ✓ packages/core/src/platform/macos-app-state-mutators.test.ts (2 tests) 29ms
+ ✓ packages/core/src/platform/macos-app-state.test.ts (6 tests) 30ms
+ ✓ packages/core/src/platform/macos-app-state-windowing.test.ts (9 tests) 94ms
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  19:38:38
+   Duration  407ms (transform 163ms, setup 0ms, collect 503ms, tests 159ms, environment 0ms, prepare 125ms)

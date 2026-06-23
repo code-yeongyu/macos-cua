@@ -14,7 +14,7 @@ import {
 import { CODE_MODE_RUN_TOOL_DESCRIPTION } from "./code-mode-description.js";
 import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
 import { toAgentToolErrorResult, toAgentToolResult } from "./computer-use/run-result.js";
-import { type OpenAIComputerBatchResultDetails, executeOpenAIComputerActionBatch } from "./openai-computer-batch.js";
+import { type OpenAIComputerResultDetails, executeOpenAIComputerActionBatch } from "./openai-computer-batch.js";
 import {
 	type OpenAIComputerAction,
 	type OpenAIComputerActionBatch,
@@ -210,7 +210,7 @@ async function executeComputerFallback(
 	params: ComputerFallbackInput,
 	computer: MacOSHostComputer,
 	display: DisplayConfig,
-): Promise<AgentToolResult<OpenAIComputerBatchResultDetails | undefined>> {
+): Promise<AgentToolResult<OpenAIComputerResultDetails>> {
 	if (isOpenAIComputerActionBatch(params)) {
 		return executeOpenAIComputerActionBatch(params, computer, display);
 	}

@@ -12,6 +12,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 import type { AppStateCache } from "./app-state-cache.js";
+import { MCP_COORDINATE_CONTRACT } from "./coordinate-contract.js";
 import type { ToolResult } from "./tool-result.js";
 
 const zoomSchema = z.object({
@@ -20,57 +21,63 @@ const zoomSchema = z.object({
 	region: z.object({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }).optional(),
 });
 
+type ZoomInput = z.infer<typeof zoomSchema>;
+
 export function registerZoomTool(server: McpServer, computer: ComputerInterface, cache?: AppStateCache): void {
 	server.registerTool(
 		"zoom",
 		{
-			description: "Capture a high-resolution crop for an element_index or screenshot-pixel region.",
+			description: `Capture a high-resolution crop for an element_index or screenshot-pixel region. ${MCP_COORDINATE_CONTRACT}`,
 			inputSchema: zoomSchema,
 		},
-		async ({ app, element_index, region }): Promise<ToolResult> => {
-			const targetPid = await resolveAppPid(computer, app);
-			const state = cache?.get(targetPid) ?? (await computer.getAppState(targetPid));
-			const viewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
-			if (viewport === undefined) {
-				throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");
-			}
-			const source = zoomSourceRect(element_index, region, state.elements);
-			const screen = cropScreenRect(source, viewport);
-			const crop = await computer.screenshot({ region: screen });
-			const cropBounds = { x: 0, y: 0, width: crop.width, height: crop.height };
-			const marks = state.elements
-				.map((element) => ({ element, frame: clipRect(element.frame, screenshotBounds(viewport)) }))
-				.filter(hasClippedFrame)
-				.filter(({ element }) => shouldMarkElement(element))
-				.filter((entry) => rectsIntersect(cropScreenRect(entry.frame, viewport), screen))
-				.map((entry) => ({
-					id: entry.element.id,
-					frame: clipRect(
-						remapFrameToCrop(entry.frame, viewport, screen, { width: crop.width, height: crop.height }),
-						cropBounds,
-					),
-				}))
-				.filter(hasMarkFrame);
-			return {
-				content: [
-					{ type: "image", data: crop.data.toString("base64"), mimeType: crop.mimeType },
-					{
-						type: "text",
-						text: JSON.stringify(
-							{
-								message:
-									"The zoom numbers are element_index values. To click a target from this crop, call click element_index=<number>.",
-								rect: { source, screen, crop: { width: crop.width, height: crop.height } },
-								marks,
-							},
-							null,
-							2,
-						),
-					},
-				],
-			};
-		},
+		async (input): Promise<ToolResult> => executeZoom(computer, cache, input),
 	);
+}
+
+export async function executeZoom(
+	computer: ComputerInterface,
+	cache: AppStateCache | undefined,
+	{ app, element_index, region }: ZoomInput,
+): Promise<ToolResult> {
+	const targetPid = await resolveAppPid(computer, app);
+	const state = cache?.get(targetPid) ?? (await computer.getAppState(targetPid));
+	const viewport = state.captureFrame ?? (await computer.getScreenshotViewport(targetPid));
+	if (viewport === undefined) {
+		throw new Error("zoom requires a prior window-scoped get_app_state screenshot for the target app");
+	}
+	const source = zoomSourceRect(element_index, region, state.elements);
+	const screen = cropScreenRect(source, viewport);
+	const crop = await computer.screenshot({ region: screen });
+	const cropBounds = { x: 0, y: 0, width: crop.width, height: crop.height };
+	const cropDimensions = { width: crop.width, height: crop.height };
+	const marks = state.elements
+		.map((element) => ({ element, frame: clipRect(element.frame, screenshotBounds(viewport)) }))
+		.filter(hasClippedFrame)
+		.filter(({ element }) => shouldMarkElement(element))
+		.filter((entry) => rectsIntersect(cropScreenRect(entry.frame, viewport), screen))
+		.map((entry) => ({
+			id: entry.element.id,
+			frame: clipRect(remapFrameToCrop(entry.frame, viewport, screen, cropDimensions), cropBounds),
+		}))
+		.filter(hasMarkFrame);
+	return {
+		content: [
+			{ type: "image", data: crop.data.toString("base64"), mimeType: crop.mimeType },
+			{
+				type: "text",
+				text: JSON.stringify(
+					{
+						message:
+							"The zoom numbers are element_index values. To click a target from this crop, call click element_index=<number>.",
+						rect: { source, screen, crop: cropDimensions },
+						marks,
+					},
+					null,
+					2,
+				),
+			},
+		],
+	};
 }
 
 function zoomSourceRect(

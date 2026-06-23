@@ -71,6 +71,9 @@ export type {
 	CaptureFrameTarget,
 	CaptureFrameTransform,
 	CaptureFreshnessMarker,
+	ScreenshotCoordinateMetadata,
+	ScreenshotCoordinateMetadataInput,
+	ScreenshotDowngradeStatus,
 } from "../computer/capture-frame.js";
 
 export type { ComputerUseErrorCode, ComputerUseErrorDetails } from "../computer/errors.js";

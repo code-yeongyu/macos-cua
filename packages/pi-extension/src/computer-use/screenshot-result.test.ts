@@ -3,8 +3,8 @@
 import { PNG } from "pngjs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { DisplayConfig } from "./coords.js";
-import { screenshotResultWithCursor } from "./screenshot-result.js";
+import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./coords.js";
+import { screenshotResultWithCursor, screenshotResultWithCursorMetadata } from "./screenshot-result.js";
 
 const DISPLAY = {
 	logicalWidth: 200,
@@ -90,5 +90,62 @@ describe("#given mismatched capture dimensions #when screenshot result is built 
 				'"scope":"coords","event":"screenshot-dimensions-mismatch","actualWidth":80,"actualHeight":40,"expectedWidth":100,"expectedHeight":50',
 			),
 		);
+	});
+});
+
+describe("#given adaptive provider display sizing #when resolving native model dimensions #then fidelity follows budget and hard caps", () => {
+	it("#given OpenAI with sufficient byte budget #when resolving a large display #then model size exceeds the old blanket cap", () => {
+		const display = resolveDisplayConfig(
+			{ width: 3024, height: 1964 },
+			displayProfileForModel("openai-responses", "gpt-5.5"),
+		);
+
+		expect(display.modelWidth).toBeGreaterThan(1280);
+		expect(display.modelHeight).toBeGreaterThan(720);
+	});
+
+	it("#given Anthropic native support #when resolving a large display #then provider hard cap is honored", () => {
+		const display = resolveDisplayConfig(
+			{ width: 3024, height: 1964 },
+			displayProfileForModel("anthropic-messages", "claude-sonnet-4-5"),
+		);
+
+		expect(Math.max(display.modelWidth, display.modelHeight)).toBe(1024);
+	});
+});
+
+describe("#given byte budget downgrade #when screenshot result is built #then downgrade metadata is surfaced", () => {
+	it("#given an adaptive target below display pixels #when capture matches the target #then fidelity still records the downgrade", async () => {
+		const computer = createComputer(DISPLAY.modelWidth, DISPLAY.modelHeight);
+
+		const result = await screenshotResultWithCursorMetadata(computer, DISPLAY);
+
+		expect(result.metadata.fidelity).toMatchObject({
+			format: "image/png",
+			byteCount: expect.any(Number),
+			downgraded: true,
+			reason: "adaptive_target_downscale",
+			actual: { width: 100, height: 50 },
+			original: { width: 200, height: 100 },
+			target: { width: 100, height: 50 },
+		});
+		expect(result.result.details).toEqual(result.metadata);
+	});
+
+	it("records byte count and smaller capture dimensions without adding image bytes to text JSON", async () => {
+		const computer = createComputer(80, 40);
+
+		const result = await screenshotResultWithCursorMetadata(computer, DISPLAY);
+
+		expect(result.metadata.captureFrame).toEqual({ width: 100, height: 50 });
+		expect(result.metadata.fidelity).toMatchObject({
+			format: "image/png",
+			byteCount: expect.any(Number),
+			downgraded: true,
+			reason: "capture_dimensions_mismatch",
+			actual: { width: 80, height: 40 },
+			target: { width: 100, height: 50 },
+		});
+		expect(result.result.details).toEqual(result.metadata);
 	});
 });

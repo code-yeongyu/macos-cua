@@ -105,6 +105,7 @@ describe("#given all tool factories #when built #then every Codex Computer Use t
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 	});
 });
@@ -116,7 +117,7 @@ describe("#given all tools #when registered #then pi.registerTool is called for 
 
 		registerAllTools(pi, { computer: createComputer() });
 
-		expect(registerToolSpy).toHaveBeenCalledTimes(11);
+		expect(registerToolSpy).toHaveBeenCalledTimes(12);
 	});
 });
 
@@ -127,6 +128,17 @@ describe("#given computer-use prompt text #when small targets are present #then 
 		expect(prompt).toContain("zoom");
 		expect(prompt).toContain("small targets");
 		expect(prompt).toContain("click element_index=<number>");
+	});
+
+	it("#given coordinate guidance #when prompt text is read #then screenshot pixels and recovery are explicit", () => {
+		const prompt = `${buildComputerUseSection(1280, 720)}\n${buildCodexComputerUseSection()}`;
+
+		expect(prompt).toContain("screenshot pixels");
+		expect(prompt).toContain("fresh screenshot");
+		expect(prompt).toContain("Do not guess");
+		expect(prompt).toContain("capture metadata");
+		expect(prompt).toContain("click element_index=<number>");
+		expect(prompt).toContain("zoom");
 	});
 });
 
@@ -157,5 +169,17 @@ describe("#given Senpi pi-extension tool guides #when desktop automation starts 
 		expect(skill).toContain("Use bash/CLI only when the discrete tools are unavailable");
 		expect(skill).toContain("Only check permissions after a black screenshot, missing window, or ignored input");
 		expect(skill).not.toContain("Before starting any automation session, verify permissions");
+	});
+
+	it("#given registered schemas #when computer-use policy is enforced #then batch exists without deferred fields", () => {
+		const tools = buildAllTools({ computer: createComputer() });
+		const toolNames = tools.map((tool) => tool.name);
+		const schemaText = JSON.stringify(tools.map((tool) => tool.parameters));
+
+		expect(toolNames).toContain("batch");
+		expect(schemaText).toContain("capture_id");
+		expect(schemaText).toContain("display_epoch");
+		expect(schemaText).not.toContain("scroll_x");
+		expect(schemaText).not.toContain("scroll_y");
 	});
 });

@@ -1,195 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const macOSHostComputerMock = vi.hoisted(() => {
-	const instance = {
-		capabilities: {
-			supportsScreenshot: true,
-			supportsInput: true,
-			supportsAccessibility: true,
-			supportsClipboard: true,
-		},
-		screenshot: vi.fn(),
-		setTarget: vi.fn(),
-		move: vi.fn(),
-		click: vi.fn(),
-		rightClick: vi.fn(),
-		middleClick: vi.fn(),
-		doubleClick: vi.fn(),
-		type: vi.fn(),
-		key: vi.fn(),
-		scroll: vi.fn(),
-		drag: vi.fn(),
-		getCursorPosition: vi.fn(),
-		getScreenSize: vi.fn().mockResolvedValue({ width: 2560, height: 1440 }),
-		getAppState: vi.fn().mockResolvedValue({
-			app: "Finder",
-			bundleId: "com.apple.finder",
-			pid: 1234,
-			frontmost: true,
-			axAvailable: true,
-			elements: [],
-			screenshotBase64: "",
-			screenshotWidth: 1280,
-			screenshotHeight: 720,
-		}),
-		listApps: vi
-			.fn()
-			.mockResolvedValue([{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true }]),
-		setValue: vi.fn().mockResolvedValue(undefined),
-		performAction: vi.fn().mockResolvedValue(undefined),
-		pressAtPosition: vi.fn().mockResolvedValue(false),
-		typeIntoFocused: vi.fn().mockResolvedValue(false),
-		close: vi.fn().mockResolvedValue(undefined),
-	};
-	return {
-		constructor: vi.fn(() => instance),
-		instance,
-	};
-});
-const fsMock = vi.hoisted(() => ({
-	existsSync: vi.fn(() => false),
-}));
-vi.mock("node:fs", () => ({
-	existsSync: fsMock.existsSync,
-}));
-vi.mock("@macos-cua/core", () => ({
-	MacOSHostComputer: macOSHostComputerMock.constructor,
-	createDebugLog: vi.fn(() => vi.fn()),
-}));
+import {
+	createMockPi,
+	macOSHostComputerMock,
+	macosCuaExtension,
+	registeredComputerTool,
+	resetExtensionHarness,
+	runBeforeProviderRequest,
+	runModelSelect,
+	runSessionStart,
+} from "./test-support/extension-harness.js";
 
-import macosCuaExtension from "./index.js";
-import type { ExtensionAPI } from "./pi/index.js";
-
-type EventHandler = (...parameters: ReadonlyArray<unknown>) => unknown;
-type RegisteredTool = {
-	readonly name: string;
-	readonly executeScreenshot: () => Promise<unknown>;
-};
-
-interface MockPi extends ExtensionAPI {
-	readonly handlers: Map<string, EventHandler>;
-	readonly registeredTools: RegisteredTool[];
-}
-
-function createMockPi(): MockPi {
-	const handlers = new Map<string, EventHandler>();
-	const registeredTools: RegisteredTool[] = [];
-	const activeTools: string[] = [];
-	const on = ((eventName: string, handler: EventHandler) => {
-		handlers.set(eventName, handler as EventHandler);
-	}) as ExtensionAPI["on"];
-	return {
-		handlers,
-		registeredTools,
-		on,
-		registerTool(tool) {
-			registeredTools.push({
-				name: tool.name,
-				executeScreenshot: async () =>
-					await Reflect.apply(tool.execute, tool, [
-						"tool-call",
-						{ action: "screenshot" },
-						undefined,
-						undefined,
-						{},
-					]),
-			});
-			activeTools.push(tool.name);
-		},
-		registerCommand() {},
-		registerShortcut() {},
-		registerFlag() {},
-		getFlag() {
-			return undefined;
-		},
-		registerMessageRenderer() {},
-		sendMessage() {},
-		sendUserMessage() {},
-		appendEntry() {},
-		setSessionName() {},
-		getSessionName() {
-			return undefined;
-		},
-		setLabel() {},
-		exec: vi.fn<ExtensionAPI["exec"]>(),
-		getActiveTools() {
-			return [...activeTools];
-		},
-		getAllTools() {
-			return [];
-		},
-		setActiveTools(toolNames) {
-			activeTools.splice(0, activeTools.length, ...toolNames);
-		},
-		getCommands() {
-			return [];
-		},
-		setModel: vi.fn<ExtensionAPI["setModel"]>().mockResolvedValue(false),
-		getThinkingLevel: vi.fn<ExtensionAPI["getThinkingLevel"]>(),
-		setThinkingLevel() {},
-		registerProvider() {},
-		unregisterProvider() {},
-		events: {} as ExtensionAPI["events"],
-	};
-}
-
-beforeEach(() => {
-	process.env["MACOS_CUA_DISABLE_COMPUTER_USE_BETA"] = undefined;
-	process.env["MACOS_CUA_CODE_MODE"] = undefined;
-	vi.clearAllMocks();
-	fsMock.existsSync.mockReturnValue(false);
-	macOSHostComputerMock.instance.getScreenSize.mockResolvedValue({ width: 2560, height: 1440 });
-	macOSHostComputerMock.instance.close.mockResolvedValue(undefined);
-});
-
-async function runSessionStart(pi: MockPi, model?: TestModel): Promise<void> {
-	const sessionStart = pi.handlers.get("session_start");
-	if (sessionStart === undefined) {
-		throw new Error("session_start handler missing");
-	}
-	await sessionStart({ reason: "startup" }, { model });
-}
-
-interface TestModel {
-	readonly api: string;
-	readonly baseUrl?: string;
-	readonly provider?: string;
-	readonly id?: string;
-}
-
-async function runModelSelect(pi: MockPi, model: TestModel): Promise<void> {
-	const modelSelect = pi.handlers.get("model_select");
-	if (modelSelect === undefined) {
-		throw new Error("model_select handler missing");
-	}
-	await modelSelect({ model, previousModel: undefined, source: "set" }, { model });
-}
-
-function runBeforeProviderRequest(pi: MockPi, model: string | TestModel, payload: unknown): unknown {
-	const beforeProviderRequest = pi.handlers.get("before_provider_request");
-	if (beforeProviderRequest === undefined) {
-		throw new Error("before_provider_request handler missing");
-	}
-	const resolvedModel = typeof model === "string" ? { api: model } : model;
-	return beforeProviderRequest({ payload }, { model: resolvedModel });
-}
-
-function registeredComputerTool(pi: MockPi): RegisteredTool {
-	const tool = pi.registeredTools.find((candidate) => candidate.name === "computer");
-	if (tool === undefined) {
-		throw new Error("computer tool missing");
-	}
-	return tool;
-}
-
-async function runBeforeAgentStart(pi: MockPi, model: string | TestModel): Promise<unknown> {
-	const beforeAgentStart = pi.handlers.get("before_agent_start");
-	if (beforeAgentStart === undefined) {
-		throw new Error("before_agent_start handler missing");
-	}
-	const resolvedModel = typeof model === "string" ? { api: model } : model;
-	return beforeAgentStart({ systemPrompt: "base prompt" }, { model: resolvedModel });
-}
+beforeEach(resetExtensionHarness);
 
 describe("#given macosCuaExtension #when imported #then default export is a named function", () => {
 	it("is a function named macosCuaExtension", () => {
@@ -240,6 +62,7 @@ describe("#given default-on session_start #when invoked #then native computer an
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 			"computer",
 		]);
 	});
@@ -265,6 +88,7 @@ describe("#given opt-out env var #when session_start runs #then native computer 
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 	});
 });
@@ -355,6 +179,7 @@ describe("#given enabled session #when model changes from native computer-use to
 			"zoom",
 			"type_text",
 			"press_keys",
+			"batch",
 		]);
 	});
 });
@@ -433,164 +258,5 @@ describe("#given fallback computer tool #when model changes display profile befo
 		expect(macOSHostComputerMock.instance.screenshot).toHaveBeenCalledWith({
 			targetSize: { width: 1024, height: 576 },
 		});
-	});
-});
-
-describe("#given enabled session and non-computer provider #when provider payload hook runs #then payload passes through", () => {
-	it("returns the original payload for other APIs", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi);
-		const payload = { tools: [] };
-
-		const result = runBeforeProviderRequest(pi, "google-generative-ai", payload);
-
-		expect(result).toBe(payload);
-	});
-});
-
-describe("#given enabled session and OpenAI Chat Completions #when provider payload hook runs #then fallback computer function is stripped", () => {
-	it("removes the computer function before OpenAI-compatible Chat providers see it", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi);
-		const shellTool = { type: "function", function: { name: "shell", parameters: { type: "object" } } };
-		const payload = {
-			tools: [{ type: "function", function: { name: "computer", parameters: { type: null } } }, shellTool],
-		};
-
-		const result = runBeforeProviderRequest(pi, "openai-completions", payload);
-
-		expect(result).toEqual({ tools: [shellTool] });
-	});
-});
-
-describe("#given enabled session and OpenAI Responses #when provider payload hook runs #then native computer tool is added", () => {
-	it("appends the OpenAI computer tool for direct OpenAI", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi);
-		const computerFunction = { type: "function", name: "computer", parameters: { anyOf: [] } };
-		const shellTool = { type: "function", name: "shell" };
-
-		const result = runBeforeProviderRequest(
-			pi,
-			{ api: "openai-responses", provider: "openai", baseUrl: "https://api.openai.com/v1" },
-			{ tools: [computerFunction, shellTool] },
-		);
-
-		expect(result).toEqual({ tools: [shellTool, { type: "computer" }] });
-	});
-
-	it("leaves OpenAI-compatible proxy payloads on Codex-style tools", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi);
-		const getStateTool = { type: "function", name: "get_app_state" };
-		const payload = { tools: [{ type: "function", name: "computer", parameters: { anyOf: [] } }, getStateTool] };
-
-		const result = runBeforeProviderRequest(
-			pi,
-			{ api: "openai-responses", provider: "openai", baseUrl: "https://quotio.mengmota.com/v1" },
-			payload,
-		);
-
-		expect(result).toEqual({ tools: [getStateTool] });
-	});
-});
-
-describe("#given unsupported Anthropic model #when provider payload hook runs #then native computer tool is not injected", () => {
-	it.each(["claude-opus-4-8", "claude-opus-4-6", "claude-future-9-0", undefined])(
-		"leaves the payload untouched for %s",
-		async (modelId) => {
-			const pi = createMockPi();
-			macosCuaExtension(pi);
-			await runSessionStart(pi, { api: "anthropic-messages", provider: "anthropic", id: modelId });
-
-			const payload = { messages: [] };
-			const result = runBeforeProviderRequest(
-				pi,
-				{ api: "anthropic-messages", provider: "anthropic", id: modelId },
-				payload,
-			);
-
-			expect(result).toBe(payload);
-		},
-	);
-});
-
-describe("#given unsupported Anthropic model #when agent prompt hook runs #then Codex computer guidance is used", () => {
-	it("adds Codex tool guidance without native computer dimensions", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi, { api: "anthropic-messages", provider: "anthropic", id: "claude-opus-4-8" });
-
-		const result = await runBeforeAgentStart(pi, {
-			api: "anthropic-messages",
-			provider: "anthropic",
-			id: "claude-opus-4-8",
-		});
-
-		expect(result).toEqual({
-			systemPrompt: expect.stringContaining("Use Codex tools"),
-		});
-		expect(result).toEqual({
-			systemPrompt: expect.not.stringContaining("1280x720"),
-		});
-	});
-});
-
-describe("#given supported sonnet session #when provider payload hook runs #then model-profile native computer tool is added", () => {
-	it("injects Anthropic computer use with 1024x576 display dimensions", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi, { api: "anthropic-messages", provider: "anthropic", id: "claude-sonnet-4-5" });
-
-		const result = runBeforeProviderRequest(
-			pi,
-			{ api: "anthropic-messages", provider: "anthropic", id: "claude-sonnet-4-5" },
-			{ messages: [] },
-		);
-
-		expect(result).toMatchObject({
-			tools: [
-				{
-					type: "computer_20250124",
-					name: "computer",
-					display_width_px: 1024,
-					display_height_px: 576,
-				},
-			],
-			headers: { "anthropic-beta": "computer-use-2025-01-24" },
-			extra_body: { betas: ["computer-use-2025-01-24"] },
-		});
-	});
-});
-
-describe("#given enabled session #when agent prompt hook runs #then native computer scaffolds match provider", () => {
-	it("adds Anthropic native computer prompt for supported sonnet model", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi, { api: "anthropic-messages", provider: "anthropic", id: "claude-sonnet-4-5" });
-
-		const result = await runBeforeAgentStart(pi, {
-			api: "anthropic-messages",
-			provider: "anthropic",
-			id: "claude-sonnet-4-5",
-		});
-
-		expect(result).toEqual({
-			systemPrompt: expect.stringContaining("1024x576"),
-		});
-	});
-
-	it("does not add an OpenAI computer prompt", async () => {
-		const pi = createMockPi();
-		macosCuaExtension(pi);
-		await runSessionStart(pi);
-
-		const result = await runBeforeAgentStart(pi, "openai-responses");
-
-		expect(result).toBeUndefined();
 	});
 });

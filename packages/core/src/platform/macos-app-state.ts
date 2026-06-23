@@ -7,7 +7,12 @@ import type { AXTreeElement, AppState, DisplayInfo } from "../accessibility/type
 import { resolveAppInstructions } from "../app-instructions/index.js";
 import { resolveDisplayMetadata } from "../computer/display-metadata.js";
 import type { ScreenshotResult } from "../computer/interface.js";
-import { type ScreenshotViewport, resolveWindowScreenshotSize, screenRectToScreenshot } from "../computer/viewport.js";
+import {
+	type ScreenshotViewport,
+	resolveAdaptiveWindowScreenshotSize,
+	resolveWindowScreenshotSize,
+	screenRectToScreenshot,
+} from "../computer/viewport.js";
 import type { AppApprovalStore } from "../permission/app-approval.js";
 import { blockedUrl, browserUrlScript, isBrowserBundle } from "../permission/url-blocklist.js";
 import type { AppStateOptions, Rect, ScreenshotOptions } from "../types/index.js";
@@ -91,13 +96,15 @@ export class MacOSAppStateController {
 			throw new Error(`No visible target window found for '${app.name}'. Open a window in the app and retry.`);
 		}
 
-		const size = options?.screenshotSize ?? resolveWindowScreenshotSize(targetWindow.bounds);
+		const display = resolveDisplayInfo();
+		const size =
+			options?.screenshotSize ??
+			resolveAdaptiveWindowScreenshotSize(targetWindow.bounds, { displayScaleFactor: display.scaleFactor });
 		const screenshot =
 			targetWindow.id === undefined
 				? await this.captureScreenshot({ targetSize: size, format: "jpeg", region: targetWindow.bounds })
 				: await this.captureScreenshot({ targetSize: size, format: "jpeg" }, targetWindow.id);
 		const tree = extractAccessibilityTree(app.pid);
-		const display = resolveDisplayInfo();
 		const appInstructions = resolveAppInstructions(app.name, app.bundleId);
 
 		const viewport: ScreenshotViewport = {

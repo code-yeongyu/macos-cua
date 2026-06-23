@@ -150,7 +150,7 @@ VS Code `settings.json` (MCP extension):
 }
 ```
 
-The server exposes 9 Codex Computer Use tools. See the [Action surface](#action-surface) table below.
+The server exposes 10 Codex Computer Use tools, including a linear `batch` wrapper for discrete app actions. See the [Action surface](#action-surface) table below.
 
 ### pi-extension
 
@@ -162,7 +162,7 @@ pi install file://./packages/pi-extension
 
 Loading the extension auto-enables native computer-use for Anthropic Messages and OpenAI Responses models. Anthropic requests receive the `computer-use-2025-01-24` native `computer` tool plus the required beta header/body fields and a short system prompt. OpenAI Responses requests receive only `{ "type": "computer" }` in `payload.tools` — no headers, no `extra_body`, and no extra system prompt. No configuration is required; advanced users can opt out of both providers with `MACOS_CUA_DISABLE_COMPUTER_USE_BETA=1` (`true`, `yes`, and `on` also work).
 
-The extension resolves the host display in logical macOS points, captures model-facing screenshots at a 1280px long edge (1280x720 on 16:9 displays), declares those dimensions to Anthropic, and unscales returned model coordinates back to logical points before dispatching clicks, moves, and drags. OpenAI Responses uses the same screenshot invariant: model coordinates are always in the image space the model received, while `MacOSHostComputer` still receives logical points.
+The extension resolves the host display in logical macOS points and uses adaptive screenshot fidelity for model-facing images: provider hard limits still win, then byte-budget downgrades are surfaced through screenshot metadata instead of being silent. Coordinates are screenshot pixels in the latest screenshot frame, and returned model coordinates are mapped back to logical points before dispatching clicks, moves, and drags. After any coordinate error, capture a fresh screenshot with `get_app_state` rather than guessing.
 
 The extension also registers Codex-compatible Computer Use tools:
 
@@ -175,6 +175,7 @@ The extension also registers Codex-compatible Computer Use tools:
 | `set_value` | Set a settable accessibility element value |
 | `drag` | Drag between screenshot coordinates |
 | `scroll` | Scroll an app by pages |
+| `batch` | Run discrete app actions in order, stopping on the first failure |
 | `type_text` | Type literal text |
 | `press_keys` | Press keys or key chords, with optional hold and interval timing |
 
@@ -182,11 +183,11 @@ The extension default-exports a pi extension factory and keeps these tools avail
 
 ### Capture frames, safety, and post-action observations
 
-`get_app_state` and app-targeted screenshots now carry a capture frame: a capture id, display freshness marker,
-target app/window metadata, screenshot/model dimensions, coordinate transforms, cursor metadata, and observation
-metadata. Coordinate actions must reference a fresh frame when they come from model screenshot space. Stale,
-negative, or out-of-bounds coordinates are rejected with typed recovery hints instead of being clamped or silently
-retargeted.
+`get_app_state` and app-targeted screenshots now carry a capture frame and screenshot metadata: a capture id, display
+freshness marker, target app/window metadata, screenshot/model dimensions, coordinate transforms, cursor metadata, byte
+count, MIME type, downgrade status, and observation metadata. Coordinate actions must use screenshot pixels from a fresh
+frame when they come from model screenshot space. Stale, negative, or out-of-bounds coordinates are rejected with typed
+recovery hints that name the valid frame and tell the model to get a fresh screenshot instead of guessing.
 
 Mutating app actions pass through a supervisor-backed action executor. The executor fails closed when the supervisor is
 stale, suspended, killed, or missing target-window readiness, and it records bounded audit events to a JSONL sink. Audit
@@ -195,8 +196,14 @@ redact screenshot bytes, full typed text, large accessibility values, and browse
 
 Clicks prefer accessibility element actions when an `elementIndex` is available, then fall back to capture-frame-backed
 coordinates. Text, key, scroll, value, and selection actions use the same target-aware executor and return post-action
-observation metadata where the surface supports it. OpenAI computer batches that end with a mutating action capture a
-final image block so the model sees the result instead of only an `{ ok: true }`-style acknowledgement.
+observation metadata where the surface supports it. Generic `batch` runs existing discrete actions linearly and
+re-anchors later coordinates to the latest in-batch screenshot or app-state result. OpenAI computer batches that end
+with a mutating action capture a final image block so the model sees the result instead of only an `{ ok: true }`-style
+acknowledgement.
+
+Deferred from gajae learnings: precise two-axis scroll fields and broad schema/casing refactors are intentionally not
+shipped in this change. Keep the semantic page/element scroll API and existing public argument shapes unless a separate
+plan explicitly changes them.
 
 Linux, remote desktop, VM, cloud, and LCU bridge implementations remain out of scope for this macOS path. VM and cloud
 entries in this repository are interface stubs only. Default-on behavior must not expand beyond the existing macOS local

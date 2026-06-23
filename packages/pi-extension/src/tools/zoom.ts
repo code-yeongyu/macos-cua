@@ -15,6 +15,7 @@ import { type Static, Type } from "typebox";
 
 import { computeSomMarks } from "../computer-use/som-layout.js";
 import { renderSomOverlay } from "../computer-use/som-render.js";
+import { ZOOM_TOOL_DESCRIPTION } from "../coordinate-contract.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
 import type { AppStateCache } from "./app-state-cache.js";
 
@@ -80,8 +81,7 @@ export function createZoomTool(computer: ComputerInterface, cache?: AppStateCach
 	return defineTool({
 		name: "zoom",
 		label: "Computer Use: zoom",
-		description:
-			"Capture a high-resolution crop of a get_app_state element_index or screenshot-pixel region, with numbered element_index labels inside the crop.",
+		description: ZOOM_TOOL_DESCRIPTION,
 		parameters: ZoomParams,
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);

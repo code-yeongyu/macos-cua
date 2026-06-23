@@ -10,6 +10,7 @@ import {
 } from "@macos-cua/core";
 import { type Static, Type } from "typebox";
 
+import { CLICK_TOOL_DESCRIPTION } from "../coordinate-contract.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
 import { clickCompleteResult, clickCompleteWithCursor } from "./result.js";
 
@@ -21,6 +22,10 @@ export const ClickParams = Type.Object(
 		element_index: Type.Optional(Type.String({ description: "Element index from get_app_state." })),
 		x: Type.Optional(Type.Number({ description: "X coordinate in screenshot pixel coordinates." })),
 		y: Type.Optional(Type.Number({ description: "Y coordinate in screenshot pixel coordinates." })),
+		capture_id: Type.Optional(Type.String({ description: "Capture id from the latest get_app_state metadata." })),
+		display_epoch: Type.Optional(
+			Type.String({ description: "Display epoch from the latest get_app_state metadata." }),
+		),
 		click_count: Type.Optional(Type.Integer({ minimum: 1, description: "Number of clicks. Defaults to 1." })),
 		mouse_button: Type.Optional(MouseButton),
 	},
@@ -33,7 +38,7 @@ export function createClickTool(computer: ComputerInterface): ToolDefinition {
 	return defineTool({
 		name: "click",
 		label: "Computer Use: click",
-		description: "Click an element by index or pixel coordinates from screenshot.",
+		description: CLICK_TOOL_DESCRIPTION,
 		parameters: ClickParams,
 		async execute(_toolCallId, params) {
 			const targetPid = await resolveAppPid(computer, params.app);
@@ -60,7 +65,7 @@ async function dispatchClick(
 		await clickElementByIndex(computer, targetPid, index, pressCount, params.mouse_button);
 		return;
 	}
-	const point = await resolveScreenPoint(computer, targetPid, parseCoordinate(params.x, params.y));
+	const point = await resolveScreenPoint(computer, targetPid, parseCoordinate(params.x, params.y, params));
 	if ((params.mouse_button ?? "left") === "left") {
 		let pressedAll = true;
 		for (let pressIndex = 0; pressIndex < pressCount; pressIndex += 1) {
@@ -86,9 +91,18 @@ async function readPointerPosition(computer: Pick<ComputerInterface, "getCursorP
 	}
 }
 
-function parseCoordinate(x: number | undefined, y: number | undefined): { x: number; y: number } {
+function parseCoordinate(
+	x: number | undefined,
+	y: number | undefined,
+	params: Pick<ClickInput, "capture_id" | "display_epoch">,
+): { readonly x: number; readonly y: number; readonly captureId?: string; readonly displayEpoch?: string } {
 	if (x === undefined || y === undefined || !Number.isFinite(x) || !Number.isFinite(y)) {
 		throw new Error("click requires either element_index or finite x and y coordinates");
 	}
-	return { x, y };
+	return {
+		x,
+		y,
+		...(params.capture_id === undefined ? {} : { captureId: params.capture_id }),
+		...(params.display_epoch === undefined ? {} : { displayEpoch: params.display_epoch }),
+	};
 }
