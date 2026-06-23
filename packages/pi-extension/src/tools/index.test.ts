@@ -106,6 +106,7 @@ describe("#given all tool factories #when built #then every Codex Computer Use t
 			"type_text",
 			"press_keys",
 		]);
+		expect(tools.map((tool) => tool.name)).not.toContain("batch");
 	});
 });
 

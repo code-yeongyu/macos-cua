@@ -188,6 +188,12 @@ describe("MCP server tools #given #when #then", () => {
 			mimeType: "image/png",
 		});
 		expect(secondContent?.type).toBe("text");
+		expect(JSON.parse(secondContent?.type === "text" ? secondContent.text : "")).toMatchObject({
+			pid: 1234,
+			elements: [{ id: 9, actions: ["AXPress"] }],
+			screenshotWidth: 1280,
+			screenshotHeight: 720,
+		});
 		expect(mockedComputer.getAppState).toHaveBeenCalledWith(1234, undefined);
 	});
 

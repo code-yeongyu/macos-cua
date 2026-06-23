@@ -120,13 +120,15 @@ describe("#given click tool #when executed #then target app receives coordinates
 
 		await tool.execute(
 			"tool-call",
-			{ app: "Finder", element_index: "5" },
+			{ app: "Finder", element_index: "5", x: 10, y: 20 },
 			undefined,
 			undefined,
 			{} as ExtensionContext,
 		);
 
 		expect(computer.performAction).toHaveBeenCalledWith(1234, 5, "AXPress");
+		expect(computer.getScreenshotViewport).not.toHaveBeenCalled();
+		expect(computer.pressAtPosition).not.toHaveBeenCalled();
 		expect(computer.click).not.toHaveBeenCalled();
 		expect(computer.setTarget).not.toHaveBeenCalled();
 	});

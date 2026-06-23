@@ -96,8 +96,12 @@ describe("MCP code mode #given createMcpServer options #when listing tools #then
 		const result = await withClient(createMcpServer(fakeComputer, { codeMode: true }), (client) =>
 			client.listTools(),
 		);
+		const toolNames = result.tools.map((tool) => tool.name).sort();
 
-		expect(result.tools.map((tool) => tool.name).sort()).toEqual(["run", "screenshot"]);
+		expect(toolNames).toEqual(["run", "screenshot"]);
+		expect(toolNames).not.toContain("get_app_state");
+		expect(toolNames).not.toContain("zoom");
+		expect(toolNames).not.toContain("batch");
 	});
 });
 
