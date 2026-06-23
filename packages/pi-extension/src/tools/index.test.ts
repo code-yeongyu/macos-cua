@@ -12,6 +12,7 @@ import { buildAllTools, registerAllTools } from "./index.js";
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(currentDirectory, "../../../..");
 const macosCuaSkillPath = path.join(repoRoot, "skills/macos-cua/SKILL.md");
+const readmePath = path.join(repoRoot, "README.md");
 
 function createPiApi(): ExtensionAPI {
 	const on = ((eventName: string, handler: (...parameters: ReadonlyArray<unknown>) => unknown) => {
@@ -129,6 +130,17 @@ describe("#given computer-use prompt text #when small targets are present #then 
 		expect(prompt).toContain("small targets");
 		expect(prompt).toContain("click element_index=<number>");
 	});
+
+	it("#given coordinate guidance #when prompt text is read #then screenshot pixels and recovery are explicit", () => {
+		const prompt = `${buildComputerUseSection(1280, 720)}\n${buildCodexComputerUseSection()}`;
+
+		expect(prompt).toContain("screenshot pixels");
+		expect(prompt).toContain("fresh screenshot");
+		expect(prompt).toContain("Do not guess");
+		expect(prompt).toContain("capture metadata");
+		expect(prompt).toContain("click element_index=<number>");
+		expect(prompt).toContain("zoom");
+	});
 });
 
 describe("#given Senpi pi-extension tool guides #when desktop automation starts #then app state is the primary path", () => {
@@ -158,5 +170,21 @@ describe("#given Senpi pi-extension tool guides #when desktop automation starts 
 		expect(skill).toContain("Use bash/CLI only when the discrete tools are unavailable");
 		expect(skill).toContain("Only check permissions after a black screenshot, missing window, or ignored input");
 		expect(skill).not.toContain("Before starting any automation session, verify permissions");
+	});
+
+	it("#given user docs #when computer-use policy is described #then adaptive batch and deferrals are explicit", () => {
+		const docs = `${readFileSync(readmePath, "utf8")}\n${readFileSync(macosCuaSkillPath, "utf8")}`;
+
+		expect(docs).toContain("adaptive screenshot");
+		expect(docs).toContain("batch");
+		expect(docs).toContain("screenshot metadata");
+		expect(docs).toContain("screenshot pixels");
+		expect(docs).toContain("fresh screenshot");
+		expect(docs).toContain("Deferred from gajae learnings");
+		expect(docs).not.toContain("1280px long edge");
+		expect(docs).not.toContain("fixed 1280");
+		expect(docs).not.toContain("scroll_x");
+		expect(docs).not.toContain("scroll_y");
+		expect(docs).not.toContain("camelCase fields");
 	});
 });

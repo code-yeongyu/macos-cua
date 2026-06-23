@@ -4,6 +4,7 @@ import { type Static, Type } from "typebox";
 import { drawCursorOnWindowScreenshot } from "../computer-use/screenshot-result.js";
 import { computeSomMarks } from "../computer-use/som-layout.js";
 import { renderSomOverlay } from "../computer-use/som-render.js";
+import { GET_APP_STATE_TOOL_DESCRIPTION } from "../coordinate-contract.js";
 import { type ToolDefinition, defineTool } from "../pi/index.js";
 import type { AppStateCache } from "./app-state-cache.js";
 
@@ -22,8 +23,7 @@ export function createGetAppStateTool(computer: ComputerInterface, cache?: AppSt
 	return defineTool({
 		name: "get_app_state",
 		label: "Computer Use: get app state",
-		description:
-			"Use first when controlling an app with click, type_text, press_keys, scroll, drag, set_value, select_text, or perform_secondary_action. Starts an app session if needed and returns the key-window screenshot plus accessibility tree; numbered boxes are element_index values from the JSON tree.",
+		description: GET_APP_STATE_TOOL_DESCRIPTION,
 		parameters: GetAppStateParams,
 		async execute(_toolCallId, params) {
 			const state = await getAppStateForApp(computer, params.app);

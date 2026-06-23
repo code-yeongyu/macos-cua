@@ -174,7 +174,7 @@ describe("#given code-mode pointer coordinates from a stale capture #when the ho
 		expect(result.result).toEqual({
 			name: "ComputerUseError",
 			code: "STALE_CAPTURE",
-			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+			recoveryHint: "Call get_app_state or capture a fresh screenshot before retrying within the latest frame.",
 		});
 	});
 });
@@ -248,7 +248,7 @@ describe("#given code-mode pointer coordinates without capture freshness #when a
 		expect(result.result).toEqual({
 			name: "ComputerUseError",
 			code: "STALE_CAPTURE",
-			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+			recoveryHint: "Call get_app_state or capture a fresh screenshot before retrying within the latest frame.",
 		});
 		expect(computer.clickCalls).toEqual([]);
 	});

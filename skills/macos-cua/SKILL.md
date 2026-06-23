@@ -25,7 +25,7 @@ macos-cua has three entry points. Registered Senpi/pi-extension tools are self-g
 
 | Mode | How to invoke | When to pick it |
 |---|---|---|
-| **pi-extension** | `pi install file://...` then restart pi | Senpi has registered Codex-compatible `list_apps`, `get_app_state`, `click`, `drag`, `scroll`, `type_text`, `press_keys`, `set_value`, `select_text`, `perform_secondary_action`, and `zoom` tools. |
+| **pi-extension** | `pi install file://...` then restart pi | Senpi has registered Codex-compatible `list_apps`, `get_app_state`, `click`, `drag`, `scroll`, `batch`, `type_text`, `press_keys`, `set_value`, `select_text`, `perform_secondary_action`, and `zoom` tools. |
 | **MCP server** | `macos-cua-mcp` over stdio | The host loads MCP servers automatically. The server exposes the same verbs as tools. |
 | **CLI** | `macos-cua <verb>` directly in pi's bash | The discrete tools are unavailable, you are setting up/debugging the package, or the user explicitly asks for the CLI. |
 
@@ -37,12 +37,15 @@ If this skill is already loaded while Senpi/pi-extension tools are visible, use 
 
 1. Start with `get_app_state` for the target app. It returns a screenshot, numbered `element_index` boxes, the accessibility tree, and remembers the target window.
 2. Prefer `click element_index=<number>`, `set_value`, `select_text`, or `perform_secondary_action` when the accessibility tree exposes the target. Use `zoom` for small or ambiguous targets before clicking.
-3. Use `type_text`, `press_keys`, `scroll`, or `drag` for direct input. Keep using the same app name or bundle id.
-4. Call `get_app_state` again only after a UI-changing action when you need to verify or choose the next target.
+3. Use `type_text`, `press_keys`, `scroll`, `drag`, or `batch` for direct input. Keep using the same app name or bundle id.
+4. Coordinates are screenshot pixels in the latest screenshot frame. Use screenshot metadata when present; after any coordinate error, get a fresh screenshot with `get_app_state` before retrying. Do not guess outside the visible frame.
+5. Call `get_app_state` again only after a UI-changing action when you need to verify or choose the next target.
 
 When the `@macos-cua/pi-extension` is loaded, Anthropic Messages and direct OpenAI Responses models automatically receive native computer-use. Anthropic gets the `computer-use-2025-01-24` beta tool plus header/body fields; direct OpenAI Responses gets `{ type: "computer" }` in the provider payload. OpenAI Chat/proxy models, including Kimi in Senpi, use the discrete tools instead. All flows keep the Codex-compatible app tools available and all native-computer flows are disabled only by `MACOS_CUA_DISABLE_COMPUTER_USE_BETA=1` (`true`, `yes`, and `on` also work).
 
-The extension sends model-facing screenshots captured at a 1280px long edge. Coordinates returned by the model are interpreted in that image space, then unscaled back to macOS logical points before `click`, `move`, or `drag` dispatch.
+The extension uses adaptive screenshot fidelity for model-facing images. Provider hard limits still apply, byte-budget downgrades are surfaced through screenshot metadata, and coordinates returned by the model are interpreted in that latest screenshot frame before dispatch.
+
+Deferred from gajae learnings: precise two-axis scroll fields and broad schema/casing refactors are intentionally not shipped here. Keep the semantic page/element scroll API and existing public argument shapes unless a separate plan changes them.
 
 ## macOS permissions
 
@@ -117,7 +120,7 @@ Before executing any irreversible UI action (deleting files in Finder, confirmin
 
 ### Coordinate spaces
 
-`MacOSHostComputer` input uses macOS logical points. The pi-extension native computer tool shows models a downscaled screenshot (1280x720 maximum) and unscales model-space coordinates back to logical points before input dispatch. Raw CLI screenshots may still be Retina physical PNGs, so convert screenshot pixels to logical points when driving the CLI directly.
+`MacOSHostComputer` input uses macOS logical points. The pi-extension native computer tool shows models adaptive screenshot images within provider limits and unscales model-space coordinates back to logical points before input dispatch. Raw CLI screenshots may still be Retina physical PNGs, so convert screenshot pixels to logical points when driving the CLI directly.
 
 ## Permission troubleshooting
 

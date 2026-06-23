@@ -40,7 +40,11 @@ function freshnessFor(point: CaptureFramePoint): CaptureFreshnessMarker | undefi
 	if (point.captureId !== undefined && point.displayEpoch !== undefined) {
 		return { captureId: point.captureId, displayEpoch: point.displayEpoch };
 	}
-	throw new ComputerUseError("STALE_CAPTURE", "Coordinate freshness must include both captureId and displayEpoch.", {
-		details: { captureId: point.captureId ?? null, displayEpoch: point.displayEpoch ?? null },
-	});
+	throw new ComputerUseError(
+		"STALE_CAPTURE",
+		"Coordinate freshness metadata is incomplete: include both captureId and displayEpoch from the latest get_app_state result, or refresh app state before retrying.",
+		{
+			details: { captureId: point.captureId ?? null, displayEpoch: point.displayEpoch ?? null },
+		},
+	);
 }

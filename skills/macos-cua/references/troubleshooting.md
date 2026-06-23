@@ -60,7 +60,7 @@ pnpm macos-cua-mcp --version
 
 **Cause:** Retina screenshots can be physical pixels (for example 5120x2880) while macOS input and `MacOSHostComputer.getScreenSize()` use logical points (for example 2560x1440). Clicks landing at half the intended position usually mean a physical screenshot coordinate was sent as a logical input coordinate, or a model saw physical pixels but returned coordinates for a downscaled/logical space.
 
-**Fix:** for the pi-extension, keep the built-in pipeline intact: logical screen size → 1280px-long-edge screenshot → model coordinate → unscaled logical click. For direct CLI use, convert physical screenshot pixels to logical points before clicking on Retina displays.
+**Fix:** for the pi-extension, keep the built-in pipeline intact: logical screen size → adaptive screenshot frame → model coordinate → unscaled logical click. For direct CLI use, convert physical screenshot pixels to logical points before clicking on Retina displays.
 
 ## Multiple monitors
 

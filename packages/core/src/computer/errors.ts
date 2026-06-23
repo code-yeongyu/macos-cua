@@ -20,8 +20,8 @@ type ComputerUseErrorOptions = {
 };
 
 const RECOVERY_HINTS: Record<ComputerUseErrorCode, string> = {
-	STALE_CAPTURE: "Please refresh the capture and retry the action against the newest frame.",
-	OUT_OF_BOUNDS_COORDINATE: "Choose a point inside the capture frame before retrying.",
+	STALE_CAPTURE: "Call get_app_state or capture a fresh screenshot before retrying within the latest frame.",
+	OUT_OF_BOUNDS_COORDINATE: "Capture a fresh screenshot. Call get_app_state, then retry within the latest frame.",
 	MISSING_TARGET_WINDOW: "Bring the target window onscreen, refresh app state, and retry.",
 	UNAPPROVED_APP: "Approve the target app for Computer Use before retrying.",
 	BLOCKED_URL: "Navigate to an allowed URL or ask the supervisor to approve this destination.",

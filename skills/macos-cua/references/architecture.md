@@ -51,13 +51,13 @@ The result is lower latency and real-app fidelity. The cost is weaker environmen
 The pi-extension keeps model coordinates and macOS input coordinates separate:
 
 1. `MacOSHostComputer.getScreenSize()` returns logical desktop points.
-2. `computeDownscale()` downscales those logical dimensions to a 1280px long edge while preserving aspect ratio.
-3. Screenshots returned through native computer-use are resized to `targetWidth x targetHeight`.
-4. Model actions are interpreted in that resized image space. `unscaleCoordinate()` maps them back to logical points before `click`, `move`, or `drag` reaches `MacOSHostComputer`.
+2. The screenshot fidelity policy chooses model dimensions from display/window size, provider hard limits, and byte budget.
+3. Screenshots returned through native computer-use are resized to the chosen model frame.
+4. Model actions are interpreted in that screenshot-pixel frame. `unscaleCoordinate()` maps them back to logical points before `click`, `move`, or `drag` reaches `MacOSHostComputer`.
 
-Pipeline shorthand: logical points → 1280-edge screenshot → model coordinate → unscaled logical point → macOS input.
+Pipeline shorthand: logical points → adaptive screenshot frame → model coordinate → unscaled logical point → macOS input.
 
-Anthropic receives `display_width_px` and `display_height_px` set to the downscaled model dimensions. OpenAI Responses needs only `{ type: "computer" }`, but follows the same resized-screenshot and unscale-on-action invariant.
+Anthropic receives `display_width_px` and `display_height_px` set to provider-safe model dimensions. OpenAI Responses needs only `{ type: "computer" }`, but follows the same screenshot-frame and unscale-on-action invariant.
 
 ## Reserved interfaces
 

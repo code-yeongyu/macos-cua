@@ -320,7 +320,21 @@ describe("#given Anthropic stale coordinates #when native computer use rejects t
 			}),
 		).rejects.toMatchObject({
 			code: "STALE_CAPTURE",
-			recoveryHint: "Please refresh the capture and retry the action against the newest frame.",
+			message: expect.stringContaining("captureId capture-1"),
+			recoveryHint: expect.stringContaining("fresh screenshot"),
+		});
+		expect(computer.click).not.toHaveBeenCalled();
+	});
+
+	it("#given an out-of-bounds coordinate #when left_click executes #then valid frame and corrective action are reported", async () => {
+		const computer = createComputer();
+
+		await expect(
+			executeNativeComputerAction({ action: "left_click", coordinate: [101, 20] }, computer, ONE_TO_ONE_DOWNSCALE),
+		).rejects.toMatchObject({
+			code: "OUT_OF_BOUNDS_COORDINATE",
+			message: expect.stringContaining("valid x range [0, 100] and y range [0, 80]"),
+			recoveryHint: expect.stringContaining("Capture a fresh screenshot"),
 		});
 		expect(computer.click).not.toHaveBeenCalled();
 	});
