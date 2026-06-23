@@ -150,6 +150,7 @@ beforeEach(() => {
 	);
 	mockedComputer.listApps.mockResolvedValue([
 		{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true },
+		{ name: "Terminal", bundleId: "com.apple.Terminal", pid: 5678, isRunning: true },
 	]);
 	mockedComputer.pressAtPosition.mockResolvedValue(false);
 	mockedComputer.typeIntoFocused.mockResolvedValue(false);
@@ -247,6 +248,84 @@ describe("MCP batch tool #given get_app_state then click #when run through the c
 			actionCount: 2,
 			failedStep: 0,
 			steps: [{ index: 0, action: "click", status: "error", code: "STALE_CAPTURE" }],
+		});
+	});
+
+	it("#given another app state is cached in-batch #when clicking a different app #then it resolves that app viewport", async () => {
+		mockedComputer.getScreenshotViewport.mockResolvedValue(
+			captureFrameFixture({ x: 0, y: 0, width: 100, height: 100 }, { width: 100, height: 100 }),
+		);
+		const { client, close } = await createClient();
+		closeClient = close;
+
+		await client.callTool({
+			name: "batch",
+			arguments: {
+				actions: [
+					{ action: "get_app_state", app: "Finder" },
+					{ action: "click", app: "Terminal", x: 10, y: 20 },
+				],
+			},
+		});
+
+		expect(mockedComputer.getScreenshotViewport).toHaveBeenCalledWith(5678);
+		expect(mockedComputer.click).toHaveBeenCalledWith({ x: 10, y: 20 });
+	});
+
+	it("#given another app state is cached in-batch #when dragging a different app #then it resolves that app viewport", async () => {
+		mockedComputer.getScreenshotViewport.mockResolvedValue(
+			captureFrameFixture({ x: 0, y: 0, width: 100, height: 100 }, { width: 100, height: 100 }),
+		);
+		const { client, close } = await createClient();
+		closeClient = close;
+
+		await client.callTool({
+			name: "batch",
+			arguments: {
+				actions: [
+					{ action: "get_app_state", app: "Finder" },
+					{ action: "drag", app: "Terminal", from_x: 10, from_y: 20, to_x: 50, to_y: 60 },
+				],
+			},
+		});
+
+		expect(mockedComputer.getScreenshotViewport).toHaveBeenCalledWith(5678);
+		expect(mockedComputer.drag).toHaveBeenCalledWith({ from: { x: 10, y: 20 }, to: { x: 50, y: 60 } });
+	});
+
+	it("#given stale metadata with an in-batch frame #when clicking #then it rejects the stale coordinate", async () => {
+		const { client, close } = await createClient();
+		closeClient = close;
+
+		const result = await client.callTool({
+			name: "batch",
+			arguments: {
+				actions: [
+					{ action: "get_app_state", app: "Finder" },
+					{
+						action: "click",
+						app: "Finder",
+						x: 250,
+						y: 200,
+						capture_id: "old-capture",
+						display_epoch: "test-display-1",
+					},
+					{ action: "type_text", app: "Finder", text: "should not type" },
+				],
+			},
+		});
+
+		expect(mockedComputer.click).not.toHaveBeenCalled();
+		expect(mockedComputer.type).not.toHaveBeenCalled();
+		expect(JSON.parse(textContent(result))).toMatchObject({
+			ok: false,
+			type: "batch",
+			actionCount: 3,
+			failedStep: 1,
+			steps: [
+				{ index: 0, action: "get_app_state", status: "success" },
+				{ index: 1, action: "click", status: "error", code: "STALE_CAPTURE" },
+			],
 		});
 	});
 });
