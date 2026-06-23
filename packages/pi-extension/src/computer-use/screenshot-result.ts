@@ -8,7 +8,7 @@ export { drawCursorOnScreenshot } from "./screenshot-png.js";
 export { drawCursorOnWindowScreenshot } from "./screenshot-window-cursor.js";
 
 type CursorScreenshotComputer = Pick<ComputerInterface, "getCursorPosition" | "screenshot">;
-type ScreenshotDowngradeReason = "capture_dimensions_mismatch";
+type ScreenshotDowngradeReason = "adaptive_target_downscale" | "capture_dimensions_mismatch";
 export type ScreenshotFidelityMetadata = {
 	readonly format: ScreenshotResult["mimeType"];
 	readonly byteCount: number;
@@ -19,6 +19,10 @@ export type ScreenshotFidelityMetadata = {
 		readonly height: number;
 	};
 	readonly target: {
+		readonly width: number;
+		readonly height: number;
+	};
+	readonly original?: {
 		readonly width: number;
 		readonly height: number;
 	};

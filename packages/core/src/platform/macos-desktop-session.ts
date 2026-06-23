@@ -20,6 +20,7 @@ import {
 } from "./macos-desktop-session-signature.js";
 import type { MacOSAppStateTargetWindow, MacOSDesktopSessionBackend } from "./macos-desktop-session-types.js";
 import { createMacOSObservationMetadata } from "./macos-observation-metadata.js";
+import { adaptiveScreenshotDowngrade } from "./macos-screenshot-downgrade.js";
 
 export class MacOSDesktopSession {
 	private readonly apps = new MacOSDesktopAppCache();
@@ -141,10 +142,14 @@ export class MacOSDesktopSession {
 		}
 		this.windowByPid.set(app.pid, targetWindow);
 		const display = this.backend.resolveDisplayInfo();
+		const defaultScreenshotSize = options.screenshotSize === undefined;
 		const size =
 			options.screenshotSize ??
 			resolveAdaptiveWindowScreenshotSize(targetWindow.bounds, { displayScaleFactor: display.scaleFactor });
 		const screenshot = await this.backend.captureWindowScreenshot(targetWindow, size);
+		const downgrade = defaultScreenshotSize
+			? adaptiveScreenshotDowngrade(targetWindow.bounds, display, size, screenshot)
+			: undefined;
 		const tree = this.backend.extractAccessibilityTree(app.pid);
 		const viewport: ScreenshotViewport = {
 			windowBounds: { ...targetWindow.bounds },
@@ -164,7 +169,7 @@ export class MacOSDesktopSession {
 		const previousTree = this.previousAxByPid.get(app.pid);
 		const axChangeSummary = previousTree === undefined ? undefined : diffAxTreesByKey(previousTree, elements);
 		this.previousAxByPid.set(app.pid, elements);
-		const captureFrame = this.createCaptureFrame(app, viewport, screenshot, display);
+		const captureFrame = this.createCaptureFrame(app, viewport, screenshot, display, downgrade);
 		this.captureFrameByPid.set(app.pid, captureFrame);
 		const cursor = await this.backend.resolveCursorPosition?.();
 		const observation = createMacOSObservationMetadata({
@@ -205,6 +210,7 @@ export class MacOSDesktopSession {
 		viewport: ScreenshotViewport,
 		screenshot: ScreenshotResult,
 		display: DisplayInfo,
+		downgrade: ReturnType<typeof adaptiveScreenshotDowngrade>,
 	): CaptureFrame {
 		this.captureSequence += 1;
 		return createCaptureFrame({
@@ -224,6 +230,7 @@ export class MacOSDesktopSession {
 				displayEpoch: macOSDisplayEpoch(display),
 				height: screenshot.height,
 				mimeType: screenshot.mimeType,
+				...(downgrade !== undefined ? { downgrade } : {}),
 				originX: 0,
 				originY: 0,
 				scaleX: screenshot.width / viewport.windowBounds.width,

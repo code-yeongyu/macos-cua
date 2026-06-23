@@ -115,6 +115,23 @@ describe("#given adaptive provider display sizing #when resolving native model d
 });
 
 describe("#given byte budget downgrade #when screenshot result is built #then downgrade metadata is surfaced", () => {
+	it("#given an adaptive target below display pixels #when capture matches the target #then fidelity still records the downgrade", async () => {
+		const computer = createComputer(DISPLAY.modelWidth, DISPLAY.modelHeight);
+
+		const result = await screenshotResultWithCursorMetadata(computer, DISPLAY);
+
+		expect(result.metadata.fidelity).toMatchObject({
+			format: "image/png",
+			byteCount: expect.any(Number),
+			downgraded: true,
+			reason: "adaptive_target_downscale",
+			actual: { width: 100, height: 50 },
+			original: { width: 200, height: 100 },
+			target: { width: 100, height: 50 },
+		});
+		expect(result.result.details).toEqual(result.metadata);
+	});
+
 	it("records byte count and smaller capture dimensions without adding image bytes to text JSON", async () => {
 		const computer = createComputer(80, 40);
 

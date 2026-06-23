@@ -263,8 +263,10 @@ describe("#given mutating OpenAI action batches #when executed #then final image
 				fidelity: {
 					format: "image/png",
 					byteCount: Buffer.from("post-action").byteLength,
-					downgraded: false,
+					downgraded: true,
+					reason: "adaptive_target_downscale",
 					actual: { width: 100, height: 100 },
+					original: { width: 200, height: 200 },
 					target: { width: 100, height: 100 },
 				},
 			},

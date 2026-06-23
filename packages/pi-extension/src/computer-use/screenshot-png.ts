@@ -15,6 +15,7 @@ import {
 import type { ScreenshotFidelityMetadata } from "./screenshot-result.js";
 
 const logCoords = createDebugLog("coords");
+type ScreenshotFidelityWithoutByteCount = Omit<ScreenshotFidelityMetadata, "byteCount">;
 
 export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Point, display: DisplayConfig): Buffer {
 	const png = decodePngOrUndefined(screenshot.data);
@@ -33,17 +34,16 @@ export function drawCursorOnScreenshot(screenshot: ScreenshotResult, cursor: Poi
 export function ensureModelDimensions(
 	screenshot: ScreenshotResult,
 	display: DisplayConfig,
-): { readonly screenshot: ScreenshotResult; readonly fidelity: Omit<ScreenshotFidelityMetadata, "byteCount"> } {
+): { readonly screenshot: ScreenshotResult; readonly fidelity: ScreenshotFidelityWithoutByteCount } {
 	const png = decodePngOrUndefined(screenshot.data);
 	if (png === undefined) {
 		return {
 			screenshot,
-			fidelity: {
-				format: screenshot.mimeType,
-				downgraded: false,
-				actual: { width: screenshot.width, height: screenshot.height },
-				target: { width: display.modelWidth, height: display.modelHeight },
-			},
+			fidelity: fidelityForExactDimensions(
+				screenshot.mimeType,
+				{ width: screenshot.width, height: screenshot.height },
+				display,
+			),
 		};
 	}
 	logCoords("screenshot-dimensions", {
@@ -56,12 +56,7 @@ export function ensureModelDimensions(
 	if (png.width === display.modelWidth && png.height === display.modelHeight) {
 		return {
 			screenshot,
-			fidelity: {
-				format: screenshot.mimeType,
-				downgraded: false,
-				actual: { width: png.width, height: png.height },
-				target: { width: display.modelWidth, height: display.modelHeight },
-			},
+			fidelity: fidelityForExactDimensions(screenshot.mimeType, { width: png.width, height: png.height }, display),
 		};
 	}
 	logCoords("screenshot-dimensions-mismatch", {
@@ -87,6 +82,19 @@ export function ensureModelDimensions(
 			target: { width: display.modelWidth, height: display.modelHeight },
 		},
 	};
+}
+
+function fidelityForExactDimensions(
+	format: ScreenshotResult["mimeType"],
+	actual: { readonly width: number; readonly height: number },
+	display: DisplayConfig,
+): ScreenshotFidelityWithoutByteCount {
+	const original = { width: display.logicalWidth, height: display.logicalHeight };
+	const target = { width: display.modelWidth, height: display.modelHeight };
+	if (target.width < original.width || target.height < original.height) {
+		return { format, downgraded: true, reason: "adaptive_target_downscale", actual, original, target };
+	}
+	return { format, downgraded: false, actual, target };
 }
 
 function drawDisc(png: PNG, center: Point, radius: number, color: Rgba): void {

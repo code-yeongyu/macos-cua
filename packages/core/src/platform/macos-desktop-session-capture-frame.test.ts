@@ -10,6 +10,7 @@ const TARGET_PID = 1234;
 const APP: RunningAppInfo = {
 	bundleId: "com.apple.finder",
 	isActive: true,
+	isRunning: true,
 	name: "Finder",
 	path: "/System/Library/CoreServices/Finder.app",
 	pid: TARGET_PID,
@@ -18,6 +19,8 @@ const WINDOW = { bounds: { x: 10, y: 20, width: 400, height: 200 }, id: 99 };
 const DISPLAY: DisplayInfo = { width: 1440, height: 900, scaleFactor: 2 };
 
 class CaptureFrameBackend implements MacOSDesktopSessionBackend {
+	constructor(private readonly targetWindow: typeof WINDOW = WINDOW) {}
+
 	async listApps(): Promise<readonly RunningAppInfo[]> {
 		return [APP];
 	}
@@ -27,7 +30,7 @@ class CaptureFrameBackend implements MacOSDesktopSessionBackend {
 	async assertBrowserUrlAllowed(_app: RunningAppInfo): Promise<void> {}
 
 	async resolveTargetWindow(_pid: number): Promise<typeof WINDOW> {
-		return WINDOW;
+		return this.targetWindow;
 	}
 
 	async captureWindowScreenshot(_window: typeof WINDOW, size: Size): Promise<ScreenshotResult> {
@@ -80,5 +83,23 @@ describe("#given capture-frame metadata #when coordinates are resolved later #th
 			scaleY: 2,
 			width: 800,
 		});
+	});
+
+	it("#given adaptive capture below native window pixels #when get_app_state captures the window #then downgrade metadata is surfaced", async () => {
+		const largeWindow = { bounds: { x: 10, y: 20, width: 4000, height: 3000 }, id: 100 };
+		const session = new MacOSDesktopSession(new CaptureFrameBackend(largeWindow));
+
+		const state = await session.getAppState(TARGET_PID, { settleMs: 0 });
+
+		expect(state.screenshotMetadata).toMatchObject({
+			downgrade: {
+				reason: "adaptive_target_downscale",
+				original: { width: 8000, height: 6000 },
+				format: "image/jpeg",
+			},
+			height: 1760,
+			width: 2352,
+		});
+		expect(state.captureFrame?.screenshotMetadata.downgrade).toEqual(state.screenshotMetadata?.downgrade);
 	});
 });
