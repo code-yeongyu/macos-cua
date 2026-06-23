@@ -15,10 +15,13 @@
 - `packages/pi-extension`: Pi coding agent extension
 - `skills/`: Agent skill definitions
 
-## Testing
+## Testing, QA, and PR Evidence
 - Vitest for all tests
 - Test naming: `#given #when #then` pattern
 - Coverage via v8 provider
+- When opening a PR, write for a human reviewer who did not watch the session: state the user-facing behavior/change in plain terms and group changes by reviewer-relevant surface, not by file list.
+- In PR QA/Evidence, explain each command or manual QA action with what was tested, what result was observed, where the saved artifact/log lives, and why that evidence is sufficient.
+- Include residual risks as risk -> evidence -> conclusion, and never paste raw secret-bearing logs, env dumps, tokens, or credentials.
 
 ## macOS Native APIs
 - Screenshot: ScreenCaptureKit/IOSurface (preferred) or `screencapture` CLI fallback
