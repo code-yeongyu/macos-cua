@@ -65,8 +65,20 @@ describe("#given capture-frame metadata #when coordinates are resolved later #th
 		expect(viewport).toMatchObject({
 			captureId: "macos-capture-1",
 			displayEpoch: "1440x900@2",
-			model: { width: 400, height: 200 },
+			model: { width: 800, height: 400 },
 			windowBounds: WINDOW.bounds,
+		});
+		expect(state.screenshotMetadata).toMatchObject({
+			byteLength: Buffer.from("screen").byteLength,
+			captureId: "macos-capture-1",
+			displayEpoch: "1440x900@2",
+			height: 400,
+			mimeType: "image/jpeg",
+			originX: 0,
+			originY: 0,
+			scaleX: 2,
+			scaleY: 2,
+			width: 800,
 		});
 	});
 });

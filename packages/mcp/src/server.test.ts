@@ -91,6 +91,28 @@ async function createHarness(): Promise<{ client: Client; close: () => Promise<v
 	};
 }
 
+function isStateWithScreenshotMetadata(value: unknown): value is {
+	readonly screenshotBase64?: string;
+	readonly screenshotMetadata: {
+		readonly captureId: string;
+		readonly displayEpoch: string;
+		readonly height: number;
+		readonly originX: number;
+		readonly originY: number;
+		readonly scaleX: number;
+		readonly scaleY: number;
+		readonly width: number;
+	};
+} {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		"screenshotMetadata" in value &&
+		typeof value.screenshotMetadata === "object" &&
+		value.screenshotMetadata !== null
+	);
+}
+
 let closeHarness: (() => Promise<void>) | null = null;
 
 beforeEach(() => {
@@ -131,6 +153,7 @@ beforeEach(() => {
 		screenshotBase64: Buffer.from("png-bytes").toString("base64"),
 		screenshotWidth: 1280,
 		screenshotHeight: 720,
+		captureFrame: captureFrameFixture({ x: 0, y: 0, width: 1280, height: 720 }, { width: 1280, height: 720 }),
 	});
 	mockedComputer.listApps.mockResolvedValue([
 		{ name: "Finder", bundleId: "com.apple.finder", pid: 1234, isRunning: true },
@@ -168,7 +191,7 @@ describe("MCP server tools #given #when #then", () => {
 		expect(toolNames).toEqual([...TOOL_NAMES, "screenshot"].sort());
 	});
 
-	it("returns image content and accessibility JSON for get_app_state", async () => {
+	it("returns image content and coordinate frame accessibility JSON for get_app_state", async () => {
 		// given
 		const { client, close } = await createHarness();
 		closeHarness = close;
@@ -188,12 +211,30 @@ describe("MCP server tools #given #when #then", () => {
 			mimeType: "image/png",
 		});
 		expect(secondContent?.type).toBe("text");
-		expect(JSON.parse(secondContent?.type === "text" ? secondContent.text : "")).toMatchObject({
+		if (secondContent?.type !== "text" || !("text" in secondContent) || typeof secondContent.text !== "string") {
+			throw new Error("get_app_state text content must be a string");
+		}
+		const parsed: unknown = JSON.parse(secondContent.text);
+		if (!isStateWithScreenshotMetadata(parsed)) {
+			throw new Error("get_app_state text content must include screenshot metadata");
+		}
+		expect(parsed).toMatchObject({
 			pid: 1234,
 			elements: [{ id: 9, actions: ["AXPress"] }],
 			screenshotWidth: 1280,
 			screenshotHeight: 720,
 		});
+		expect(parsed.screenshotMetadata).toMatchObject({
+			captureId: "capture-test-1",
+			displayEpoch: "test-display-1",
+			height: 720,
+			originX: 0,
+			originY: 0,
+			scaleX: 1,
+			scaleY: 1,
+			width: 1280,
+		});
+		expect(parsed.screenshotBase64).toBeUndefined();
 		expect(mockedComputer.getAppState).toHaveBeenCalledWith(1234, undefined);
 	});
 

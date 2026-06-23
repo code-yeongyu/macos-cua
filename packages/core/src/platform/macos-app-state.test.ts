@@ -97,7 +97,7 @@ beforeEach(() => {
 	screenshotMock.getMainDisplayNativePixelSize.mockReset();
 	screenshotMock.getMainDisplayLogicalSize.mockReturnValue({ width: 1920, height: 1080 });
 	screenshotMock.getMainDisplayNativePixelSize.mockReturnValue({ width: 3840, height: 2160 });
-	screenshotMock.captureDisplayRectPng.mockReturnValue({ data: fakePng(1280, 800), width: 1280, height: 800 });
+	screenshotMock.captureDisplayRectPng.mockReturnValue({ data: fakePng(2576, 1616), width: 2576, height: 1616 });
 	screenshotMock.captureMainDisplayPng.mockReturnValue({ data: fakePng(1920, 1080), width: 1920, height: 1080 });
 
 	windowMock.openWindows.mockResolvedValue([{ id: 99, owner: { processId: TARGET_PID }, bounds: WINDOW_BOUNDS }]);
@@ -124,21 +124,20 @@ beforeEach(() => {
 		);
 	});
 	childProcessMock.execFile.mockImplementationOnce((_file, _args, _options, callback) => {
-		// The sips step would resize to 1280x800; mirror that in the returned png header.
-		callback(null, fakePng(1280, 800), "");
+		callback(null, fakePng(2576, 1616), "");
 	});
 });
 
 describe("#given a target window #when get_app_state captures it #then the screenshot is sized to the window aspect", () => {
-	it("requests a 1280-long-edge window screenshot, not the full screen", async () => {
+	it("requests an adaptive window screenshot, not the full screen", async () => {
 		const computer = new MacOSHostComputer();
 
 		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
 
 		const screenshotCall = childProcessMock.execFile.mock.calls[1];
-		expect(screenshotCall?.[1]).toEqual(expect.arrayContaining(["1280", "800"]));
-		expect(state.screenshotWidth).toBe(1280);
-		expect(state.screenshotHeight).toBe(800);
+		expect(screenshotCall?.[1]).toEqual(expect.arrayContaining(["2576", "1616"]));
+		expect(state.screenshotWidth).toBe(2576);
+		expect(state.screenshotHeight).toBe(1616);
 		expect(state.windowBounds).toEqual(WINDOW_BOUNDS);
 	});
 });
@@ -283,9 +282,7 @@ describe("#given a window-scoped screenshot #when get_app_state returns the tree
 
 		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
 
-		// scale = 1280/2560 = 0.5; origin offset = window (300,150).
-		expect(state.elements[0]?.frame).toEqual({ x: 250, y: 200, width: 100, height: 80 });
-		// id and actions are preserved so element_index clicks still work.
+		expect(state.elements[0]?.frame).toEqual({ x: 503, y: 404, width: 201, height: 162 });
 		expect(state.elements[0]?.id).toBe(5);
 		expect(state.elements[0]?.actions).toEqual(["AXPress"]);
 	});
@@ -301,8 +298,8 @@ describe("#given a prior get_app_state #when reading the screenshot viewport #th
 		expect(viewport).toMatchObject({
 			captureId: "macos-capture-1",
 			windowBounds: WINDOW_BOUNDS,
-			screenshotWidth: 1280,
-			screenshotHeight: 800,
+			screenshotWidth: 2576,
+			screenshotHeight: 1616,
 		});
 	});
 });
@@ -389,14 +386,14 @@ describe("#given window enumeration lacks Screen Recording #when System Events c
 		const state = await computer.getAppState(TARGET_PID, { settleMs: 0 });
 		const viewport = await computer.getScreenshotViewport(TARGET_PID);
 
-		expect(screenshotMock.captureDisplayRectPng).toHaveBeenCalledWith(WINDOW_BOUNDS, 1280);
+		expect(screenshotMock.captureDisplayRectPng).toHaveBeenCalledWith(WINDOW_BOUNDS, 2576);
 		expect(state.windowBounds).toEqual(WINDOW_BOUNDS);
-		expect(state.elements[0]?.frame).toEqual({ x: 250, y: 200, width: 100, height: 80 });
+		expect(state.elements[0]?.frame).toEqual({ x: 503, y: 404, width: 201, height: 162 });
 		expect(viewport).toMatchObject({
 			captureId: "macos-capture-1",
 			windowBounds: WINDOW_BOUNDS,
-			screenshotWidth: 1280,
-			screenshotHeight: 800,
+			screenshotWidth: 2576,
+			screenshotHeight: 1616,
 		});
 	});
 });

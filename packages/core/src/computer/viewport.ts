@@ -4,6 +4,13 @@ import { ComputerUseError } from "./errors.js";
 
 /** Longest screenshot edge sent to the model, matching the native full-display path. */
 export const MAX_SCREENSHOT_LONG_EDGE = 1280;
+export const DEFAULT_SCREENSHOT_BYTE_BUDGET = 16 * 1024 * 1024;
+
+export type ScreenshotFidelityPolicy = {
+	readonly byteBudget?: number;
+	readonly displayScaleFactor?: number;
+	readonly providerMaxLongEdge?: number;
+};
 
 /**
  * Everything needed to translate between the window screenshot the model sees and
@@ -40,6 +47,22 @@ export function resolveWindowScreenshotSize(window: Size, maxLongEdge = MAX_SCRE
 		width: Math.max(1, Math.floor(width * scale)),
 		height: Math.max(1, Math.floor(height * scale)),
 	};
+}
+
+export function resolveAdaptiveWindowScreenshotSize(window: Size, policy: ScreenshotFidelityPolicy = {}): Size {
+	const width = assertPositiveFinite(window.width, "width");
+	const height = assertPositiveFinite(window.height, "height");
+	const displayScaleFactor = optionalPositiveFinite(policy.displayScaleFactor, "displayScaleFactor") ?? 1;
+	const byteBudget = optionalPositiveFinite(policy.byteBudget, "byteBudget") ?? DEFAULT_SCREENSHOT_BYTE_BUDGET;
+	const providerMaxLongEdge = optionalPositiveFinite(policy.providerMaxLongEdge, "providerMaxLongEdge");
+	const nativeCandidate = roundedSize({ width: width * displayScaleFactor, height: height * displayScaleFactor });
+	const providerCandidate =
+		providerMaxLongEdge === undefined ? nativeCandidate : scaleToLongEdge(nativeCandidate, providerMaxLongEdge);
+	const estimatedBytes = providerCandidate.width * providerCandidate.height * 4;
+	if (estimatedBytes <= byteBudget) {
+		return providerCandidate;
+	}
+	return scaleToByteBudget(providerCandidate, byteBudget);
 }
 
 /**
@@ -87,6 +110,44 @@ function assertPositiveFinite(value: number, name: string): number {
 		throw new Error(`${name} must be a positive finite number`);
 	}
 	return value;
+}
+
+function optionalPositiveFinite(value: number | undefined, name: string): number | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	return assertPositiveFinite(value, name);
+}
+
+function roundedSize(size: Size): Size {
+	return {
+		width: Math.max(1, Math.round(size.width)),
+		height: Math.max(1, Math.round(size.height)),
+	};
+}
+
+function scaleToLongEdge(size: Size, maxLongEdge: number): Size {
+	const longEdge = Math.max(size.width, size.height);
+	if (longEdge <= maxLongEdge) {
+		return size;
+	}
+	const scale = maxLongEdge / longEdge;
+	return {
+		width: Math.max(1, Math.floor(size.width * scale)),
+		height: Math.max(1, Math.floor(size.height * scale)),
+	};
+}
+
+function scaleToByteBudget(size: Size, byteBudget: number): Size {
+	const scale = Math.sqrt(byteBudget / (size.width * size.height * 4));
+	return {
+		width: floorToStableStep(size.width * scale),
+		height: floorToStableStep(size.height * scale),
+	};
+}
+
+function floorToStableStep(value: number): number {
+	return Math.max(1, Math.floor(value / 16) * 16);
 }
 
 function modelSizeFor(viewport: ScreenshotViewport | CaptureFrame): Size {

@@ -1,4 +1,5 @@
 export type * from "./accessibility/types.js";
+export { modelFacingAppState } from "./accessibility/model-facing-app-state.js";
 export { splitAppState, type SplitAppStateResult } from "./code-mode/app-state-split.js";
 export { CodeModeSandbox } from "./code-mode/sandbox.js";
 export { ScreenshotStore, type ScreenshotHandle } from "./code-mode/screenshot-store.js";
@@ -35,6 +36,7 @@ export { executeTypeTextAction, type ExecuteTypeTextInput } from "./computer/typ
 export {
 	createCaptureFrame,
 	createCaptureFrameTransform,
+	screenshotMetadataForCaptureFrame,
 	type CaptureFrame,
 	type CaptureFrameCursor,
 	type CaptureFrameDisplay,
@@ -42,6 +44,9 @@ export {
 	type CaptureFrameTarget,
 	type CaptureFrameTransform,
 	type CaptureFreshnessMarker,
+	type ScreenshotCoordinateMetadata,
+	type ScreenshotCoordinateMetadataInput,
+	type ScreenshotDowngradeStatus,
 	captureFrameToViewport,
 } from "./computer/capture-frame.js";
 export { resolveScreenPoint } from "./computer/coordinate.js";
@@ -55,8 +60,11 @@ export {
 } from "./computer/select-text.js";
 export type { ComputerInterface, ScreenshotResult } from "./computer/interface.js";
 export {
+	DEFAULT_SCREENSHOT_BYTE_BUDGET,
 	MAX_SCREENSHOT_LONG_EDGE,
+	type ScreenshotFidelityPolicy,
 	type ScreenshotViewport,
+	resolveAdaptiveWindowScreenshotSize,
 	resolveWindowScreenshotSize,
 	screenRectToScreenshot,
 	screenshotPointToScreen,

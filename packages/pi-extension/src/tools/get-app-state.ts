@@ -1,4 +1,4 @@
-import { type ComputerInterface, createDebugLog, getAppStateForApp } from "@macos-cua/core";
+import { type ComputerInterface, createDebugLog, getAppStateForApp, modelFacingAppState } from "@macos-cua/core";
 import { type Static, Type } from "typebox";
 
 import { drawCursorOnWindowScreenshot } from "../computer-use/screenshot-result.js";
@@ -51,7 +51,7 @@ export function createGetAppStateTool(computer: ComputerInterface, cache?: AppSt
 			}
 			const content = [
 				{ type: "image" as const, data: imageBase64, mimeType },
-				{ type: "text" as const, text: JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2) },
+				{ type: "text" as const, text: JSON.stringify(modelFacingAppState(state), null, 2) },
 			];
 			return { content, details: state };
 		},

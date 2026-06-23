@@ -26,8 +26,8 @@ function createScreenshot(): ScreenshotResult {
 	return {
 		data: Buffer.from("screenshot"),
 		mimeType: "image/jpeg",
-		width: 1280,
-		height: 800,
+		width: 2576,
+		height: 1616,
 	};
 }
 
@@ -62,6 +62,6 @@ describe("#given an app name #when get_app_state captures it #then app lookup is
 
 		expect(state.pid).toBe(TARGET_PID);
 		expect(appListMock.getRunningMacOSApps).toHaveBeenCalledOnce();
-		expect(captureScreenshot).toHaveBeenCalledWith({ targetSize: { width: 1280, height: 800 }, format: "jpeg" }, 99);
+		expect(captureScreenshot).toHaveBeenCalledWith({ targetSize: { width: 2576, height: 1616 }, format: "jpeg" }, 99);
 	});
 });

@@ -226,8 +226,8 @@ describe("#given a fake desktop observation #when get_app_state captures it #the
 			capture: {
 				captureId: "macos-capture-1",
 				displayEpoch: "1440x900@2",
-				model: { height: 200, width: 400 },
-				screenshot: { height: 200, mimeType: "image/jpeg", width: 400 },
+				model: { height: 400, width: 800 },
+				screenshot: { height: 400, mimeType: "image/jpeg", width: 800 },
 			},
 			cursor: CURSOR,
 			display: {
