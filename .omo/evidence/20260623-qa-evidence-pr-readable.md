@@ -50,10 +50,14 @@ Prompt defect classification: missing context. The terse or opaque PR evidence b
 
 - URL: https://github.com/code-yeongyu/macos-cua/pull/7
 - Commits:
+  - `e4511c9 docs: update PR evidence report`
   - `aac9662 docs: record PR evidence readability report`
   - `2c2ed70 docs: clarify PR evidence expectations`
-- Merge SHA: Pending.
+- Merge SHA: `ae5b09f4e614c937f7b03cea6a28d74bb9b44081`
 
 ## Cleanup
 
-- Pending.
+- PR #7 was merged into `master` on 2026-06-23 at 08:25 UTC.
+- The remote PR branch `code-yeongyu/qa-evidence-pr-readable-20260623` was deleted and the local remote-tracking ref was pruned.
+- Dependency and build outputs created for verification (`node_modules`, package `node_modules`, and package `dist` directories) were removed from the isolated worktree.
+- Ignored `.codegraph` state remains because it was created by the Codex CodeGraph bootstrap, not by this PR.
