@@ -10,7 +10,7 @@ const keySequenceEntrySchema = z.union([
 	}),
 ]);
 
-export const batchActionSchema = z.discriminatedUnion("action", [
+export const mcpBatchActionSchema = z.discriminatedUnion("action", [
 	z.object({ action: z.literal("list_apps") }),
 	z.object({ action: z.literal("get_app_state"), app: appSchema }),
 	z.object({
@@ -68,6 +68,6 @@ export const batchActionSchema = z.discriminatedUnion("action", [
 	}),
 ]);
 
-export const batchSchema = z.object({ actions: z.array(batchActionSchema).min(1) });
+export const mcpBatchSchema = z.object({ actions: z.array(mcpBatchActionSchema).min(1) });
 
-export type BatchAction = z.infer<typeof batchActionSchema>;
+export type McpBatchAction = z.infer<typeof mcpBatchActionSchema>;

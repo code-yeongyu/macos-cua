@@ -15,7 +15,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 import { createAppStateCache } from "./app-state-cache.js";
 import { appStateImageContent } from "./app-state-image.js";
-import { registerBatchTool } from "./batch.js";
+import { registerBatchTool } from "./batch-tool.js";
 import { registerPressKeysTool } from "./press-keys.js";
 import { type ToolContent, type ToolResult, actionComplete, clickComplete, textResult } from "./tool-result.js";
 import { registerZoomTool } from "./zoom.js";
