@@ -1,0 +1,8 @@
+Pure LOC measurement for flagged and split/support test files
+Command: awk '!/^[[:space:]]*$/ && !/^[[:space:]]*(\/\/|#|--)/' <file> | wc -l
+121  packages/core/src/platform/macos-app-state.test.ts
+160  packages/core/src/platform/macos-app-state-windowing.test.ts
+ 44  packages/core/src/platform/macos-app-state-mutators.test.ts
+113  packages/core/src/platform/macos-app-state.test-support.ts
+157  packages/core/src/platform/macos-desktop-session.test.ts
+118  packages/core/src/platform/macos-desktop-session.test-support.ts

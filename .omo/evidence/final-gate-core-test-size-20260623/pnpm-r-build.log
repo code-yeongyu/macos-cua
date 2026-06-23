@@ -1,0 +1,13 @@
+Scope: 4 of 5 workspace projects
+packages/core build$ pnpm run build:native && tsgo
+packages/core build: > @macos-cua/core@0.1.0 build:native /Users/yeongyu/local-workspaces/macos-cua/packages/core
+packages/core build: > ./native/build.sh
+packages/core build: built /Users/yeongyu/local-workspaces/macos-cua/packages/core/native/libsckit.dylib
+packages/core build: built /Users/yeongyu/local-workspaces/macos-cua/packages/core/native/cursor-overlay
+packages/core build: Done
+packages/cli build$ tsgo
+packages/pi-extension build$ tsgo
+packages/mcp build$ tsgo
+packages/cli build: Done
+packages/mcp build: Done
+packages/pi-extension build: Done

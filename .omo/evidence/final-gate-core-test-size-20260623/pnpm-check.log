@@ -1,0 +1,140 @@
+
+> macos-cua@0.1.0 check /Users/yeongyu/local-workspaces/macos-cua
+> biome check . && pnpm -r typecheck && vitest --run
+
+Checked 302 files in 46ms. No fixes applied.
+Scope: 4 of 5 workspace projects
+packages/core typecheck$ tsgo --noEmit
+packages/core typecheck: Done
+packages/pi-extension typecheck$ tsgo --noEmit
+packages/cli typecheck$ tsgo --noEmit
+packages/mcp typecheck$ tsgo --noEmit
+packages/cli typecheck: Done
+packages/mcp typecheck: Done
+packages/pi-extension typecheck: Done
+
+ RUN  v2.1.9 /Users/yeongyu/local-workspaces/macos-cua
+
+ ✓ packages/core/src/computer/viewport.test.ts (21 tests) 8ms
+ ✓ packages/core/src/platform/macos-ffi/screenshot.test.ts (7 tests) 4ms
+ ✓ packages/core/src/platform/macos-ffi/coregraphics.test.ts (9 tests) 31ms
+ ✓ packages/core/src/computer/actions.test.ts (9 tests) 6ms
+ ✓ packages/core/src/platform/macos-input-focus.test.ts (4 tests) 30ms
+ ✓ packages/core/src/platform/macos-desktop-session.test.ts (10 tests) 6ms
+ ✓ packages/core/src/code-mode/sandbox-rpc.test.ts (11 tests) 356ms
+ ✓ packages/core/src/platform/macos-input.test.ts (17 tests) 398ms
+ ✓ packages/pi-extension/src/openai-computer-use.test.ts (7 tests) 5ms
+ ✓ packages/pi-extension/src/anthropic-computer-use.test.ts (16 tests) 3ms
+ ✓ packages/pi-extension/src/index-code-mode.test.ts (6 tests) 6ms
+ ✓ packages/pi-extension/src/anthropic-computer-actions.test.ts (11 tests) 75ms
+ ✓ packages/pi-extension/src/tools/batch.test.ts (6 tests) 7ms
+ ✓ packages/pi-extension/src/index.test.ts (13 tests) 7ms
+ ✓ packages/mcp/src/batch-tool.test.ts (9 tests) 17ms
+ ✓ packages/mcp/src/server.test.ts (8 tests) 66ms
+ ✓ packages/pi-extension/src/tools/click.test.ts (11 tests) 17ms
+ ✓ packages/core/src/platform/macos-app-state-windowing.test.ts (9 tests) 134ms
+ ✓ packages/pi-extension/src/tools/zoom.test.ts (6 tests) 151ms
+ ✓ packages/pi-extension/src/tools/get-app-state-cursor.test.ts (3 tests) 22ms
+ ✓ packages/mcp/src/server-zoom.test.ts (3 tests) 21ms
+ ✓ packages/pi-extension/src/computer-use/coords.test.ts (11 tests) 7ms
+ ✓ packages/core/src/platform/macos.test.ts (9 tests) 13ms
+ ✓ packages/pi-extension/src/computer-use/som-layout.test.ts (7 tests) 4ms
+ ✓ packages/core/src/computer/capture-frame.test.ts (7 tests) 5ms
+ ✓ packages/pi-extension/src/computer-use/cursor-overlay.test.ts (6 tests) 43ms
+ ✓ packages/core/src/platform/macos-ffi/coregraphics-keyboard.test.ts (2 tests) 16ms
+ ✓ packages/core/src/computer/coordinate.test.ts (4 tests) 4ms
+ ✓ packages/pi-extension/src/openai-computer-batch.test.ts (5 tests) 17ms
+ ✓ packages/pi-extension/test/bench/click-capture-baseline.test.ts (2 tests) 3ms
+ ✓ packages/core/src/platform/macos-app-state.test.ts (6 tests) 34ms
+ ✓ packages/mcp/src/code-mode.test.ts (4 tests) 110ms
+ ✓ packages/pi-extension/src/tools/get-app-state.test.ts (4 tests) 62ms
+ ✓ packages/pi-extension/src/computer-use/screenshot-result.test.ts (6 tests) 32ms
+ ✓ packages/mcp/src/server-app-state.test.ts (1 test) 31ms
+ ✓ packages/core/src/platform/macos-ffi/accessibility.test.ts (1 test) 21ms
+ ✓ packages/pi-extension/test/baseline/regression.test.ts (7 tests) 15ms
+ ✓ packages/pi-extension/src/tools/zoom-capture-frame.test.ts (2 tests) 174ms
+ ✓ packages/core/src/platform/macos-input-window-fallback.test.ts (3 tests) 77ms
+ ✓ packages/core/src/computer/supervisor.test.ts (6 tests) 3ms
+ ✓ packages/pi-extension/src/settings.test.ts (5 tests) 33ms
+ ✓ packages/pi-extension/src/tools/index.test.ts (7 tests) 13ms
+ ✓ packages/mcp/src/surface-vocabulary.test.ts (4 tests) 45ms
+ ✓ packages/mcp/src/server-app-state-cursor.test.ts (1 test) 76ms
+ ✓ packages/core/test/baseline/regression.test.ts (4 tests) 94ms
+ ✓ packages/core/src/platform/macos-input-session.test.ts (4 tests) 318ms
+ ✓ packages/core/src/computer/audit.test.ts (3 tests) 28ms
+ ✓ packages/pi-extension/src/index-provider-hooks.test.ts (12 tests) 6ms
+ ✓ packages/core/src/platform/macos-set-value.test.ts (3 tests) 9ms
+ ✓ packages/core/src/code-mode/reexec.test.ts (3 tests) 9ms
+ ✓ packages/core/src/code-mode/result.test.ts (5 tests) 3ms
+ ✓ packages/pi-extension/src/tools/scroll.test.ts (4 tests) 10ms
+ ✓ packages/core/src/platform/macos-desktop-session-capture-frame.test.ts (2 tests) 4ms
+ ✓ packages/mcp/src/server-zoom-static-text.test.ts (1 test) 19ms
+ ✓ packages/pi-extension/src/computer-use/som-render.test.ts (4 tests) 137ms
+ ✓ packages/core/src/platform/macos-ffi/corefoundation.test.ts (2 tests) 66ms
+ ✓ packages/core/src/code-mode/screenshot-store.test.ts (5 tests) 2ms
+ ✓ packages/core/src/code-mode/sandbox.test.ts (3 tests) 305ms
+ ✓ packages/pi-extension/test/bench/baseline-metrics.test.ts (1 test) 3ms
+ ✓ packages/mcp/src/server-scroll.test.ts (2 tests) 56ms
+ ✓ packages/core/src/permission/macos.test.ts (3 tests) 20ms
+ ✓ packages/core/src/log/debug-log.test.ts (5 tests) 3ms
+ ✓ packages/core/src/code-mode/sandbox-rpc-action-result.test.ts (2 tests) 139ms
+ ✓ packages/core/src/platform/macos-app-state-highlight.test.ts (1 test) 112ms
+ ✓ packages/mcp/src/server-targeting.test.ts (1 test) 22ms
+ ✓ packages/core/src/computer/key-sequence.test.ts (2 tests) 6ms
+ ✓ packages/core/src/code-mode/api-surface.test.ts (4 tests) 3ms
+ ✓ packages/pi-extension/src/tools/drag.test.ts (4 tests) 7ms
+ ✓ packages/core/src/platform/macos-app-state-fast-path.test.ts (1 test) 5ms
+ ✓ packages/core/src/code-mode/sandbox-rpc-open-app.test.ts (2 tests) 105ms
+ ✓ packages/core/src/computer/select-text.test.ts (9 tests) 2ms
+ ✓ packages/core/src/platform/macos-input-keyboard.test.ts (2 tests) 516ms
+   ✓ #given MacOSInputController keyboard input > #when pressing a key with hold milliseconds #then releases after the hold duration 514ms
+ ✓ packages/core/src/code-mode/transpile.test.ts (4 tests) 198ms
+ ✓ packages/core/src/computer/batch.test.ts (2 tests) 3ms
+ ✓ packages/core/src/code-mode/app-state-split.test.ts (3 tests) 1ms
+ ✓ packages/pi-extension/test/bench/tool-descriptors-baseline.test.ts (1 test) 5ms
+ ✓ packages/core/src/platform/macos-region-screenshot.test.ts (2 tests) 104ms
+ ✓ packages/cli/src/run-code-command.test.ts (1 test) 39ms
+ ✓ packages/pi-extension/src/openai-computer-batch-cursor.test.ts (1 test) 4ms
+ ✓ packages/core/src/passive-memory/segment-writer.test.ts (3 tests) 4ms
+ ✓ packages/core/src/accessibility/diff.test.ts (4 tests) 1ms
+ ✓ packages/core/src/platform/macos-ffi/cursor-overlay.test.ts (3 tests) 6ms
+ ✓ packages/core/src/window/macos.test.ts (3 tests) 28ms
+ ✓ packages/core/src/code-mode/sandbox-rpc-type.test.ts (2 tests) 211ms
+ ✓ packages/pi-extension/src/tools/type-text.test.ts (2 tests) 6ms
+ ✓ packages/core/src/code-mode/sandbox-surface-vocabulary.test.ts (1 test) 113ms
+ ✓ packages/core/src/platform/macos-window-capture.test.ts (2 tests) 3ms
+ ✓ packages/core/src/computer/display-metadata.test.ts (4 tests) 3ms
+ ✓ packages/pi-extension/src/tools/zoom-static-text.test.ts (1 test) 45ms
+ ✓ packages/pi-extension/src/computer-use/run-result.test.ts (2 tests) 3ms
+ ✓ packages/core/src/platform/macos-app-state-mutators.test.ts (2 tests) 29ms
+ ✓ packages/core/src/accessibility/normalize.test.ts (2 tests) 3ms
+ ✓ packages/pi-extension/src/tools/press-key.test.ts (1 test) 13ms
+ ✓ packages/pi-extension/test/bench/screenshot-baseline.test.ts (1 test) 1ms
+ ✓ packages/core/src/accessibility/stable-element-key.test.ts (2 tests) 2ms
+ ✓ packages/mcp/src/batch.test.ts (2 tests) 12ms
+ ✓ packages/core/src/permission/url-blocklist.test.ts (6 tests) 7ms
+ ✓ packages/core/src/platform/macos-ffi/power.test.ts (2 tests) 4ms
+ ✓ packages/core/src/code-mode/action-trace.test.ts (3 tests) 1ms
+ ✓ packages/core/src/code-mode/sandbox-rpc-action-observation.test.ts (2 tests) 218ms
+ ✓ packages/core/src/computer/virtual-pointer.test.ts (3 tests) 2ms
+ ✓ packages/mcp/src/batch-tool-schema.test.ts (4 tests) 6ms
+ ✓ packages/core/src/passive-memory/exclusion-policy.test.ts (4 tests) 1ms
+ ✓ packages/core/src/platform/app-usage.test.ts (3 tests) 2ms
+ ✓ packages/core/src/permission/app-approval.test.ts (4 tests) 1ms
+ ✓ packages/core/src/platform/macos-accessibility.test.ts (2 tests) 4ms
+ ✓ packages/core/src/code-mode/sandbox-errors.test.ts (1 test) 3ms
+ ✓ packages/core/src/app-instructions/index.test.ts (3 tests) 2ms
+ ✓ packages/core/src/computer/lock-guard.test.ts (2 tests) 2ms
+ ✓ packages/core/src/platform/lock-screen-monitor.test.ts (2 tests) 4ms
+ ✓ packages/core/src/code-mode/deps.test.ts (1 test) 7ms
+ ✓ packages/cli/src/cli.test.ts (3 tests) 2028ms
+   ✓ macos-cua CLI > #given the command surface #when help runs #then it lists all subcommands 719ms
+ ✓ packages/core/src/code-mode/sandbox-rpc-scroll.test.ts (1 test) 61ms
+ ✓ packages/core/src/platform/app-open.test.ts (1 test) 175ms
+ ✓ packages/core/src/index.test.ts (1 test) 48ms
+ ✓ packages/pi-extension/src/computer-use/canvas-render.test.ts (1 test) 5ms
+
+ Test Files  116 passed (116)
+      Tests  500 passed (500)
+   Start at  19:34:31
+   Duration  7.41s (transform 2.72s, setup 0ms, collect 48.49s, tests 7.64s, environment 24ms, prepare 10.04s)
