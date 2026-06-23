@@ -9,4 +9,5 @@ export const TOOL_NAMES = [
 	"scroll",
 	"type_text",
 	"press_keys",
+	"batch",
 ] as const;

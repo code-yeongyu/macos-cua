@@ -189,6 +189,7 @@ describe("MCP server tools #given #when #then", () => {
 		// then
 		expect(result.tools).toHaveLength(TOOL_NAMES.length + 1);
 		expect(toolNames).toEqual([...TOOL_NAMES, "screenshot"].sort());
+		expect(toolNames).toContain("batch");
 	});
 
 	it("returns image content and coordinate frame accessibility JSON for get_app_state", async () => {

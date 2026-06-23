@@ -12,6 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 import { createAppStateCache } from "./app-state-cache.js";
 import { appStateImageContent } from "./app-state-image.js";
+import { registerBatchTool } from "./batch-tool.js";
 import { MCP_GET_APP_STATE_DESCRIPTION } from "./coordinate-contract.js";
 import { registerClickTool, registerDragTool } from "./pointer-tools.js";
 import { registerPressKeysTool } from "./press-keys.js";
@@ -52,6 +53,7 @@ export function registerDiscreteTools(server: McpServer, computer: ComputerInter
 	registerDragTool(server, computer);
 	registerZoomTool(server, computer, appStateCache);
 	registerPressKeysTool(server, computer, actionComplete);
+	registerBatchTool(server, computer, appStateCache);
 }
 
 function registerListAppsTool(server: McpServer, computer: ComputerInterface): void {
