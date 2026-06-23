@@ -2,6 +2,7 @@ import type { ComputerInterface } from "@macos-cua/core";
 import type { ExtensionAPI, ToolDefinition } from "../pi/index.js";
 
 import { createAppStateCache } from "./app-state-cache.js";
+import { createBatchTool } from "./batch.js";
 import { createClickTool } from "./click.js";
 import { createDragTool } from "./drag.js";
 import { createGetAppStateTool } from "./get-app-state.js";
@@ -33,6 +34,7 @@ export function buildAllTools(options: ToolRegistrationOptions): ReadonlyArray<T
 		createZoomTool(computer, appStateCache),
 		createTypeTextTool(computer),
 		createPressKeysTool(computer),
+		createBatchTool(computer, appStateCache),
 	];
 }
 
