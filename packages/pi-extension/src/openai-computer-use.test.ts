@@ -246,6 +246,13 @@ describe("#given mutating OpenAI action batches #when executed #then final image
 					logical: { x: 7, y: 9 },
 					image: { x: 4, y: 5 },
 				},
+				fidelity: {
+					format: "image/png",
+					byteCount: Buffer.from("post-action").byteLength,
+					downgraded: false,
+					actual: { width: 100, height: 100 },
+					target: { width: 100, height: 100 },
+				},
 			},
 		});
 	});

@@ -11,7 +11,7 @@ import {
 	executeNativeComputerAction,
 	supportsAnthropicNativeComputerUse,
 } from "./anthropic-computer-use.js";
-import type { DisplayConfig } from "./computer-use/coords.js";
+import { type DisplayConfig, displayProfileForModel, resolveDisplayConfig } from "./computer-use/coords.js";
 
 const DEFAULT_DOWNSCALE = {
 	logicalWidth: 2560,
@@ -151,6 +151,27 @@ describe("#given a fresh Anthropic payload #when adding computer use #then beta 
 			],
 			headers: { "anthropic-beta": ANTHROPIC_COMPUTER_USE_BETA },
 			extra_body: { betas: [ANTHROPIC_COMPUTER_USE_BETA] },
+		});
+	});
+
+	it("#given a large display #when native hard cap applies #then payload dimensions stay within the provider limit", () => {
+		const payload = { messages: [] };
+		const display = resolveDisplayConfig(
+			{ width: 3024, height: 1964 },
+			displayProfileForModel("anthropic-messages", "claude-sonnet-4-5"),
+		);
+
+		const result = addAnthropicComputerUseToPayload("anthropic-messages", payload, display, "claude-sonnet-4-5");
+
+		expect(result).toMatchObject({
+			tools: [
+				{
+					type: ANTHROPIC_NATIVE_COMPUTER_TOOL_TYPE,
+					name: ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME,
+					display_width_px: 1024,
+					display_height_px: 665,
+				},
+			],
 		});
 	});
 });

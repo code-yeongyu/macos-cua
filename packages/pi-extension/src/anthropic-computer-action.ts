@@ -3,11 +3,11 @@ import type { ComputerInterface, Point } from "@macos-cua/core";
 import { ComputerUseError, toComputerUseExecutionError } from "./anthropic-computer-error.js";
 import type { ComputerToolInput } from "./anthropic-payload.js";
 import { type CaptureFreshnessMarker, type DisplayConfig, unscaleCoord } from "./computer-use/coords.js";
-import { screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
+import { type ScreenshotCursorMetadata, screenshotResultWithCursor } from "./computer-use/screenshot-result.js";
 import type { AgentToolResult } from "./pi/index.js";
 import { formatActionComplete } from "./surface-vocabulary.js";
 
-export type ComputerUseResult = AgentToolResult<undefined>;
+export type ComputerUseResult = AgentToolResult<ScreenshotCursorMetadata | undefined>;
 type KeyModifier = "command" | "option" | "control" | "shift";
 type ScrollDirection = "up" | "down" | "left" | "right";
 

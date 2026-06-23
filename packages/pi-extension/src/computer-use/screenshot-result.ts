@@ -18,6 +18,21 @@ type Rgba = {
 	readonly blue: number;
 	readonly alpha: number;
 };
+type ScreenshotDowngradeReason = "capture_dimensions_mismatch";
+export type ScreenshotFidelityMetadata = {
+	readonly format: ScreenshotResult["mimeType"];
+	readonly byteCount: number;
+	readonly downgraded: boolean;
+	readonly reason?: ScreenshotDowngradeReason;
+	readonly actual: {
+		readonly width: number;
+		readonly height: number;
+	};
+	readonly target: {
+		readonly width: number;
+		readonly height: number;
+	};
+};
 export type ScreenshotCursorMetadata = {
 	readonly captureFrame: {
 		readonly width: number;
@@ -27,6 +42,7 @@ export type ScreenshotCursorMetadata = {
 		readonly logical: Point;
 		readonly image?: Point;
 	};
+	readonly fidelity: ScreenshotFidelityMetadata;
 };
 export type ScreenshotResultWithCursorMetadata = {
 	readonly result: ComputerUseResult;
@@ -52,14 +68,23 @@ export async function screenshotResultWithCursorMetadata(
 	const exactScreenshot = ensureModelDimensions(screenshot, display);
 	const cursorImage = containsDisplayPoint(display, cursor)
 		? cursorImagePoint(cursor, display, {
-				width: exactScreenshot.width,
-				height: exactScreenshot.height,
+				width: exactScreenshot.screenshot.width,
+				height: exactScreenshot.screenshot.height,
 			})
 		: undefined;
 	const cursorMetadata = cursorImage === undefined ? { logical: cursor } : { logical: cursor, image: cursorImage };
+	const imageData = drawCursorOnScreenshot(exactScreenshot.screenshot, cursor, display);
+	const metadata = {
+		captureFrame,
+		cursor: cursorMetadata,
+		fidelity: {
+			...exactScreenshot.fidelity,
+			byteCount: imageData.byteLength,
+		},
+	};
 	return {
-		result: imageResult(drawCursorOnScreenshot(exactScreenshot, cursor, display).toString("base64")),
-		metadata: { captureFrame, cursor: cursorMetadata },
+		result: imageResult(imageData.toString("base64"), exactScreenshot.screenshot.mimeType, metadata),
+		metadata,
 	};
 }
 
@@ -109,8 +134,12 @@ function containsDisplayPoint(display: DisplayConfig, point: Point): boolean {
 	return point.x >= 0 && point.y >= 0 && point.x < display.logicalWidth && point.y < display.logicalHeight;
 }
 
-function imageResult(pngBase64: string): ComputerUseResult {
-	return { content: [{ type: "image", data: pngBase64, mimeType: "image/png" }], details: undefined };
+function imageResult(
+	imageBase64: string,
+	mimeType: ScreenshotResult["mimeType"],
+	metadata: ScreenshotCursorMetadata,
+): ComputerUseResult {
+	return { content: [{ type: "image", data: imageBase64, mimeType }], details: metadata };
 }
 
 function cursorImagePoint(
@@ -154,10 +183,21 @@ function drawCanvasDisc(
 	context.fill();
 }
 
-function ensureModelDimensions(screenshot: ScreenshotResult, display: DisplayConfig): ScreenshotResult {
+function ensureModelDimensions(
+	screenshot: ScreenshotResult,
+	display: DisplayConfig,
+): { readonly screenshot: ScreenshotResult; readonly fidelity: Omit<ScreenshotFidelityMetadata, "byteCount"> } {
 	const png = decodePngOrUndefined(screenshot.data);
 	if (png === undefined) {
-		return screenshot;
+		return {
+			screenshot,
+			fidelity: {
+				format: screenshot.mimeType,
+				downgraded: false,
+				actual: { width: screenshot.width, height: screenshot.height },
+				target: { width: display.modelWidth, height: display.modelHeight },
+			},
+		};
 	}
 	logCoords("screenshot-dimensions", {
 		actualWidth: png.width,
@@ -167,7 +207,15 @@ function ensureModelDimensions(screenshot: ScreenshotResult, display: DisplayCon
 		exact: png.width === display.modelWidth && png.height === display.modelHeight,
 	});
 	if (png.width === display.modelWidth && png.height === display.modelHeight) {
-		return screenshot;
+		return {
+			screenshot,
+			fidelity: {
+				format: screenshot.mimeType,
+				downgraded: false,
+				actual: { width: png.width, height: png.height },
+				target: { width: display.modelWidth, height: display.modelHeight },
+			},
+		};
 	}
 	logCoords("screenshot-dimensions-mismatch", {
 		actualWidth: png.width,
@@ -177,10 +225,20 @@ function ensureModelDimensions(screenshot: ScreenshotResult, display: DisplayCon
 	});
 	const resized = resizePng(png, display.modelWidth, display.modelHeight);
 	return {
-		...screenshot,
-		data: PNG.sync.write(resized),
-		width: display.modelWidth,
-		height: display.modelHeight,
+		screenshot: {
+			...screenshot,
+			data: PNG.sync.write(resized),
+			mimeType: "image/png",
+			width: display.modelWidth,
+			height: display.modelHeight,
+		},
+		fidelity: {
+			format: "image/png",
+			downgraded: true,
+			reason: "capture_dimensions_mismatch",
+			actual: { width: png.width, height: png.height },
+			target: { width: display.modelWidth, height: display.modelHeight },
+		},
 	};
 }
 

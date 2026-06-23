@@ -10,19 +10,19 @@ describe("#given a small screen #when resolving display config #then model dimen
 	});
 });
 
-describe("#given a large 16:9 screen #when resolving display config #then dimensions fit 1280x720", () => {
-	it("downscales while preserving aspect ratio", () => {
+describe("#given a large 16:9 screen #when resolving display config #then dimensions follow the byte budget", () => {
+	it("keeps higher fidelity than the old blanket 1280 cap while preserving aspect ratio", () => {
 		const display = resolveDisplayConfig({ width: 2560, height: 1440 });
 
-		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1440, modelWidth: 1280, modelHeight: 720 });
+		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1440, modelWidth: 2158, modelHeight: 1214 });
 	});
 });
 
-describe("#given a large non-16:9 screen #when resolving display config #then the long edge is capped", () => {
-	it("preserves aspect ratio against the 1280 long edge", () => {
+describe("#given a large non-16:9 screen #when resolving display config #then dimensions follow the byte budget", () => {
+	it("keeps higher fidelity than the old blanket 1280 cap while preserving aspect ratio", () => {
 		const display = resolveDisplayConfig({ width: 2560, height: 1600 });
 
-		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1600, modelWidth: 1280, modelHeight: 800 });
+		expect(display).toEqual({ logicalWidth: 2560, logicalHeight: 1600, modelWidth: 2048, modelHeight: 1280 });
 	});
 });
 
@@ -34,13 +34,13 @@ describe("#given a 1024 display profile #when resolving display config #then the
 	});
 });
 
-describe("#given model ids #when resolving display profiles #then Anthropic native uses XGA and OpenAI keeps default", () => {
+describe("#given model ids #when resolving display profiles #then Anthropic native keeps its hard cap and OpenAI uses budget", () => {
 	it("distinguishes Anthropic native from other providers", () => {
 		const anthropicProfile = displayProfileForModel("anthropic-messages", "claude-sonnet-4-5");
 		const openaiProfile = displayProfileForModel("openai-responses", "gpt-5.1");
 
-		expect(anthropicProfile).toEqual({ maxLongEdge: 1024 });
-		expect(openaiProfile).toEqual({ maxLongEdge: 1280 });
+		expect(anthropicProfile).toMatchObject({ maxLongEdge: 1024 });
+		expect(openaiProfile.maxLongEdge).toBeUndefined();
 	});
 });
 
