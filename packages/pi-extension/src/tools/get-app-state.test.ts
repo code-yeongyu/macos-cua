@@ -81,6 +81,9 @@ describe("#given SoM marks are available #when get_app_state executes #then the 
 		expect(annotatedChanged).toBe(true);
 		expect(text).toBe(JSON.stringify({ ...state, screenshotBase64: undefined }, null, 2));
 		expect(text).toContain('"id": 7');
+		expect(text).toContain('"screenshotWidth": 160');
+		expect(text).toContain('"screenshotHeight": 120');
+		expect(text).toContain('"windowBounds"');
 		expect(idConsistent).toBe(true);
 		expect(result.details).toBe(state);
 		expect(coreMocks.overlayLogMock).toHaveBeenCalledWith("annotated", { marks: 2, dropped: 0 });
